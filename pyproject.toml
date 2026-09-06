@@ -1,0 +1,18 @@
+[project]
+name = "transcribe-engine"
+version = "0.1.0"
+description = "Arabic YouTube transcription data engine on bakrianoo/cohereX"
+requires-python = ">=3.10,<3.14"
+dependencies = []
+
+[project.optional-dependencies]
+engine = [
+  "coherex",
+  "yt-dlp",
+  "pydantic>=2.0",
+  "polars",
+]
+test = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

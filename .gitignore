@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+data/raw_audio/
+data/coherex_out/
+data/output/*.wav
+*.db
