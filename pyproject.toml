@@ -9,7 +9,6 @@ dependencies = []
 engine = [
   "coherex",
   "yt-dlp",
-  "pydantic>=2.0",
   "polars",
 ]
 test = ["pytest"]
