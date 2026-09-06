@@ -28,6 +28,12 @@ def transcribe_ar(
     """
     import coherex
 
+    if hf_token:
+        import os
+
+        os.environ.setdefault("HF_TOKEN", hf_token)
+        os.environ.setdefault("HUGGING_FACE_HUB_TOKEN", hf_token)
+
     asr = coherex.load_model(
         model_name=model,
         device=device,

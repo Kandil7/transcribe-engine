@@ -26,6 +26,22 @@ OUTPUT_JSONL = "data/output/videos.jsonl"
 CHECKPOINT_DB = "data/output/checkpoint.db"
 
 
+def _video_id_from_url(url: str) -> str:
+    """Best-effort video id from a watch/shorts URL ('' if unparseable)."""
+    from urllib.parse import parse_qs, urlparse
+
+    try:
+        q = parse_qs(urlparse(url).query)
+        if q.get("v"):
+            return q["v"][0]
+        path = urlparse(url).path.strip("/").split("/")
+        if path and path[-1]:
+            return path[-1]
+    except Exception:  # noqa: BLE001
+        pass
+    return ""
+
+
 def _db(path: str = CHECKPOINT_DB) -> sqlite3.Connection:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(path)
@@ -122,9 +138,14 @@ def process_playlist(
 ) -> dict:
     urls = get_playlist_video_urls(playlist_url)
     log.info("playlist: %d videos", len(urls))
+    con = _db(db_path)
     ok = fail = 0
     for i, url in enumerate(urls, 1):
         log.info("[%d/%d] %s", i, len(urls), url)
+        if _done(con, _video_id_from_url(url)):
+            log.info("skip %s (already ok)", url)
+            ok += 1
+            continue
         rec = process_video(
             url, playlist_url, keep_audio, db_path=db_path, jsonl_path=jsonl_path
         )
