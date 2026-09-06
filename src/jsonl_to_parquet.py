@@ -28,7 +28,13 @@ PARQUET_COLUMNS = [
 
 
 def jsonl_to_rows(jsonl_path: str | Path) -> list[dict]:
-    """Pure-stdlib flatten: JSONL lines → segment row dicts."""
+    """Pure-stdlib flatten: JSONL lines → segment row dicts.
+
+    A missing/empty JSONL (e.g. every video failed) yields zero rows instead
+    of raising, so `--to-parquet` still writes a valid empty table.
+    """
+    if not Path(jsonl_path).exists():
+        return []
     try:
         from .normalize_ar import normalize_ar
     except ImportError:  # loaded as top-level module (tests, scripts)
@@ -64,12 +70,44 @@ def jsonl_to_rows(jsonl_path: str | Path) -> list[dict]:
     return rows
 
 
+def coerce_rows(rows: list[dict]) -> list[dict]:
+    """Project every row onto PARQUET_COLUMNS (drop extras, fill missing).
+
+    Guards the writers against malformed upstream dicts: a missing column
+    becomes None instead of a polars/pandas schema error.
+    """
+    return [{c: r.get(c) for c in PARQUET_COLUMNS} for r in rows]
+
+
 def write_parquet(rows: list[dict], out_path: str | Path) -> str:
     """Write rows to parquet (polars → pandas) or csv fallback.
 
     Returns the path actually written.
     """
+    rows = coerce_rows(rows)
     out = Path(out_path)
+    if not rows:
+        # Empty playlist/failure: write an empty table with the right schema,
+        # not a dummy row.
+        try:
+            import polars as pl
+
+            pl.DataFrame({c: [] for c in PARQUET_COLUMNS}).write_parquet(out)
+            return str(out)
+        except ImportError:
+            pass
+        try:
+            import pandas as pd
+
+            pd.DataFrame([], columns=PARQUET_COLUMNS).to_parquet(out, index=False)
+            return str(out)
+        except ImportError:
+            pass
+        csv_path = out.with_suffix(".csv")
+        with open(csv_path, "w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=PARQUET_COLUMNS)
+            w.writeheader()
+        return str(csv_path)
     try:
         import polars as pl
 
