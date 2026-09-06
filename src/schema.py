@@ -36,10 +36,14 @@ class VideoRecord:
     source_url: str = ""
     duration: float = 0.0
     language: str = "ar"
+    license: str = ""
     model: str = "CohereLabs/cohere-transcribe-arabic-07-2026"
-    align_status: str = "ok"  # ok | segment_only
+    align_status: str = "ok"  # ok | segment_only | skipped
     transcript_raw: str = ""
     transcript_norm: str = ""
+    norm_version: str = "v1"
+    qa: list = field(default_factory=list)  # QA flag strings, [] = clean
+    timings: dict = field(default_factory=dict)  # download/transcribe seconds
     segments: list = field(default_factory=list)
     word_segments: list = field(default_factory=list)
     fetched_at: str = field(

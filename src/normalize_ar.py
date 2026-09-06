@@ -1,7 +1,14 @@
-"""Pure-stdlib Arabic normalization for transcript_norm (v1)."""
+"""Pure-stdlib Arabic normalization for transcript_norm (v1).
+
+Bump NORM_VERSION whenever the fold changes so mixed-version rows stay
+identifiable via VideoRecord.norm_version. Norm is for retrieval; keep
+transcript_raw verbatim for ASR training.
+"""
 
 import re
 import unicodedata
+
+NORM_VERSION = "v1"
 
 _ALEF = re.compile("[آأإٱ]")
 _TATWEEL = "ـ"
