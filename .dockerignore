@@ -1,0 +1,11 @@
+.git
+.pytest_cache
+.ruff_cache
+graphify-out
+.code-review-graph
+data/
+docs/
+__pycache__
+*.pyc
+*.db
+videos.json
