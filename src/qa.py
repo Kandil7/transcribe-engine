@@ -15,6 +15,9 @@ def qa_checks(
     word_segments: list | None = None,
     align_status: str = "ok",
     diarize_status: str = "",
+    lid_status: str = "",
+    lid_lang: str = "",
+    expected_lang: str = "",
 ) -> list[str]:
     """Return QA flag strings for one transcribed video."""
     flags: list[str] = []
@@ -22,6 +25,19 @@ def qa_checks(
     word_segments = word_segments or []
     if diarize_status == "failed":
         flags.append("diarize_failed")
+    if lid_status == "failed":
+        flags.append("lid_failed")
+    if lid_lang and expected_lang:
+        try:
+            try:
+                from .lid import lid_codes_equal
+            except ImportError:  # script-style execution
+                from lid import lid_codes_equal  # type: ignore
+
+            if not lid_codes_equal(expected_lang, lid_lang):
+                flags.append("lid_mismatch")
+        except ImportError:  # lid module unavailable: never block the run
+            pass
 
     if not raw.strip():
         flags.append("empty_transcript")

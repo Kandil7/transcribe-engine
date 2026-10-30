@@ -85,3 +85,128 @@ def test_nemotron_dispatch(monkeypatch):
 
     diarize.diarize_audio("x.wav", model_id="pyannote/speaker-diarization-community-1")
     assert calls["backend"] == "pyannote"
+
+
+def test_lid_retry_after_freeing_models(monkeypatch):
+    import lid
+    import transcribe
+
+    calls = []
+
+    def fake_lid(audio_path, device="cuda", model_id=""):
+        calls.append(device)
+        if len(calls) == 1:
+            raise OSError(
+                "The paging file is too small for this operation to complete. (os error 1455)"
+            )
+        return {"lang": "ara", "confidence": 0.99, "top": [("ara", 0.99)]}
+
+    monkeypatch.setattr(lid, "lid_audio", fake_lid)
+    session = transcribe.TranscribeSession(transcribe.TranscribeConfig(device="cuda"))
+    result = {}
+    session._apply_lid(result, "x.wav")
+    assert calls == ["cuda", "cuda"]  # freed models, retried same device
+    assert session.asr is None  # ASR dropped to reclaim commit
+    assert result["lid_lang"] == "ara"
+    assert result["lid_status"] == "ok"
+
+
+def test_lid_cpu_last_resort(monkeypatch):
+    import lid
+    import transcribe
+
+    calls = []
+
+    def fake_lid(audio_path, device="cuda", model_id=""):
+        calls.append(device)
+        if device != "cpu":
+            raise OSError("paging file too small (os error 1455)")
+        return {"lang": "ara", "confidence": 0.99, "top": [("ara", 0.99)]}
+
+    monkeypatch.setattr(lid, "lid_audio", fake_lid)
+    session = transcribe.TranscribeSession(transcribe.TranscribeConfig(device="cuda"))
+    result = {}
+    session._apply_lid(result, "x.wav")
+    assert calls == ["cuda", "cuda", "cpu"]  # free -> retry -> cpu last resort
+    assert result["lid_status"] == "ok"
+
+
+def test_lid_non_memory_error_fails_without_fallback(monkeypatch):
+    import lid
+    import transcribe
+
+    calls = []
+
+    def fake_lid(audio_path, device="cuda", model_id=""):
+        calls.append(device)
+        raise ValueError("bad audio")
+
+    monkeypatch.setattr(lid, "lid_audio", fake_lid)
+    session = transcribe.TranscribeSession(transcribe.TranscribeConfig(device="cuda"))
+    result = {}
+    session._apply_lid(result, "x.wav")
+    assert calls == ["cuda"]  # no retry for non-memory errors
+    assert result["lid_status"] == "failed"
+    assert result["lid_lang"] == ""
+
+
+def test_local_only_env_restored(monkeypatch):
+    import os
+
+    import transcribe
+
+    monkeypatch.delenv("HF_HUB_OFFLINE", raising=False)
+    with transcribe.local_only():
+        assert os.environ["HF_HUB_OFFLINE"] == "1"
+    assert "HF_HUB_OFFLINE" not in os.environ
+
+    monkeypatch.setenv("HF_HUB_OFFLINE", "0")
+    with transcribe.local_only():
+        assert os.environ["HF_HUB_OFFLINE"] == "1"
+    assert os.environ["HF_HUB_OFFLINE"] == "0"  # prior value restored
+
+
+def test_load_local_first_prefers_cache(monkeypatch):
+    import os
+
+    import transcribe
+
+    seen = []
+
+    def loader(x):
+        seen.append(os.environ.get("HF_HUB_OFFLINE"))
+        return x * 2
+
+    assert transcribe.load_local_first(loader, 21) == 42
+    assert seen == ["1"]  # cache-only attempt, no fallback needed
+
+
+def test_load_local_first_falls_back_online(monkeypatch):
+    import os
+
+    import transcribe
+
+    seen = []
+
+    def flaky(x):
+        seen.append(os.environ.get("HF_HUB_OFFLINE"))
+        if os.environ.get("HF_HUB_OFFLINE") == "1":
+            raise OSError("not in cache")
+        return x * 2
+
+    assert transcribe.load_local_first(flaky, 21) == 42
+    assert seen == ["1", None]  # cache miss -> online retry
+
+
+def test_load_local_first_propagates_final_error():
+    import transcribe
+
+    def broken():
+        raise ValueError("always fails")
+
+    try:
+        transcribe.load_local_first(broken)
+    except ValueError as e:
+        assert "always fails" in str(e)
+    else:
+        raise AssertionError("second failure must propagate")

@@ -66,6 +66,40 @@ def test_qa_short_audio():
     assert "short_audio" in qa_checks(duration=3.0, raw="hi", segments=_segs(n=1))
 
 
+def test_qa_lid_mismatch_flagged():
+    flags = qa_checks(
+        duration=30.0,
+        raw="text",
+        segments=_segs(),
+        word_segments=[{"word": "w", "start": 0, "end": 1, "score": 1}],
+        lid_lang="eng",
+        expected_lang="ar",
+    )
+    assert "lid_mismatch" in flags
+
+
+def test_qa_lid_match_and_absent_clean():
+    common = dict(
+        duration=30.0,
+        raw="text",
+        segments=_segs(),
+        word_segments=[{"word": "w", "start": 0, "end": 1, "score": 1}],
+    )
+    assert qa_checks(**common, lid_lang="ara", expected_lang="ar") == []
+    assert qa_checks(**common) == []  # lid not requested
+
+
+def test_qa_lid_failed_flagged():
+    flags = qa_checks(
+        duration=30.0,
+        raw="text",
+        segments=_segs(),
+        word_segments=[{"word": "w", "start": 0, "end": 1, "score": 1}],
+        lid_status="failed",
+    )
+    assert "lid_failed" in flags
+
+
 # --- qa_scores: numeric quality metrics ------------------------------------------
 
 from qa import qa_scores

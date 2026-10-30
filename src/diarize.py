@@ -107,17 +107,22 @@ def diarize_nemotron(
     from transformers import AutoModelForAudioFrameClassification, AutoProcessor
 
     try:
-        from .transcribe import resolve_cache_dir
+        from .transcribe import load_local_first, resolve_cache_dir
     except ImportError:  # script-style execution
-        from transcribe import resolve_cache_dir  # type: ignore
+        from transcribe import load_local_first, resolve_cache_dir  # type: ignore
 
     cache_dir = resolve_cache_dir(model_id)
-    processor = AutoProcessor.from_pretrained(
-        model_id, cache_dir=cache_dir, token=hf_token
-    )
-    model = AutoModelForAudioFrameClassification.from_pretrained(
-        model_id, cache_dir=cache_dir, token=hf_token
-    )
+
+    def _load():
+        proc = AutoProcessor.from_pretrained(
+            model_id, cache_dir=cache_dir, token=hf_token
+        )
+        mod = AutoModelForAudioFrameClassification.from_pretrained(
+            model_id, cache_dir=cache_dir, token=hf_token
+        )
+        return proc, mod
+
+    processor, model = load_local_first(_load)
     model.to(torch.device(device))
     model.eval()
 
@@ -156,7 +161,12 @@ def diarize_pyannote(
     import torch
     from pyannote.audio import Pipeline
 
-    pipeline = Pipeline.from_pretrained(model_id, token=hf_token)
+    try:
+        from .transcribe import load_local_first
+    except ImportError:  # script-style execution
+        from transcribe import load_local_first  # type: ignore
+
+    pipeline = load_local_first(Pipeline.from_pretrained, model_id, token=hf_token)
     pipeline.to(torch.device(device))
     kwargs = {}
     if num_speakers:

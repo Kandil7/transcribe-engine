@@ -30,6 +30,8 @@ YouTube URL / playlist
 
 Single videos load the model once; playlists keep **one resident model**
 for all videos and prefetch the next audio while the GPU transcribes.
+Every model load is **local-first**: cache-only before any network, so
+runs are offline-capable once `prefetch` reports `local`.
 
 ## Setup (GPU machine)
 
@@ -52,6 +54,9 @@ Gated model: [`CohereLabs/cohere-transcribe-arabic-07-2026`](https://huggingface
 ## Usage
 
 ```bash
+# one-time: verify every model is on local disk (downloads only what's missing)
+python -m src.cli prefetch
+
 # single video (+ parquet in one go). Use a BARE watch URL —
 # strip &list=/&index= params (yt-dlp treats them as a playlist).
 python -m src.cli video "https://www.youtube.com/watch?v=VIDEO_ID" \
@@ -90,6 +95,8 @@ python -m src.cli video "https://www.youtube.com/watch?v=VIDEO_ID" --no-align \
 | `--vllm-url` / `--vllm-api-key` / `--vllm-args` | `""` | vLLM server endpoint, key, and extra `vllm serve` args (coherex starts its own server when URL is empty) |
 | `--diarize` | off | Speaker diarization: adds `speaker` to segments/words (default model `nvidia/Nemotron-3-Diarization`, ungated; pyannote needs its gated model) |
 | `--diarize-model` | Nemotron-3 | HF repo id of the diarization model (`nemotron-*` or `pyannote/*`) |
+| `--lid` | off | Audio language ID: records `lid_lang`/`lid_confidence`, QA flags `lid_mismatch` (model is CC-BY-NC) |
+| `--lid-model` | `facebook/mms-lid-1024` | HF repo id of the LID model |
 
 ## Outputs
 
@@ -109,7 +116,8 @@ python -m src.cli video "https://www.youtube.com/watch?v=VIDEO_ID" --no-align \
 `transcript_raw`, `transcript_norm`, `norm_version`, `qa` (flags, `[]` =
 clean), `qa_scores` (numeric: `mean_word_score`, `speech_ratio`,
 `empty_ratio`, `repeat_max`, `arabic_ratio`), `diarize_status` (`ok` \| `failed` \| `""`),
-`speakers` (pyannote labels), `timings` (`download/transcribe/total_seconds`),
+`speakers` (pyannote labels), `lid_status` (`ok` \| `failed` \| `""`),
+`lid_lang` (ISO 639-3), `lid_confidence`, `timings` (`download/transcribe/total_seconds`),
 `segments` (`start/end/text/words` + optional `speaker`), `word_segments`
 (`word/start/end/score` + optional `speaker`), `fetched_at`.
 
@@ -123,7 +131,8 @@ filters on `qa == []` via a join back to `videos.jsonl` on `video_id`.
 ### QA flags (`src/qa.py`)
 
 `empty_transcript`, `no_segments`, `no_words`, `align_segment_only`,
-`align_skipped`, `diarize_failed`, `duration_mismatch` (>10% vs metadata),
+`align_skipped`, `diarize_failed`, `lid_failed`, `lid_mismatch` (detected
+language ≠ requested), `duration_mismatch` (>10% vs metadata),
 `bad_timestamps`, `short_audio` (<5s).
 
 ### QA scores (`src/qa.py`, numeric, added per record)

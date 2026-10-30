@@ -154,6 +154,9 @@ def _build_record(
             word_segments=res.get("word_segments", []),
             align_status=align_status,
             diarize_status=res.get("diarize_status", ""),
+            lid_status=res.get("lid_status", ""),
+            lid_lang=res.get("lid_lang", ""),
+            expected_lang=res.get("language", "ar"),
         ),
         qa_scores=qa_scores(
             duration=meta["duration"],
@@ -163,6 +166,9 @@ def _build_record(
         ),
         diarize_status=res.get("diarize_status", ""),
         speakers=res.get("speakers", []),
+        lid_status=res.get("lid_status", ""),
+        lid_lang=res.get("lid_lang", ""),
+        lid_confidence=float(res.get("lid_confidence", 0.0) or 0.0),
         timings=timings,
         segments=[
             {

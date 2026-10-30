@@ -60,6 +60,11 @@ def record_status(rec: dict) -> dict:
         "align": rec.get("align_status", ""),
         "qa": ",".join(rec.get("qa", [])) or "clean",
         "mean_word_score": (rec.get("qa_scores") or {}).get("mean_word_score"),
+        "lid": (
+            f"{rec.get('lid_lang', '')} ({rec.get('lid_confidence', 0):.2f})"
+            if rec.get("lid_lang")
+            else ""
+        ),
         "dl_s": round(d.get("download") or 0.0),
         "asr_s": round(d.get("transcribe") or 0.0),
         "total_s": round(d.get("total") or 0.0),
@@ -116,6 +121,8 @@ def main() -> None:  # pragma: no cover - streamlit UI
         else:
             qa_col.error(f"qa: {cur['qa']}")
         al_col.info(f"align: {cur['align']}")
+        if cur.get("lid"):
+            st.caption(f"lid: {cur['lid']}")
         if cur.get("mean_word_score") is not None:
             st.metric("mean word score", f"{cur['mean_word_score']:.3f}")
 

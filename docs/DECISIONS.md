@@ -125,3 +125,30 @@ decision when its "revisit if" condition fires.
   `model_dir`, diarizer `cache_dir`).
 - Revisit if: the caches get unified into one root (then the helper can
   be deleted).
+
+## 14. Audio LID is transient and opt-in
+
+- Context: roadmap wants LID confidence; `facebook/mms-lid-1024` is a
+  1B-param CC-BY-NC model — too heavy to keep resident next to ASR, and
+  the license restricts commercial use of the model itself (fine for
+  this research corpus, flagged in the docs).
+- Decision: `--lid` opt-in; the model loads, scores a 30s middle clip,
+  and is dropped before the next video. Codes are MMS ISO 639-3; the QA
+  `lid_mismatch` flag compares via a small 639-1→639-3 map. Detection
+  lands on the record (`lid_lang`, `lid_confidence`), never gates.
+- Revisit if: a permissive small LID model lands (then make it default)
+  or if commercial deployment matters (drop MMS LID entirely).
+
+## 15. Local-first model loading, process-isolated prefetch
+
+- Context: every model load hit the HF API (revision/etag round-trips)
+  and could silently re-download weights that existed in another cache
+  root; sequential multi-GB loads in one process also exhaust Windows
+  commit even when each model fits alone (freed pages return lazily).
+- Decision: `load_local_first(loader)` attempts every load cache-only
+  (`HF_HUB_OFFLINE=1`) and only goes online on a genuine cache miss;
+  `cli prefetch` verifies all four models in one subprocess each, so
+  memory is reclaimed at process exit. Statuses report `local` vs
+  `downloaded`.
+- Revisit if: huggingface_hub grows a first-class offline-first mode
+  (then the wrapper can shrink to it).

@@ -10,6 +10,7 @@ is a thin single-shot wrapper around it (backwards compatible).
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 
 AR_MODEL = "CohereLabs/cohere-transcribe-arabic-07-2026"
@@ -44,6 +45,11 @@ class TranscribeConfig:
     # the gated pyannote pipeline instead.
     diarize: bool = False
     diarize_model: str = "nvidia/Nemotron-3-Diarization"
+    # Audio LID (facebook/mms-lid-1024, CC-BY-NC): records the detected
+    # language + confidence on each record; QA flags a mismatch with the
+    # requested language. Model loads transiently per video.
+    lid: bool = False
+    lid_model: str = "facebook/mms-lid-1024"
 
 
 def ensure_ffmpeg_on_path() -> str | None:
@@ -126,6 +132,41 @@ def resolve_cache_dir(model_id: str) -> str | None:
     return scored[0][1] if scored[0][0] > scored[1][0] else None
 
 
+@contextmanager
+def local_only():
+    """Force huggingface_hub to serve from the local cache (no network).
+
+    HF_HUB_OFFLINE=1 is honored by huggingface_hub and transformers and
+    also by loaders that call them internally (coherex, pyannote), so
+    one env switch makes any ``from_pretrained``-style load cache-only.
+    """
+    import os
+
+    prev = os.environ.get("HF_HUB_OFFLINE")
+    os.environ["HF_HUB_OFFLINE"] = "1"
+    try:
+        yield
+    finally:
+        if prev is None:
+            os.environ.pop("HF_HUB_OFFLINE", None)
+        else:
+            os.environ["HF_HUB_OFFLINE"] = prev
+
+
+def load_local_first(loader, *args, **kwargs):
+    """Call ``loader`` from the local cache first; fall back to online.
+
+    Local-first kills the per-load HF API round-trips and the
+    hub-re-downloads-what-exists class of bugs; the online retry only
+    runs on a genuine cache miss and its error (if any) propagates.
+    """
+    try:
+        with local_only():
+            return loader(*args, **kwargs)
+    except Exception:  # noqa: BLE001 — any cache-miss error falls back online
+        return loader(*args, **kwargs)
+
+
 def _resolve_token(hf_token: str | None) -> str | None:
     import os
 
@@ -179,7 +220,8 @@ class TranscribeSession:
 
         c = self.config
         if self.asr is None:
-            self.asr = coherex.load_model(
+            self.asr = load_local_first(
+                coherex.load_model,
                 model_name=c.model,
                 device=c.device,
                 compute_type=c.compute_type,
@@ -206,7 +248,8 @@ class TranscribeSession:
             align_id = getattr(_align, "DEFAULT_ALIGN_MODELS_TORCH", {}).get(
                 language
             ) or getattr(_align, "DEFAULT_ALIGN_MODELS_HF", {}).get(language)
-            self.align_model, self.align_metadata = coherex.load_align_model(
+            self.align_model, self.align_metadata = load_local_first(
+                coherex.load_align_model,
                 language,
                 device=self.config.device,
                 model_dir=resolve_cache_dir(align_id) if align_id else None,
@@ -278,6 +321,8 @@ class TranscribeSession:
             result.setdefault("word_segments", [])
         if c.diarize:
             self._apply_diarize(result, audio_path)
+        if c.lid:
+            self._apply_lid(result, audio_path)
         result["model"] = c.model
         gc.collect()
         return result
@@ -307,6 +352,72 @@ class TranscribeSession:
             self.log.exception("diarization failed for %s", audio_path)
             result["speakers"] = []
             result["diarize_status"] = "failed"
+
+    def _apply_lid(self, result: dict, audio_path: str) -> None:
+        """Record detected language + confidence; never fails the run.
+
+        The LID model is transient (loaded, used, dropped) so it never
+        competes with ASR/aligner VRAM across a playlist. Its ~2.5GB
+        safetensors is mmap'd at load, charging Windows commit on top of
+        the resident ASR+aligner — on commit exhaustion free the models
+        whose work is done for this video (aligner: already aligned;
+        ASR: `open()` reloads lazily per video) and retry before failing.
+        """
+        import gc
+
+        def _mem_err(e: BaseException) -> bool:
+            msg = str(e).lower()
+            return "out of memory" in msg or "paging file" in msg or "error 1455" in msg
+
+        try:
+            try:
+                from .lid import lid_audio
+            except ImportError:  # script-style execution
+                from lid import lid_audio  # type: ignore
+
+            def _run(device: str) -> dict:
+                return lid_audio(
+                    audio_path, device=device, model_id=self.config.lid_model
+                )
+
+            try:
+                lid = _run(self.config.device)
+            except (RuntimeError, OSError) as e:
+                if not _mem_err(e):
+                    raise
+                self.log.warning(
+                    "LID memory pressure on %s (%s); freeing finished models "
+                    "and retrying",
+                    self.config.device,
+                    e,
+                )
+                self._drop_align()
+                if self.asr is not None:
+                    try:
+                        self.asr.shutdown()
+                    except Exception:
+                        pass
+                    self.asr = None
+                gc.collect()
+                _empty_cuda_cache(self.config.device)
+                try:
+                    lid = _run(self.config.device)
+                except (RuntimeError, OSError) as e2:
+                    if not _mem_err(e2):
+                        raise
+                    self.log.warning("LID still OOM; final retry on cpu")
+                    lid = _run("cpu")
+            result["lid_lang"] = lid["lang"]
+            result["lid_confidence"] = lid["confidence"]
+            result["lid_status"] = "ok"
+        except Exception:
+            self.log.exception("LID failed for %s", audio_path)
+            result["lid_lang"] = ""
+            result["lid_confidence"] = 0.0
+            result["lid_status"] = "failed"
+        finally:
+            gc.collect()
+            _empty_cuda_cache(self.config.device)
 
     def close(self) -> None:
         import gc
