@@ -6,6 +6,7 @@
 [![Arabic ASR](https://img.shields.io/badge/arabic-ASR-green)](https://huggingface.co/CohereLabs/cohere-transcribe-arabic-07-2026)
 [![Tests](https://img.shields.io/badge/tests-24%20passing-brightgreen)](tests/)
 [![Scope](https://img.shields.io/badge/v1-transcript--only-lightgrey)](docs/PLAN_V1_V2.md)
+[![Code Intelligence](https://img.shields.io/badge/🧠_Code_Graph-docs-blue)](docs/CODEBASE-INTELLIGENCE.md)
 
 Arabic YouTube → transcription dataset engine built on `bakrianoo/cohereX`:
 Cohere `cohere-transcribe-arabic-07-2026` ASR + Silero VAD + wav2vec2

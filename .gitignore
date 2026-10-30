@@ -5,4 +5,7 @@ data/raw_audio/
 data/coherex_out/
 data/output/*.wav
 data/bin/
+graphify-out/
+.code-review-graph/
 *.db
+data/output/
