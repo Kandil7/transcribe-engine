@@ -1,18 +1,29 @@
 # Transcribe Engine — Current State
 
-Updated: 2026-09-07. `main` is green plus unmerged work in the tree
-(see `git status`; intended for `feature/full-fixes` → `main`, `--no-ff`).
+Updated: 2026-10-30. `main` is green; all code and docs are committed
+through `1742e25`. The 57-video playlist run is paused mid-flight.
 
 ## What works right now
 
 - End-to-end GPU run on RTX 5000 (torch 2.11.0+cu128, `float16`):
   17.4-min Arabic video → **112 segments, 2,622 word timestamps,
   `align=ok`**, VAD+ASR in ~44s.
-- `videos.jsonl` (upserted), `segments.parquet` (112×13, 0 nulls),
-  `checkpoint.db`, `playlist_summary.json`, `manifest.json`.
-- Old JSONL lines (pre-`qa`/`license`/`timings` schema) still parse —
-  new fields backfill defaults.
-- 24/24 tests pass, all offline (mocked network/GPU).
+- Resume from checkpoint does zero network for done videos (proven).
+- Dataset state on disk: **41 completed videos, 17.5 audio hours** in
+  `videos.jsonl`; `segments.parquet` **5,453 rows × 13 cols, 0 nulls**,
+  all `align=ok`. Checkpoint db: 41 ok, 1 failed
+  (`rx7mm2Ck7Cs`, audio-load error during an interrupted run, retryable).
+- 58/58 tests pass, all offline (mocked network/GPU). v1 toolset includes
+  `src/score_wer.py` WER scorer, `src/viewer.py` Streamlit viewer, and
+  `qa_scores` numeric metrics (backfilled across all 41 records:
+  mean_word_score 0.571–0.743 (mean 0.633), speech_ratio 0.91–0.97,
+  repeat_max ≤ 31 = genuine lazy intros, arabic_ratio 1.000 corpus-wide).
+- Repeat-artifact investigation closed: no decoder loops, all repeated
+  passages are genuine teacher rhetoric (`docs/experiments/
+  repeat-artifact-resolution.md`).
+- Code intelligence: structural graph (258n/731e), graphify (143n, 10
+  communities), repomix pack, code-review-graph all built; see
+  `docs/CODEBASE-INTELLIGENCE.md`.
 
 ## Numbers to beat
 
@@ -22,27 +33,58 @@ Updated: 2026-09-07. `main` is green plus unmerged work in the tree
 | Aligner download (one-time, ~1.2GB, throttled link) | ~15 min |
 | Model load from HF cache (4.1GB) | ~2s |
 | ASR resident | ~4GB VRAM; +aligner ~6GB in playlist sessions |
+| Corpus so far (41 videos) | 17.5h audio, 5,453 segments, ~55k words |
 
-## Playlist soak (2026-09-07, `--max-videos 4`, 57-video playlist)
+## Playlist run status (paused 2026-10-30)
 
-- **4/4 ok, 0 failed, 627.7s total.** Session loaded once; aligner loaded
-  once and reused; prefetch overlapped downloads with GPU work.
-- `j7c3F6D_R1U`: 598 segs (5616s audio); `ZXWzWWXzPmU`: skipped, zero
-  network (resume proven); `AeVhRpg0OuY`: 55 segs in ~41s;
-  `gBZl6PiEZi0`: 113 segs in ~102s. All `align=ok`, all `qa=clean`.
-- `segments.parquet` now 878 rows (112+598+55+113). 6GB resident held,
-  no OOM with ~8GB free.
-- Spot-check: `docs/experiments/wer-spotcheck-01.md` (no numeric WER —
-  no manual subs exist; possible phrase-loop artifact logged).
+- Hon checklist against the 57-video playlist: **41 ok / 1 failed /
+  15 unattempted**.
+- Resuming with the same `cli playlist` command skips the 41 ok videos
+  without network and re-attempts the 1 failure; `--to-parquet` should be
+  re-run afterwards (or use the converter module directly).
+
+## v2 features wired (2026-10-30)
+
+- **Diarization — GPU-verified** (`--diarize`): default is now
+  `nvidia/Nemotron-3-Diarization` (ungated, OpenMDW, 99.2M params —
+  beats the pyannote baseline on published DER). Real run on the eval
+  clip: 132 turns, 3 speakers, 22s for 650s audio on the RTX 5000.
+  Full E2E (`cli video --diarize`): 55 segments annotated, parquet now
+  5,453 rows × 14 cols with `speaker` populated. The pyannote path stays
+  selectable (`--diarize-model pyannote/...`) but is still gated on HF.
+  Audio decoding goes through the ffmpeg CLI shim (torchcodec needs
+  shared-FFmpeg DLLs this box doesn't have).
+- **HF cache-root resolver** (`resolve_cache_dir` in `src/transcribe.py`):
+  this machine's caches are split across two roots; a hub upgrade made
+  the hub re-download the 4.13GB ASR weights that existed in the other
+  root, failing on disk space. The resolver picks the root that actually
+  holds the model (by content, not folder presence) and is wired into
+  every model load. Also freed 1.55GB of stale partial downloads.
+- **`--vad-method pyannote`** and **`--backend vllm`** (+ `--vllm-url/
+  api-key/args`): pass-through to coherex (which already implements both),
+  recorded in `manifest.json`. pyannote VAD is gated behind
+  `pyannote/segmentation-3.0` (same acceptance click); vLLM needs the
+  `vllm` package on the run box (not installed locally).
+- **`--language`**: explicit language code pass-through (default `ar`),
+  engine-reported language now recorded on each `VideoRecord`. True
+  auto-detect is impossible in coherex (it raises on `language=None`);
+  an external LID model is the roadmap's remaining piece.
+- **Deployment**: `Dockerfile` (CUDA 12.8 + torch cu128 + ffmpeg, CLI
+  entrypoint) + `.dockerignore` + `notebooks/transcribe-engine-colab.ipynb`
+  (T4 = same sm_75; 8 cells, GPU check → install → token → run → inspect
+  → Drive persistence). **Docker image built and smoke-tested**
+  (`docker run --rm transcribe-engine --help` verified).
+- **Corpus overlap** (`docs/experiments/series-overlap.md`): found one
+  re-upload pair (`i41KPdjG0O8` ↔ `R0tJASk3fLw`, Jaccard 0.92) — dedup at
+  dataset-build time, not in the pipeline.
 
 ## Known limitations
 
-- Full 57-video playlist not yet run (soak covered the session/prefetch/
-  resume path; remaining risk is only YouTube throttling over hours).
+- Remaining playlist work: 15 videos + 1 retry (see above).
 - YouTube throttling on this link (~0.3–1 MB/s): audio re-downloads and
   model fetches are slow but resumable.
-- `videos.json` (untracked, repo root) is not ours — left alone; delete or
-  move to `data/` if junk.
-- No license file for this repo yet — add one before publishing.
-- `pydantic` is listed in `engine` extras but unused (dataclasses carry
-  the contract); either use it or drop it.
+- No license file for this repo yet — pending user decision (Apache-2.0
+  suggested to match coherex) before publishing.
+- True WER/CER unmeasured: no manual captions exist for any playlist
+  video (`docs/experiments/wer-spotcheck-01.md`); needs a ~10-min hand
+  transcript.

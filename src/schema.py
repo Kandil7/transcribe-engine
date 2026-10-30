@@ -43,6 +43,9 @@ class VideoRecord:
     transcript_norm: str = ""
     norm_version: str = "v1"
     qa: list = field(default_factory=list)  # QA flag strings, [] = clean
+    qa_scores: dict = field(default_factory=dict)  # numeric quality metrics
+    diarize_status: str = ""  # ok | failed | "" (not requested)
+    speakers: list = field(default_factory=list)  # pyannote labels, [] = none
     timings: dict = field(default_factory=dict)  # download/transcribe seconds
     segments: list = field(default_factory=list)
     word_segments: list = field(default_factory=list)
@@ -54,7 +57,7 @@ class VideoRecord:
         return json.dumps(asdict(self), ensure_ascii=False)
 
     @staticmethod
-    def from_jsonl(line: str) -> "VideoRecord":
+    def from_jsonl(line: str) -> VideoRecord:
         from dataclasses import MISSING
 
         d = json.loads(line)

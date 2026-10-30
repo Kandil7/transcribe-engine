@@ -37,3 +37,6 @@ reference's noise, not our quality. **Do not quote these as quality.**
   suppression or VAD-merge tuning removes the loop artifact.
 - Reusable harness (not committed, lives in the opencode temp dir):
   fetch `ar` auto-subs → VTT dedupe → normalize → edit distance.
+- **Follow-up (2026-10-30): the loop hypothesis was rejected** — see
+  `docs/experiments/repeat-artifact-resolution.md` for per-video repeat
+  metrics; every extreme case traced to genuine teacher rhetoric.

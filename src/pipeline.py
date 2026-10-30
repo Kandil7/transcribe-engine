@@ -10,7 +10,7 @@ from pathlib import Path
 
 try:
     from .normalize_ar import NORM_VERSION, normalize_ar
-    from .qa import qa_checks
+    from .qa import qa_checks, qa_scores
     from .schema import VideoRecord
     from .transcribe import TranscribeConfig, TranscribeSession, transcribe_ar
     from .youtube import (
@@ -21,7 +21,7 @@ try:
     )
 except ImportError:  # script-style execution
     from normalize_ar import NORM_VERSION, normalize_ar  # type: ignore
-    from qa import qa_checks  # type: ignore
+    from qa import qa_checks, qa_scores  # type: ignore
     from schema import VideoRecord  # type: ignore
     from transcribe import TranscribeConfig, TranscribeSession, transcribe_ar  # type: ignore
     from youtube import (  # type: ignore
@@ -108,6 +108,10 @@ def write_manifest(
         "model": (config or TranscribeConfig()).model,
         "device": (config or TranscribeConfig()).device,
         "compute_type": (config or TranscribeConfig()).compute_type,
+        "vad_method": (config or TranscribeConfig()).vad_method,
+        "backend": (config or TranscribeConfig()).backend,
+        "language": (config or TranscribeConfig()).language,
+        "diarize": (config or TranscribeConfig()).diarize,
         "git_sha": _git_sha(),
         "finished_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
@@ -139,6 +143,7 @@ def _build_record(
         source_url=meta["source_url"],
         duration=meta["duration"],
         align_status=align_status,
+        language=res.get("language", "ar"),
         transcript_raw=raw,
         transcript_norm=normalize_ar(raw),
         norm_version=NORM_VERSION,
@@ -148,7 +153,16 @@ def _build_record(
             segments=segments,
             word_segments=res.get("word_segments", []),
             align_status=align_status,
+            diarize_status=res.get("diarize_status", ""),
         ),
+        qa_scores=qa_scores(
+            duration=meta["duration"],
+            raw=raw,
+            segments=segments,
+            word_segments=res.get("word_segments", []),
+        ),
+        diarize_status=res.get("diarize_status", ""),
+        speakers=res.get("speakers", []),
         timings=timings,
         segments=[
             {
@@ -156,6 +170,7 @@ def _build_record(
                 "end": s.get("end"),
                 "text": s.get("text", ""),
                 "words": s.get("words", []),
+                **({"speaker": s["speaker"]} if s.get("speaker") else {}),
             }
             for s in segments
         ],

@@ -67,3 +67,61 @@ decision when its "revisit if" condition fires.
   future fold tweaks would silently mix corpora.
 - Decision: `NORM_VERSION` stamped per record; raw stays verbatim.
 - Revisit if: the fold changes (bump to `v2`, keep reader back-compat).
+
+## 9. Diarization: annotate, never fail
+
+- Context: v2 wants `speaker` per segment; pyannote models are gated and
+  every failure mode (403, OOM, model change) must not kill a playlist.
+- Decision: `--diarize` runs pyannote after alignment and annotates
+  segments/words in place; failures log, set `diarize_status="failed"`
+  and raise the `diarize_failed` QA flag instead of aborting.
+- Revisit if: diarization becomes a hard requirement (then gate on it
+  like alignment instead of flagging).
+
+## 10. Engine knobs are pass-through, not wrappers
+
+- Context: v2 listed "pyannote VAD option" and "vLLM backend" as features.
+- Fact: coherex already implements both (`vad_method` ∈ silero|pyannote,
+  `backend` ∈ local|vllm with managed server). Re-implementing would fork
+  engine logic we don't own.
+- Decision: `TranscribeConfig` + CLI pass the knobs through to
+  `coherex.load_model` unchanged; the manifest records what ran.
+- Revisit if: coherex drops/renames a parameter (our tests pin the
+  config surface, GPU soak would catch the rest).
+
+## 11. Corpus dedup is dataset-time, not pipeline-time
+
+- Context: `i41KPdjG0O8` ↔ `R0tJASk3fLw` are a re-upload pair
+  (8-gram Jaccard 0.92) and series lessons quote each other heavily.
+- Decision: transcription stays faithful per video; dedup/leakage
+  filtering happens at training-split build (see
+  `experiments/series-overlap.md`).
+- Revisit if: a downstream consumer asks for a deduped view (offer a
+  dataset-build helper, don't change the pipeline).
+
+## 12. Nemotron-3 as the default diarizer
+
+- Context: pyannote models are gated (403 for this account); the user
+  named `Nemotron-3-Diarization`.
+- Fact: `nvidia/Nemotron-3-Diarization` is ungated (OpenMDW), 99.2M
+  params, transformers-native since transformers 5.22, and beats the
+  pyannote baseline on every published DER benchmark.
+- Decision: default `--diarize-model` to Nemotron; keep the pyannote
+  path selectable via the same flag. Decode audio via the ffmpeg CLI
+  shim instead of `transformers.audio_utils.load_audio` (torchcodec
+  needs shared-FFmpeg DLLs Windows doesn't ship here).
+- Revisit if: transformers drops the architecture or a stronger open
+  model lands.
+
+## 13. Per-model HF cache-root resolution
+
+- Context: this machine's HF caches are split across two roots (legacy
+  `HF_HOME` layout vs `HF_HOME/hub`); after a huggingface_hub upgrade the
+  hub resolved one root and tried to re-download 4.13GB of weights that
+  existed in the other, failing on disk space for hours of retries.
+- Decision: `resolve_cache_dir(model_id)` picks the root that actually
+  holds the model by content size (stub dirs from failed downloads don't
+  count); wired into every model load (ASR `download_root`, aligner
+  `model_dir`, diarizer `cache_dir`).
+- Revisit if: the caches get unified into one root (then the helper can
+  be deleted).

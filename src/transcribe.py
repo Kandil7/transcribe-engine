@@ -24,11 +24,26 @@ class TranscribeConfig:
     # Turing sm_75 (RTX 5000) has no bf16 tensor cores; coherex "default"
     # resolves to bfloat16 on cuda, so default to float16 here.
     compute_type: str = "float16"
-    vad_method: str = "silero"
+    vad_method: str = "silero"  # silero | pyannote
     batch_size: int = 8
     chunk_size: float = 30.0
     align: bool = True
     hf_token: str | None = None
+    # Explicit language code ("ar" default). Cohere Transcribe performs no
+    # LID (coherex raises on language=None), so auto-detect needs an
+    # external model — see ROADMAP item 8.
+    language: str = "ar"
+    # Engine backend: "local" in-process, or "vllm" to offload transcription
+    # to a vLLM server (coherex starts one itself when vllm_url is empty).
+    backend: str = "local"
+    vllm_url: str = ""
+    vllm_api_key: str | None = None
+    vllm_args: str = ""  # extra `vllm serve` args, shell-style split
+    # Speaker diarization: annotates segments/words with speaker. Default
+    # is the ungated Nemotron-3 (OpenMDW); pass a pyannote repo id to use
+    # the gated pyannote pipeline instead.
+    diarize: bool = False
+    diarize_model: str = "nvidia/Nemotron-3-Diarization"
 
 
 def ensure_ffmpeg_on_path() -> str | None:
@@ -66,6 +81,49 @@ def ensure_ffmpeg_on_path() -> str | None:
     if d not in os.environ.get("PATH", ""):
         os.environ["PATH"] = d + os.pathsep + os.environ.get("PATH", "")
     return shim
+
+
+def resolve_cache_dir(model_id: str) -> str | None:
+    """Pick the HF cache root that actually holds ``model_id`` on this machine.
+
+    Machine history can leave models split across two roots (e.g. HF_HOME
+    vs HF_HOME/hub after an env change or a huggingface_hub upgrade that
+    resolves the cache differently). The hub then re-downloads multi-GB
+    weights that already exist in the other root — or fails offline.
+
+    A root "holds" the model only by content, not by folder presence: a
+    failed download leaves a stub directory with config files but no
+    weights, and counting that as a holder would pick the wrong root.
+    The root with strictly more cached bytes wins; ties or no hits
+    return None so huggingface_hub uses its own default.
+    """
+    import os
+
+    candidates: list[str] = []
+    hub_cache = os.environ.get("HF_HUB_CACHE") or os.environ.get(
+        "HUGGINGFACE_HUB_CACHE"
+    )
+    hf_home = os.environ.get("HF_HOME")
+    if hub_cache:
+        candidates.append(hub_cache)
+    if hf_home:
+        candidates.extend((hf_home, os.path.join(hf_home, "hub")))
+    dirname = "models--" + model_id.replace("/", "--")
+    scored: list[tuple[int, str]] = []
+    for c in dict.fromkeys(candidates):
+        d = os.path.join(c, dirname)
+        if not os.path.isdir(d):
+            continue
+        size = sum(
+            os.path.getsize(os.path.join(dp, f)) for dp, _, fs in os.walk(d) for f in fs
+        )
+        scored.append((size, c))
+    if not scored:
+        return None
+    scored.sort(reverse=True)
+    if len(scored) == 1:
+        return scored[0][1]
+    return scored[0][1] if scored[0][0] > scored[1][0] else None
 
 
 def _resolve_token(hf_token: str | None) -> str | None:
@@ -115,6 +173,8 @@ class TranscribeSession:
         self.align_lang = ""
 
     def open(self) -> "TranscribeSession":
+        import shlex
+
         import coherex
 
         c = self.config
@@ -126,6 +186,11 @@ class TranscribeSession:
                 vad_method=c.vad_method,
                 batch_size=c.batch_size,
                 use_auth_token=self.hf_token,
+                download_root=resolve_cache_dir(c.model),
+                backend=c.backend,
+                vllm_url=c.vllm_url or None,
+                vllm_api_key=c.vllm_api_key,
+                vllm_args=shlex.split(c.vllm_args) if c.vllm_args else None,
             )
         return self
 
@@ -136,8 +201,15 @@ class TranscribeSession:
             return True
         self._drop_align()
         try:
+            from coherex import alignment as _align
+
+            align_id = getattr(_align, "DEFAULT_ALIGN_MODELS_TORCH", {}).get(
+                language
+            ) or getattr(_align, "DEFAULT_ALIGN_MODELS_HF", {}).get(language)
             self.align_model, self.align_metadata = coherex.load_align_model(
-                language, device=self.config.device
+                language,
+                device=self.config.device,
+                model_dir=resolve_cache_dir(align_id) if align_id else None,
             )
             self.align_lang = language
             return True
@@ -154,7 +226,7 @@ class TranscribeSession:
         gc.collect()
         _empty_cuda_cache(self.config.device)
 
-    def transcribe(self, audio_path: str, language: str = "ar") -> dict:
+    def transcribe(self, audio_path: str, language: str | None = None) -> dict:
         """Run VAD → ASR → forced alignment for one audio file."""
         import gc
         import logging
@@ -163,6 +235,7 @@ class TranscribeSession:
 
         log = logging.getLogger("transcribe-engine")
         c = self.config
+        language = language or c.language
         self.open()
         try:
             result = self.asr.transcribe(
@@ -203,9 +276,37 @@ class TranscribeSession:
         else:
             result["align_status"] = "skipped"
             result.setdefault("word_segments", [])
+        if c.diarize:
+            self._apply_diarize(result, audio_path)
         result["model"] = c.model
         gc.collect()
         return result
+
+    def _apply_diarize(self, result: dict, audio_path: str) -> None:
+        """Annotate segments/words with speakers; never fails the run."""
+        try:
+            try:
+                from .diarize import assign_speakers, diarize_audio
+            except ImportError:  # script-style execution
+                from diarize import assign_speakers, diarize_audio  # type: ignore
+
+            turns = diarize_audio(
+                audio_path,
+                device=self.config.device,
+                hf_token=self.hf_token,
+                model_id=self.config.diarize_model,
+            )
+            segs, words, speakers = assign_speakers(
+                result.get("segments", []), result.get("word_segments", []), turns
+            )
+            result["segments"] = segs
+            result["word_segments"] = words
+            result["speakers"] = speakers
+            result["diarize_status"] = "ok"
+        except Exception:
+            self.log.exception("diarization failed for %s", audio_path)
+            result["speakers"] = []
+            result["diarize_status"] = "failed"
 
     def close(self) -> None:
         import gc
@@ -238,8 +339,14 @@ def transcribe_ar(
     chunk_size: float = 30.0,
     hf_token: str | None = None,
     align: bool = True,
+    backend: str = "local",
+    vllm_url: str = "",
+    vllm_api_key: str | None = None,
+    vllm_args: str = "",
+    diarize: bool = False,
+    diarize_model: str = "nvidia/Nemotron-3-Diarization",
 ) -> dict:
-    """Single-shot VAD → Cohere-AR ASR → forced alignment.
+    """Single-shot VAD → Cohere-AR ASR → forced alignment (+ optional diarization).
 
     Returns the cohereX result dict: {segments, word_segments, language}.
     Falls back to segment-level timestamps when Arabic alignment is
@@ -254,6 +361,13 @@ def transcribe_ar(
         chunk_size=chunk_size,
         align=align,
         hf_token=hf_token,
+        language=language,
+        backend=backend,
+        vllm_url=vllm_url,
+        vllm_api_key=vllm_api_key,
+        vllm_args=vllm_args,
+        diarize=diarize,
+        diarize_model=diarize_model,
     )
     with TranscribeSession(cfg) as session:
         return session.transcribe(audio_path, language=language)
