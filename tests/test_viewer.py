@@ -14,6 +14,8 @@ RECORD = {
     "duration": 120.4,
     "align_status": "ok",
     "qa": ["short_audio"],
+    "lid_lang": "ara",
+    "lid_confidence": 0.97,
     "qa_scores": {
         "mean_word_score": 0.93,
         "speech_ratio": 1.0,
@@ -64,6 +66,12 @@ def test_record_status_chips():
     assert s["total_s"] == 60
     assert s["segments"] == 2 and s["words"] == 5
     assert s["mean_word_score"] == 0.93
+    assert s["lid"] == "ara (0.97)"
+
+
+def test_record_status_no_lid():
+    s = record_status(dict(RECORD, lid_lang="", lid_confidence=0.0))
+    assert s["lid"] == ""
 
 
 def test_record_status_clean_and_empty_timing():

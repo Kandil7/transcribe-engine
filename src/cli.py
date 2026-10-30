@@ -49,6 +49,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="only take the first N playlist videos (0 = all; for soak tests)",
     )
 
+    pf = sub.add_parser(
+        "prefetch", help="load/verify all pipeline models on local disk"
+    )
+    pf.add_argument(
+        "--device",
+        default="cpu",
+        help="device for the verification load (default: cpu — cache check, no GPU juggling)",
+    )
+
     for s in (v, pl):
         s.add_argument("--jsonl", default=OUTPUT_JSONL)
         s.add_argument("--db", default=CHECKPOINT_DB)
@@ -114,11 +123,32 @@ def build_parser() -> argparse.ArgumentParser:
             default="nvidia/Nemotron-3-Diarization",
             help="HF repo id of the diarization model (nemotron-* or pyannote/*)",
         )
+        s.add_argument(
+            "--lid",
+            action="store_true",
+            help="audio language ID (facebook/mms-lid-1024): records lid_lang/"
+            "lid_confidence; QA flags lid_mismatch (CC-BY-NC model)",
+        )
+        s.add_argument(
+            "--lid-model",
+            default="facebook/mms-lid-1024",
+            help="HF repo id of the LID model",
+        )
     return p
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.cmd == "prefetch":
+        try:
+            from .prefetch import prefetch_models
+        except ImportError:  # script-style execution
+            from prefetch import prefetch_models  # type: ignore
+
+        results = prefetch_models(device=args.device)
+        for name, status in results.items():
+            print(f"{name}: {status}")
+        return 0
     config = TranscribeConfig(
         device=args.device,
         compute_type=args.compute_type,
@@ -134,6 +164,8 @@ def main(argv: list[str] | None = None) -> int:
         vllm_args=args.vllm_args,
         diarize=args.diarize,
         diarize_model=args.diarize_model,
+        lid=args.lid,
+        lid_model=args.lid_model,
     )
     if args.cmd == "video":
         rec = process_video(

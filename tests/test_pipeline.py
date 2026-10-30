@@ -202,6 +202,71 @@ def test_process_video_record_language(monkeypatch, tmp_path):
     assert rec.language == "ar"  # engine-reported language lands on the record
 
 
+def test_process_video_lid_flow(monkeypatch, tmp_path):
+    class LidSession(FakeSession):
+        def transcribe(self, audio):
+            res = dict(RES)
+            res.update(
+                lid_lang="ara",
+                lid_confidence=0.97,
+                lid_status="ok",
+            )
+            return res
+
+    _wire(monkeypatch, tmp_path)
+    ls = LidSession()
+    ls.calls = 0
+    rec = pipeline.process_video(
+        "https://www.youtube.com/watch?v=VID12345678",
+        db_path=str(tmp_path / "c.db"),
+        jsonl_path=str(tmp_path / "v.jsonl"),
+        session=ls,
+    )
+    assert rec.lid_lang == "ara"
+    assert rec.lid_confidence == 0.97
+    assert rec.lid_status == "ok"
+    assert rec.qa == []  # ara matches requested ar: no flag
+
+
+def test_process_video_lid_mismatch_flagged(monkeypatch, tmp_path):
+    class WrongLangSession(FakeSession):
+        def transcribe(self, audio):
+            res = dict(RES)
+            res.update(lid_lang="eng", lid_confidence=0.91, lid_status="ok")
+            return res
+
+    _wire(monkeypatch, tmp_path)
+    ws = WrongLangSession()
+    ws.calls = 0
+    rec = pipeline.process_video(
+        "https://www.youtube.com/watch?v=VID12345678",
+        db_path=str(tmp_path / "c.db"),
+        jsonl_path=str(tmp_path / "v.jsonl"),
+        session=ws,
+    )
+    assert "lid_mismatch" in rec.qa
+
+
+def test_process_video_lid_failure_flagged(monkeypatch, tmp_path):
+    class LidFailSession(FakeSession):
+        def transcribe(self, audio):
+            res = dict(RES)
+            res.update(lid_lang="", lid_confidence=0.0, lid_status="failed")
+            return res
+
+    _wire(monkeypatch, tmp_path)
+    fs = LidFailSession()
+    fs.calls = 0
+    rec = pipeline.process_video(
+        "https://www.youtube.com/watch?v=VID12345678",
+        db_path=str(tmp_path / "c.db"),
+        jsonl_path=str(tmp_path / "v.jsonl"),
+        session=fs,
+    )
+    assert rec.lid_status == "failed"
+    assert "lid_failed" in rec.qa
+
+
 def test_upsert_jsonl_is_idempotent(tmp_path):
     jl = str(tmp_path / "v.jsonl")
     rec = VideoRecord(video_id="A", video_title="t")

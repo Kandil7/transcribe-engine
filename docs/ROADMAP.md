@@ -30,9 +30,10 @@ unchanged from `PLAN_V1_V2.md` except where noted.
    VAD needs `pyannote/segmentation-3.0` accepted (same click); vLLM
    needs `vllm` installed on the run box.
 8. Language auto-detect with explicit-`ar` default; dialect tag.
-   **Explicit language done** (`--language` pass-through; coherex refuses
-   `language=None`, so auto-detect needs an external LID model — not
-   started; dialect tag likewise).
+   **Explicit language done** (`--language` pass-through) and **audio LID
+   done** (`--lid` on `facebook/mms-lid-1024`, transient load, QA
+   `lid_mismatch` flag; GPU verification pending the background model
+   download). Dialect tag remains (needs a dialect classifier).
 9. Per-video QA scores: **metric layer done** (`qa_scores` —
    `mean_word_score`, `speech_ratio`, `empty_ratio`, `repeat_max`,
    backfilled on all 41 records); LID confidence and the 1–2h

@@ -60,6 +60,13 @@ through `1742e25`. The 57-video playlist run is paused mid-flight.
   root, failing on disk space. The resolver picks the root that actually
   holds the model (by content, not folder presence) and is wired into
   every model load. Also freed 1.55GB of stale partial downloads.
+- **Local-first loading + `cli prefetch`**: every model load is
+  cache-only before any network (`load_local_first`); `python -m src.cli
+  prefetch` verifies all 4 models (ASR, aligner, Nemotron, LID) in one
+  process each — **verified `local` × 4** on this box with zero
+  downloads. Process isolation exists because freed multi-GB weights
+  don't reliably return Windows commit in-process (the LID load failed
+  sequentially even though it fits alone).
 - **`--vad-method pyannote`** and **`--backend vllm`** (+ `--vllm-url/
   api-key/args`): pass-through to coherex (which already implements both),
   recorded in `manifest.json`. pyannote VAD is gated behind
@@ -67,8 +74,15 @@ through `1742e25`. The 57-video playlist run is paused mid-flight.
   `vllm` package on the run box (not installed locally).
 - **`--language`**: explicit language code pass-through (default `ar`),
   engine-reported language now recorded on each `VideoRecord`. True
-  auto-detect is impossible in coherex (it raises on `language=None`);
-  an external LID model is the roadmap's remaining piece.
+  auto-detect is impossible in coherex (it raises on `language=None`).
+- **Audio LID** (`--lid`): `src/lid.py` on `facebook/mms-lid-1024`
+  (1B params, CC-BY-NC — flagged in docs). Transient per-video load,
+  scores a 30s middle clip, records `lid_lang`/`lid_confidence`, QA
+  flags `lid_mismatch` via an ISO 639-1→639-3 map. **GPU + E2E
+  verified**: standalone `ara` @ 0.998 on the eval clip; CLI run also
+  proved the memory-recovery chain (the 1B model's 2.5GB mmap hits
+  Windows commit limits next to resident ASR — the session frees
+  finished models and retries; `lid_failed` flag if all retries fail).
 - **Deployment**: `Dockerfile` (CUDA 12.8 + torch cu128 + ffmpeg, CLI
   entrypoint) + `.dockerignore` + `notebooks/transcribe-engine-colab.ipynb`
   (T4 = same sm_75; 8 cells, GPU check → install → token → run → inspect
