@@ -67,6 +67,11 @@ def build_parser() -> argparse.ArgumentParser:
         s.add_argument("--chunk-size", type=float, default=30.0)
         s.add_argument("--retries", type=int, default=3)
         s.add_argument(
+            "--language",
+            default="ar",
+            help="explicit language code for Cohere Transcribe (default: ar; no LID)",
+        )
+        s.add_argument(
             "--hf-token",
             default=None,
             help="HF token for gated models (default: HF_TOKEN env / hf auth login)",
@@ -76,6 +81,39 @@ def build_parser() -> argparse.ArgumentParser:
             action="store_true",
             help="skip wav2vec2 forced alignment (segment timestamps only)",
         )
+        s.add_argument(
+            "--vad-method",
+            default="silero",
+            choices=["silero", "pyannote"],
+            help="VAD backend (default: silero; pyannote downloads its model)",
+        )
+        s.add_argument(
+            "--backend",
+            default="local",
+            choices=["local", "vllm"],
+            help="ASR backend: in-process local, or vLLM server (needs vllm installed)",
+        )
+        s.add_argument(
+            "--vllm-url",
+            default="",
+            help="running vLLM server URL (empty: coherex starts/stops its own)",
+        )
+        s.add_argument("--vllm-api-key", default=None, help="vLLM server API key")
+        s.add_argument(
+            "--vllm-args",
+            default="",
+            help="extra `vllm serve` args when coherex launches its own server",
+        )
+        s.add_argument(
+            "--diarize",
+            action="store_true",
+            help="pyannote speaker diarization: adds speaker to segments/words",
+        )
+        s.add_argument(
+            "--diarize-model",
+            default="nvidia/Nemotron-3-Diarization",
+            help="HF repo id of the diarization model (nemotron-* or pyannote/*)",
+        )
     return p
 
 
@@ -84,10 +122,18 @@ def main(argv: list[str] | None = None) -> int:
     config = TranscribeConfig(
         device=args.device,
         compute_type=args.compute_type,
+        vad_method=args.vad_method,
         batch_size=args.batch_size,
         chunk_size=args.chunk_size,
         align=not args.no_align,
         hf_token=args.hf_token,
+        language=args.language,
+        backend=args.backend,
+        vllm_url=args.vllm_url,
+        vllm_api_key=args.vllm_api_key,
+        vllm_args=args.vllm_args,
+        diarize=args.diarize,
+        diarize_model=args.diarize_model,
     )
     if args.cmd == "video":
         rec = process_video(

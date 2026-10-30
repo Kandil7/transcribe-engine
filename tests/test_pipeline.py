@@ -114,6 +114,94 @@ def test_process_video_skips_before_network(monkeypatch, tmp_path):
     assert rec is None
 
 
+def test_process_video_diarize_flow(monkeypatch, tmp_path):
+    class DiarizedSession(FakeSession):
+        def transcribe(self, audio):
+            res = dict(RES)
+            res["segments"] = [
+                {
+                    "start": 0.0,
+                    "end": 5.0,
+                    "text": "أ",
+                    "words": [],
+                    "speaker": "SPEAKER_00",
+                },
+                {
+                    "start": 5.0,
+                    "end": 58.0,
+                    "text": "ب",
+                    "words": [],
+                    "speaker": "SPEAKER_01",
+                },
+            ]
+            res["word_segments"] = [
+                {
+                    "word": "أ",
+                    "start": 0.0,
+                    "end": 1.0,
+                    "score": 0.9,
+                    "speaker": "SPEAKER_00",
+                }
+            ]
+            res["speakers"] = ["SPEAKER_00", "SPEAKER_01"]
+            res["diarize_status"] = "ok"
+            return res
+
+    session = _wire(monkeypatch, tmp_path)
+    dsession = DiarizedSession()
+    dsession.calls = 0
+    rec = pipeline.process_video(
+        "https://www.youtube.com/watch?v=VID12345678",
+        db_path=str(tmp_path / "c.db"),
+        jsonl_path=str(tmp_path / "v.jsonl"),
+        session=dsession,
+    )
+    assert rec.speakers == ["SPEAKER_00", "SPEAKER_01"]
+    assert rec.diarize_status == "ok"
+    assert rec.segments[0]["speaker"] == "SPEAKER_00"  # speaker survives projection
+    assert rec.qa == []  # ok diarization adds no flag
+
+
+def test_process_video_diarize_failed_flag(monkeypatch, tmp_path):
+    class FailedDiarizeSession(FakeSession):
+        def transcribe(self, audio):
+            res = dict(RES)
+            res["speakers"] = []
+            res["diarize_status"] = "failed"
+            return res
+
+    session = _wire(monkeypatch, tmp_path)
+    fs = FailedDiarizeSession()
+    fs.calls = 0
+    rec = pipeline.process_video(
+        "https://www.youtube.com/watch?v=VID12345678",
+        db_path=str(tmp_path / "c.db"),
+        jsonl_path=str(tmp_path / "v.jsonl"),
+        session=fs,
+    )
+    assert rec.diarize_status == "failed"
+    assert "diarize_failed" in rec.qa
+
+
+def test_process_video_record_language(monkeypatch, tmp_path):
+    class LangSession(FakeSession):
+        def transcribe(self, audio):
+            res = dict(RES)
+            res["language"] = "ar"
+            return res
+
+    _wire(monkeypatch, tmp_path)
+    ls = LangSession()
+    ls.calls = 0
+    rec = pipeline.process_video(
+        "https://www.youtube.com/watch?v=VID12345678",
+        db_path=str(tmp_path / "c.db"),
+        jsonl_path=str(tmp_path / "v.jsonl"),
+        session=ls,
+    )
+    assert rec.language == "ar"  # engine-reported language lands on the record
+
+
 def test_upsert_jsonl_is_idempotent(tmp_path):
     jl = str(tmp_path / "v.jsonl")
     rec = VideoRecord(video_id="A", video_title="t")

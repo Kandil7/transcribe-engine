@@ -23,6 +23,7 @@ PARQUET_COLUMNS = [
     "text_norm",
     "word_count",
     "align_status",
+    "speaker",
     "model",
 ]
 
@@ -64,6 +65,7 @@ def jsonl_to_rows(jsonl_path: str | Path) -> list[dict]:
                         "text_norm": normalize_ar(text_raw),
                         "word_count": len(words) if words else len(text_raw.split()),
                         "align_status": d.get("align_status", "ok"),
+                        "speaker": seg.get("speaker", ""),
                         "model": d.get("model", ""),
                     }
                 )
