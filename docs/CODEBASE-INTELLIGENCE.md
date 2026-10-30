@@ -9,9 +9,9 @@ uncommitted hardening pass (`qa.py`, `TranscribeSession`, manifest, prefetch).
 
 | Layer | Status | Details |
 |-------|--------|---------|
-| **Structural Graph** | ✅ Indexed | `D-AI-Projects-transcribe-engine`, 258 nodes, 731 edges, 0 parse errors |
+| **Structural Graph** | ✅ Indexed | `D-AI-Projects-transcribe-engine`, 407 nodes, 1,437 edges, 0 parse errors |
 | **PR Review Graph** | ✅ Built | code-review-graph full build: 93 nodes, 795 edges, at `6261e8f` |
-| **Multimodal Graph** | ✅ Built (code-only) | `graphify-out/graph.json`: 143 nodes, 256 edges, 10 communities, 90% extracted |
+| **Multimodal Graph** | ✅ Built (code-only) | `graphify-out/graph.json`: 276 nodes, 489 edges, 14 communities |
 | **Context Pack** | ✅ Ready | repomix outputId `98621a358edc4806`, 25 files, 14,023 tokens (markdown, compressed) |
 | **Watcher** | Auto-refresh | Watched index; rebuilt incrementally on git changes |
 
@@ -102,7 +102,7 @@ codebase-memory boundaries, not guesswork.
 | `src/schema.py` | Leaf | `VideoRecord` JSONL contract |
 | `src/normalize_ar.py` | Leaf | versioned Arabic fold (`NORM_VERSION`) |
 | `src/jsonl_to_parquet.py` | Leaf + entry | `coerce_rows`, empty-input safe |
-| `tests/` | Entry | 6 files, 24 tests; boundaries: pipeline 9, qa 6, youtube 6 calls |
+| `tests/` | Entry | 11 files, 83 tests; boundaries: pipeline 9, qa 6, youtube 6 calls |
 
 ## Docs ↔ code map (manual, until semantic extraction)
 
