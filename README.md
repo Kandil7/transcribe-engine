@@ -46,7 +46,7 @@ hf auth login
 ```
 
 Gated model: [`CohereLabs/cohere-transcribe-arabic-07-2026`](https://huggingface.co/CohereLabs/cohere-transcribe-arabic-07-2026)
-(+ `pyannote/speaker-diarization-community-1` only for v2).
+(the only gated model — diarization runs ungated Nemotron-3).
 `--hf-token` wins if passed, else `HF_TOKEN` env, else `hf auth login`.
 
 > Windows consoles default to cp1252 and crash printing Arabic: set
@@ -91,11 +91,11 @@ python -m src.cli video "https://www.youtube.com/watch?v=VIDEO_ID" --no-align \
 | `--max-videos` (playlist) | `0` = all | Only take the first N videos (soak tests) |
 | `--hf-token` | env/login | Token for gated models |
 | `--no-align` | off | Skip wav2vec2 alignment (`align_status=skipped`) |
-| `--vad-method` | `silero` | `pyannote` alternative (needs gated `pyannote/segmentation-3.0`) |
+| `--vad-method` | `silero` | VAD backend (silero only — pyannote option removed, ADR 18) |
 | `--backend` | `local` | `vllm` offloads ASR to a vLLM server (needs `vllm` installed) |
 | `--vllm-url` / `--vllm-api-key` / `--vllm-args` | `""` | vLLM server endpoint, key, and extra `vllm serve` args (coherex starts its own server when URL is empty) |
-| `--diarize` | off | Speaker diarization: adds `speaker` to segments/words (default model `nvidia/Nemotron-3-Diarization`, ungated; pyannote needs its gated model) |
-| `--diarize-model` | Nemotron-3 | HF repo id of the diarization model (`nemotron-*` or `pyannote/*`) |
+| `--diarize` | off | Nemotron-3 speaker diarization (ungated, OpenMDW): adds `speaker` to segments/words |
+| `--diarize-model` | Nemotron-3 | HF repo id of the Nemotron-3 diarization model |
 | `--lid` | off | Audio language ID: records `lid_lang`/`lid_confidence`, QA flags `lid_mismatch` (model is CC-BY-NC) |
 | `--lid-model` | `facebook/mms-lid-1024` | HF repo id of the LID model |
 | `--dialect` | off | Written-dialect tag (MARBERTv2): records `dialect`/`dialect_confidence` (`MAGHREB`\|`LEV`\|`MSA`\|`GLF`\|`EGY`) |
@@ -119,7 +119,7 @@ python -m src.cli video "https://www.youtube.com/watch?v=VIDEO_ID" --no-align \
 `transcript_raw`, `transcript_norm`, `norm_version`, `qa` (flags, `[]` =
 clean), `qa_scores` (numeric: `mean_word_score`, `speech_ratio`,
 `empty_ratio`, `repeat_max`, `arabic_ratio`), `diarize_status` (`ok` \| `failed` \| `""`),
-`speakers` (pyannote labels), `lid_status` (`ok` \| `failed` \| `""`),
+`speakers` (Nemotron-3 speaker labels), `lid_status` (`ok` \| `failed` \| `""`),
 `lid_lang` (ISO 639-3), `lid_confidence`, `dialect_status` (`ok` \| `failed` \| `""`),
 `dialect` (`MAGHREB` \| `LEV` \| `MSA` \| `GLF` \| `EGY`), `dialect_confidence`,
 `timings` (`download/transcribe/total_seconds`),
@@ -238,7 +238,7 @@ src/
   lid.py              audio language ID (mms-lid-1024, CC-BY-NC)
   dialect.py          written-dialect tag (MARBERTv2: MAGHREB|LEV|MSA|GLF|EGY)
   viewer.py           Streamlit dataset viewer + segment audio playback
-  diarize.py          pyannote speaker diarization (v2, gated model)
+  diarize.py          Nemotron-3 speaker diarization (ungated, sole backend)
 docs/
   ARCHITECTURE.md  module map + VRAM budget
   PLAN_V1_V2.md    v1 scope + branch log + v2

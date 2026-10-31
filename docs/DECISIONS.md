@@ -185,3 +185,19 @@ decision when its "revisit if" condition fires.
 - Revisit if: coherex streams audio instead of loading whole files
   (then the constraint disappears), or the pipeline chunks long audio
   before the engine.
+
+## 18. Nemotron-3 replaces pyannote entirely
+
+- Context: the project carried pyannote in two places — an optional
+  diarization backend and the `--vad-method pyannote` option — both
+  gated on HF models this account cannot access (403), leaving a
+  permanently blocked roadmap item and a second code path that could
+  never be verified here.
+- Decision (user directive, 2026-10-31): remove pyannote completely.
+  Nemotron-3-Diarization is the sole diarization backend
+  (`--diarize-model` now names a Nemotron repo id), silero is the only
+  VAD, and `diarize_pyannote` is deleted. The `pyannote.audio` package
+  remains installed only as a coherex dependency; nothing in this repo
+  calls it.
+- Revisit if: pyannote models become ungated AND outperform Nemotron-3
+  on this corpus (then reintroduce as an option behind the same flag).

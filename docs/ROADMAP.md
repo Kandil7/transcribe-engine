@@ -25,13 +25,11 @@ unchanged from `PLAN_V1_V2.md` except where noted.
 ## Then (v2, from the plan)
 
 6. ~~Speaker diarization~~ **Done + GPU-verified**: `--diarize` with
-   `nvidia/Nemotron-3-Diarization` default (ungated; beats pyannote on
-   published DER). pyannote path optional behind `--diarize-model`
-   (still needs its HF gate accepted).
-7. ~~`vad_method=pyannote` option; vLLM backend~~ **Wired** (CLI
-   `--vad-method` / `--backend vllm` pass-through to coherex). pyannote
-   VAD needs `pyannote/segmentation-3.0` accepted (same click); vLLM
-   needs `vllm` installed on the run box.
+   `nvidia/Nemotron-3-Diarization` — the **sole backend** since ADR 18
+   (pyannote path and gated models removed entirely).
+7. ~~`vad_method=pyannote` option; vLLM backend~~ **Resolved**: pyannote
+   VAD **removed** (ADR 18 — silero is the only VAD); `--backend vllm`
+   wired as a coherex pass-through (needs `vllm` on the run box).
 8. ~~Language auto-detect with explicit-`ar` default; dialect tag.~~
    **Done**: explicit `--language` pass-through; audio LID (`--lid`,
    `facebook/mms-lid-1024`, GPU-verified `ara` @ 0.998); written-dialect

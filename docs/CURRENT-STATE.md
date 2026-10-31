@@ -47,13 +47,13 @@ chore sits uncommitted (stale-count/badge fixes).
 
 ## v2 features wired (2026-10-30)
 
-- **Diarization — GPU-verified** (`--diarize`): default is now
-  `nvidia/Nemotron-3-Diarization` (ungated, OpenMDW, 99.2M params —
-  beats the pyannote baseline on published DER). Real run on the eval
-  clip: 132 turns, 3 speakers, 22s for 650s audio on the RTX 5000.
+- **Diarization — GPU-verified** (`--diarize`): `nvidia/Nemotron-3-Diarization`
+  (ungated, OpenMDW, 99.2M params — beats the pyannote baseline on
+  published DER) is the **sole backend since ADR 18** (pyannote path
+  removed with its gated models). Real run on the eval clip: 132 turns,
+  3 speakers, 22s for 650s audio on the RTX 5000.
   Full E2E (`cli video --diarize`): 55 segments annotated, parquet now
-  5,453 rows × 14 cols with `speaker` populated. The pyannote path stays
-  selectable (`--diarize-model pyannote/...`) but is still gated on HF.
+  10,836 rows × 14 cols with `speaker` populated where requested.
   Audio decoding goes through the ffmpeg CLI shim (torchcodec needs
   shared-FFmpeg DLLs this box doesn't have).
 - **HF cache-root resolver** (`resolve_cache_dir` in `src/transcribe.py`):
@@ -69,11 +69,10 @@ chore sits uncommitted (stale-count/badge fixes).
   downloads. Process isolation exists because freed multi-GB weights
   don't reliably return Windows commit in-process (the LID load failed
   sequentially even though it fits alone).
-- **`--vad-method pyannote`** and **`--backend vllm`** (+ `--vllm-url/
-  api-key/args`): pass-through to coherex (which already implements both),
-  recorded in `manifest.json`. pyannote VAD is gated behind
-  `pyannote/segmentation-3.0` (same acceptance click); vLLM needs the
-  `vllm` package on the run box (not installed locally).
+- **`--backend vllm`** (+ `--vllm-url/api-key/args`): pass-through to
+  coherex, recorded in `manifest.json`; needs the `vllm` package on the
+  run box (not installed locally). **pyannote VAD removed** (ADR 18):
+  silero is the only VAD, Nemotron-3 covers the speaker side.
 - **`--language`**: explicit language code pass-through (default `ar`),
   engine-reported language now recorded on each `VideoRecord`. True
   auto-detect is impossible in coherex (it raises on `language=None`).

@@ -93,8 +93,9 @@ def build_parser() -> argparse.ArgumentParser:
         s.add_argument(
             "--vad-method",
             default="silero",
-            choices=["silero", "pyannote"],
-            help="VAD backend (default: silero; pyannote downloads its model)",
+            choices=["silero"],
+            help="VAD backend (silero only — the pyannote option was removed "
+            "with its gated model, ADR 18)",
         )
         s.add_argument(
             "--backend",
@@ -116,12 +117,12 @@ def build_parser() -> argparse.ArgumentParser:
         s.add_argument(
             "--diarize",
             action="store_true",
-            help="pyannote speaker diarization: adds speaker to segments/words",
+            help="Nemotron-3 speaker diarization: adds speaker to segments/words",
         )
         s.add_argument(
             "--diarize-model",
             default="nvidia/Nemotron-3-Diarization",
-            help="HF repo id of the diarization model (nemotron-* or pyannote/*)",
+            help="HF repo id of the Nemotron-3 diarization model",
         )
         s.add_argument(
             "--lid",

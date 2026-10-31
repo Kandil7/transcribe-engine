@@ -61,30 +61,28 @@ def test_resolver_no_env(tmp_path, monkeypatch):
     assert resolve_cache_dir("org/model") is None
 
 
-def test_nemotron_dispatch(monkeypatch):
+def test_pyannote_fully_removed():
     import diarize
 
-    calls = {}
+    # ADR 18: Nemotron-3 is the sole diarization backend
+    assert not hasattr(diarize, "diarize_pyannote")
+    assert not hasattr(diarize, "PYANNOTE_MODEL")
+    assert "pyannote" not in diarize.DIARIZE_MODEL.lower()
+    assert (
+        diarize.DIARIZE_MODEL
+        == diarize.NEMOTRON_MODEL
+        == "nvidia/Nemotron-3-Diarization"
+    )
 
-    def fake_nemotron(audio_path, device="cuda", hf_token=None, model_id=""):
-        calls["backend"] = "nemotron"
-        calls["model_id"] = model_id
-        return [{"start": 0.0, "end": 1.0, "speaker": "SPEAKER_00"}]
 
-    def fake_pyannote(
-        audio_path, device="cuda", hf_token=None, model_id="", num_speakers=None
-    ):
-        calls["backend"] = "pyannote"
-        return []
+def test_diarize_audio_defaults_to_nemotron():
+    import inspect
 
-    monkeypatch.setattr(diarize, "diarize_nemotron", fake_nemotron)
-    monkeypatch.setattr(diarize, "diarize_pyannote", fake_pyannote)
+    import diarize
 
-    turns = diarize.diarize_audio("x.wav", model_id="nvidia/Nemotron-3-Diarization")
-    assert calls["backend"] == "nemotron" and turns[0]["speaker"] == "SPEAKER_00"
-
-    diarize.diarize_audio("x.wav", model_id="pyannote/speaker-diarization-community-1")
-    assert calls["backend"] == "pyannote"
+    sig = inspect.signature(diarize.diarize_audio)
+    assert sig.parameters["model_id"].default == diarize.NEMOTRON_MODEL
+    assert "num_speakers" not in sig.parameters  # pyannote-only knob removed
 
 
 def test_lid_retry_after_freeing_models(monkeypatch):

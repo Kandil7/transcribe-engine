@@ -1,15 +1,14 @@
-"""Speaker diarization (v2 feature): Nemotron-3 (default) or pyannote.
+"""Speaker diarization (v2 feature) on Nemotron-3.
 
 Heavy imports are deferred so the package imports and tests run without
-the model stacks installed. Annotation is pure and unit-tested; only the
-``diarize_*`` functions touch models/GPU.
+the model stacks installed. Annotation is pure and unit-tested; only
+``diarize_audio`` touches models/GPU.
 
-Backends:
-- ``nemotron``: ``nvidia/Nemotron-3-Diarization`` via transformers
-  (OpenMDW license, ungated, 99.2M params, beats the pyannote baseline on
-  every published DER benchmark). Output channels are arrival-ordered.
-- ``pyannote``: ``pyannote/speaker-diarization-community-1`` pipeline
-  (gated on HF).
+Backend: ``nvidia/Nemotron-3-Diarization`` via transformers (OpenMDW
+license, ungated, 99.2M params, beats the pyannote baseline on every
+published DER benchmark). It replaced the pyannote pipeline entirely
+(ADR 18): no gated models, one code path. Output channels are
+arrival-ordered.
 """
 
 from __future__ import annotations
@@ -17,7 +16,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 NEMOTRON_MODEL = "nvidia/Nemotron-3-Diarization"
-PYANNOTE_MODEL = "pyannote/speaker-diarization-community-1"
 DIARIZE_MODEL = NEMOTRON_MODEL
 
 
@@ -69,39 +67,14 @@ def diarize_audio(
     device: str = "cuda",
     hf_token: str | None = None,
     model_id: str = DIARIZE_MODEL,
-    num_speakers: int | None = None,
 ) -> list[dict]:
-    """Run diarization; return [{start, end, speaker}] turns sorted by start.
-
-    Dispatches on ``model_id`` (``nemotron`` → Nemotron-3 backend, else
-    pyannote). Raises on model/download errors — callers decide whether
-    failure is fatal (the pipeline records ``diarize_status="failed"``
-    and moves on).
-    """
-    if "nemotron" in model_id.lower():
-        return diarize_nemotron(
-            audio_path, device=device, hf_token=hf_token, model_id=model_id
-        )
-    return diarize_pyannote(
-        audio_path,
-        device=device,
-        hf_token=hf_token,
-        model_id=model_id,
-        num_speakers=num_speakers,
-    )
-
-
-def diarize_nemotron(
-    audio_path: str,
-    device: str = "cuda",
-    hf_token: str | None = None,
-    model_id: str = NEMOTRON_MODEL,
-) -> list[dict]:
-    """Nemotron-3 (transformers) offline diarization.
+    """Nemotron-3 diarization; return [{start, end, speaker}] by start.
 
     Per-frame logits (10ms) are post-processed by the model's own
     ``processor.extract_speaker_dict``; channels are arrival-ordered, so
     labels map straight to SPEAKER_00..SPEAKER_07 by first appearance.
+    Raises on model/download errors — callers decide whether failure is
+    fatal (the pipeline records ``diarize_status="failed"`` and moves on).
     """
     import torch
     from transformers import AutoModelForAudioFrameClassification, AutoProcessor
@@ -141,40 +114,6 @@ def diarize_nemotron(
             "speaker": f"SPEAKER_{int(s['Speaker']):02d}",
         }
         for s in raw
-    ]
-    turns.sort(key=lambda t: t["start"])
-    return turns
-
-
-def diarize_pyannote(
-    audio_path: str,
-    device: str = "cuda",
-    hf_token: str | None = None,
-    model_id: str = PYANNOTE_MODEL,
-    num_speakers: int | None = None,
-) -> list[dict]:
-    """pyannote.audio pipeline diarization (gated model).
-
-    Raises on model/gating errors — callers decide whether failure is
-    fatal (the pipeline records ``diarize_status="failed"`` and moves on).
-    """
-    import torch
-    from pyannote.audio import Pipeline
-
-    try:
-        from .transcribe import load_local_first
-    except ImportError:  # script-style execution
-        from transcribe import load_local_first  # type: ignore
-
-    pipeline = load_local_first(Pipeline.from_pretrained, model_id, token=hf_token)
-    pipeline.to(torch.device(device))
-    kwargs = {}
-    if num_speakers:
-        kwargs["num_speakers"] = num_speakers
-    diarization = pipeline(audio_path, **kwargs)
-    turns = [
-        {"start": float(seg.start), "end": float(seg.end), "speaker": str(label)}
-        for seg, _, label in diarization.itertracks(yield_label=True)
     ]
     turns.sort(key=lambda t: t["start"])
     return turns

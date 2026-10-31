@@ -45,7 +45,7 @@ class VideoRecord:
     qa: list = field(default_factory=list)  # QA flag strings, [] = clean
     qa_scores: dict = field(default_factory=dict)  # numeric quality metrics
     diarize_status: str = ""  # ok | failed | "" (not requested)
-    speakers: list = field(default_factory=list)  # pyannote labels, [] = none
+    speakers: list = field(default_factory=list)  # speaker labels, [] = none
     lid_status: str = ""  # ok | failed | "" (not requested)
     lid_lang: str = ""  # ISO 639-3 detection (ara, eng, ...)
     lid_confidence: float = 0.0

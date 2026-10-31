@@ -25,7 +25,7 @@ class TranscribeConfig:
     # Turing sm_75 (RTX 5000) has no bf16 tensor cores; coherex "default"
     # resolves to bfloat16 on cuda, so default to float16 here.
     compute_type: str = "float16"
-    vad_method: str = "silero"  # silero | pyannote
+    vad_method: str = "silero"  # silero only (pyannote VAD removed, ADR 18)
     batch_size: int = 8
     chunk_size: float = 30.0
     align: bool = True
@@ -40,9 +40,8 @@ class TranscribeConfig:
     vllm_url: str = ""
     vllm_api_key: str | None = None
     vllm_args: str = ""  # extra `vllm serve` args, shell-style split
-    # Speaker diarization: annotates segments/words with speaker. Default
-    # is the ungated Nemotron-3 (OpenMDW); pass a pyannote repo id to use
-    # the gated pyannote pipeline instead.
+    # Speaker diarization: annotates segments/words with speaker. Nemotron-3
+    # (OpenMDW, ungated) is the sole backend since ADR 18 (pyannote removed).
     diarize: bool = False
     diarize_model: str = "nvidia/Nemotron-3-Diarization"
     # Audio LID (facebook/mms-lid-1024, CC-BY-NC): records the detected
