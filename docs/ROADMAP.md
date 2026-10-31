@@ -9,10 +9,9 @@ unchanged from `PLAN_V1_V2.md` except where noted.
    reuse, prefetch overlap, resume proven.
 2. ~~Commit the tree~~ **Done**: landed via `feature/engine-fixes` merges;
    `main` clean at `1742e25`.
-3. **Finish the playlist run** (paused mid-flight): 41 ok / 1 failed
-   (retryable) / 15 unattempted; rerun the CLI command, then rebuild
-   `segments.parquet` (`python -m src.jsonl_to_parquet data/output/
-   videos.jsonl data/output/segments.parquet`).
+3. ~~**Finish the playlist run**~~ **Done (2026-10-31)**: 57/57 ok,
+   0 failed. Corpus: 35.7h audio, 10,836 segments, 297k word timestamps.
+   Memory-pressure lesson documented (ADR 17).
 4. **WER/CER spot-check**: infra ready (`src/score_wer.py` + tests,
    audio + correctable template on disk), protocol in
    `docs/experiments/wer-eval-protocol.md`. Cross-ASR agreement measured

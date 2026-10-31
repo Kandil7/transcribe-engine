@@ -167,3 +167,21 @@ decision when its "revisit if" condition fires.
   dialect is not a defect).
 - Revisit if: a finer-grained Arabic dialect model (city/governorate
   level) lands with clean labels.
+
+## 17. Long videos need memory headroom, not retries
+
+- Context: 100+ minute videos (200MB+ wavs) failed all 3 retry attempts,
+  degraded to `align=segment_only`, or hung a subprocess reader thread —
+  all with `MemoryError`/`os error 1455` at coherex's whole-file audio
+  load (~800MB transient: ffmpeg pipe buffer + int16 + float32 copies).
+- Fact: the same videos completed clean with full alignment once commit
+  headroom existed (Docker Desktop VM stopped, hung prior process
+  killed, LM Studio closed). The retries were never the fix; headroom
+  was.
+- Decision: keep the never-fail degradation (QA flags, run continues)
+  and treat commit headroom as an operational precondition for
+  long-video batches — check free commit before big runs rather than
+  trusting retries to recover.
+- Revisit if: coherex streams audio instead of loading whole files
+  (then the constraint disappears), or the pipeline chunks long audio
+  before the engine.
