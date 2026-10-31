@@ -53,6 +53,7 @@ def test_prefetch_models_isolates_processes(monkeypatch):
         "aligner": "local",
         "nemotron": "local",
         "lid": "downloaded",
+        "dialect": "local",
     }
     assert [n for n, _ in spawned] == list(prefetch.PREFETCH_MODELS)
 

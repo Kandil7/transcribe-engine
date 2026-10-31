@@ -169,6 +169,9 @@ def _build_record(
         lid_status=res.get("lid_status", ""),
         lid_lang=res.get("lid_lang", ""),
         lid_confidence=float(res.get("lid_confidence", 0.0) or 0.0),
+        dialect_status=res.get("dialect_status", ""),
+        dialect=res.get("dialect", ""),
+        dialect_confidence=float(res.get("dialect_confidence", 0.0) or 0.0),
         timings=timings,
         segments=[
             {

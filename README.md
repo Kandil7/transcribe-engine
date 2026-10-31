@@ -4,7 +4,7 @@
 [![PyTorch cu128](https://img.shields.io/badge/torch-2.11%2Bcu128-orange)](https://pytorch.org/)
 [![GPU](https://img.shields.io/badge/GPU-RTX%205000%20sm__75-76B900)](docs/ARCHITECTURE.md#vram-budget-rtx-5000-16gb-sm_75)
 [![Arabic ASR](https://img.shields.io/badge/arabic-ASR-green)](https://huggingface.co/CohereLabs/cohere-transcribe-arabic-07-2026)
-[![Tests](https://img.shields.io/badge/tests-91%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-96%20passing-brightgreen)](tests/)
 [![Scope](https://img.shields.io/badge/v1%2Bv2-optional%20diarize%2FLID-lightgrey)](docs/PLAN_V1_V2.md)
 [![Code Intelligence](https://img.shields.io/badge/🧠_Code_Graph-docs-blue)](docs/CODEBASE-INTELLIGENCE.md)
 
@@ -97,6 +97,8 @@ python -m src.cli video "https://www.youtube.com/watch?v=VIDEO_ID" --no-align \
 | `--diarize-model` | Nemotron-3 | HF repo id of the diarization model (`nemotron-*` or `pyannote/*`) |
 | `--lid` | off | Audio language ID: records `lid_lang`/`lid_confidence`, QA flags `lid_mismatch` (model is CC-BY-NC) |
 | `--lid-model` | `facebook/mms-lid-1024` | HF repo id of the LID model |
+| `--dialect` | off | Written-dialect tag (MARBERTv2): records `dialect`/`dialect_confidence` (`MAGHREB`\|`LEV`\|`MSA`\|`GLF`\|`EGY`) |
+| `--dialect-model` | marbertv2-dialect | HF repo id of the dialect classifier |
 
 ## Outputs
 
@@ -117,7 +119,9 @@ python -m src.cli video "https://www.youtube.com/watch?v=VIDEO_ID" --no-align \
 clean), `qa_scores` (numeric: `mean_word_score`, `speech_ratio`,
 `empty_ratio`, `repeat_max`, `arabic_ratio`), `diarize_status` (`ok` \| `failed` \| `""`),
 `speakers` (pyannote labels), `lid_status` (`ok` \| `failed` \| `""`),
-`lid_lang` (ISO 639-3), `lid_confidence`, `timings` (`download/transcribe/total_seconds`),
+`lid_lang` (ISO 639-3), `lid_confidence`, `dialect_status` (`ok` \| `failed` \| `""`),
+`dialect` (`MAGHREB` \| `LEV` \| `MSA` \| `GLF` \| `EGY`), `dialect_confidence`,
+`timings` (`download/transcribe/total_seconds`),
 `segments` (`start/end/text/words` + optional `speaker`), `word_segments`
 (`word/start/end/score` + optional `speaker`), `fetched_at`.
 
@@ -178,7 +182,7 @@ metadata only (YouTube ToS / copyright).
 ## Testing
 
 ```bash
-python -m pytest -q   # 91 tests, all offline (mocked network/GPU boundaries)
+python -m pytest -q   # 96 tests, all offline (mocked network/GPU boundaries)
 ```
 
 `tests/test_contract.py` covers the schema/normalizer/parquet contract;
@@ -230,6 +234,8 @@ src/
   jsonl_to_parquet.py JSONL → parquet/pandas/csv
   score_wer.py        WER/CER scorer vs hand reference (slice support)
   make_reference.py   segment-aligned reference template from auto-captions
+  lid.py              audio language ID (mms-lid-1024, CC-BY-NC)
+  dialect.py          written-dialect tag (MARBERTv2: MAGHREB|LEV|MSA|GLF|EGY)
   viewer.py           Streamlit dataset viewer + segment audio playback
   diarize.py          pyannote speaker diarization (v2, gated model)
 docs/

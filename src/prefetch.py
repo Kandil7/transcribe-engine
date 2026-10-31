@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import gc
 
-PREFETCH_MODELS = ("asr", "aligner", "nemotron", "lid")
+PREFETCH_MODELS = ("asr", "aligner", "nemotron", "lid", "dialect")
 
 
 def _try_local_then_online(loader) -> str:
@@ -147,11 +147,30 @@ def _load_lid(device: str):
     return proc, mod
 
 
+def _load_dialect(device: str):
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+    try:
+        from .transcribe import resolve_cache_dir
+    except ImportError:  # script-style execution
+        from transcribe import resolve_cache_dir  # type: ignore
+
+    model_id = "IbrahimAmin/marbertv2-arabic-written-dialect-classifier"
+    cache_dir = resolve_cache_dir(model_id)
+    tok = AutoTokenizer.from_pretrained(model_id, cache_dir=cache_dir)
+    mod = AutoModelForSequenceClassification.from_pretrained(
+        model_id, cache_dir=cache_dir
+    )
+    mod.to(device)
+    return tok, mod
+
+
 _LOADERS = {
     "asr": _load_asr,
     "aligner": _load_aligner,
     "nemotron": _load_nemotron,
     "lid": _load_lid,
+    "dialect": _load_dialect,
 }
 
 

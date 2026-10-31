@@ -267,6 +267,47 @@ def test_process_video_lid_failure_flagged(monkeypatch, tmp_path):
     assert "lid_failed" in rec.qa
 
 
+def test_process_video_dialect_flow(monkeypatch, tmp_path):
+    class DialectSession(FakeSession):
+        def transcribe(self, audio):
+            res = dict(RES)
+            res.update(dialect="EGY", dialect_confidence=0.94, dialect_status="ok")
+            return res
+
+    _wire(monkeypatch, tmp_path)
+    ds = DialectSession()
+    ds.calls = 0
+    rec = pipeline.process_video(
+        "https://www.youtube.com/watch?v=VID12345678",
+        db_path=str(tmp_path / "c.db"),
+        jsonl_path=str(tmp_path / "v.jsonl"),
+        session=ds,
+    )
+    assert rec.dialect == "EGY"
+    assert rec.dialect_confidence == 0.94
+    assert rec.dialect_status == "ok"
+
+
+def test_process_video_dialect_failure_never_flags(monkeypatch, tmp_path):
+    class DialectFailSession(FakeSession):
+        def transcribe(self, audio):
+            res = dict(RES)
+            res.update(dialect="", dialect_confidence=0.0, dialect_status="failed")
+            return res
+
+    _wire(monkeypatch, tmp_path)
+    fs = DialectFailSession()
+    fs.calls = 0
+    rec = pipeline.process_video(
+        "https://www.youtube.com/watch?v=VID12345678",
+        db_path=str(tmp_path / "c.db"),
+        jsonl_path=str(tmp_path / "v.jsonl"),
+        session=fs,
+    )
+    assert rec.dialect_status == "failed"
+    assert rec.qa == []  # metadata only: failure never flags QA
+
+
 def test_upsert_jsonl_is_idempotent(tmp_path):
     jl = str(tmp_path / "v.jsonl")
     rec = VideoRecord(video_id="A", video_title="t")

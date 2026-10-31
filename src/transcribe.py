@@ -50,6 +50,10 @@ class TranscribeConfig:
     # requested language. Model loads transiently per video.
     lid: bool = False
     lid_model: str = "facebook/mms-lid-1024"
+    # Written-dialect tag (MARBERTv2, labels MAGHREB|LEV|MSA|GLF|EGY):
+    # classifies the transcript text, records dialect + confidence.
+    dialect: bool = False
+    dialect_model: str = "IbrahimAmin/marbertv2-arabic-written-dialect-classifier"
 
 
 def ensure_ffmpeg_on_path() -> str | None:
@@ -323,6 +327,8 @@ class TranscribeSession:
             self._apply_diarize(result, audio_path)
         if c.lid:
             self._apply_lid(result, audio_path)
+        if c.dialect:
+            self._apply_dialect(result)
         result["model"] = c.model
         gc.collect()
         return result
@@ -415,6 +421,36 @@ class TranscribeSession:
             result["lid_lang"] = ""
             result["lid_confidence"] = 0.0
             result["lid_status"] = "failed"
+        finally:
+            gc.collect()
+            _empty_cuda_cache(self.config.device)
+
+    def _apply_dialect(self, result: dict) -> None:
+        """Record written-dialect tag from the transcript; never fails.
+
+        Text classification only (no audio, no model residency juggling):
+        the MARBERTv2 classifier runs transiently on the transcript text.
+        """
+        import gc
+
+        try:
+            try:
+                from .dialect import classify_dialect
+            except ImportError:  # script-style execution
+                from dialect import classify_dialect  # type: ignore
+
+            text = " ".join(s.get("text", "") for s in result.get("segments", []))
+            tag = classify_dialect(
+                text, device=self.config.device, model_id=self.config.dialect_model
+            )
+            result["dialect"] = tag["dialect"]
+            result["dialect_confidence"] = tag["confidence"]
+            result["dialect_status"] = "ok"
+        except Exception:
+            self.log.exception("dialect tagging failed")
+            result["dialect"] = ""
+            result["dialect_confidence"] = 0.0
+            result["dialect_status"] = "failed"
         finally:
             gc.collect()
             _empty_cuda_cache(self.config.device)

@@ -134,6 +134,17 @@ def build_parser() -> argparse.ArgumentParser:
             default="facebook/mms-lid-1024",
             help="HF repo id of the LID model",
         )
+        s.add_argument(
+            "--dialect",
+            action="store_true",
+            help="written-dialect tag (MARBERTv2): records dialect/"
+            "dialect_confidence (MAGHREB|LEV|MSA|GLF|EGY)",
+        )
+        s.add_argument(
+            "--dialect-model",
+            default="IbrahimAmin/marbertv2-arabic-written-dialect-classifier",
+            help="HF repo id of the dialect classifier",
+        )
     return p
 
 
@@ -166,6 +177,8 @@ def main(argv: list[str] | None = None) -> int:
         diarize_model=args.diarize_model,
         lid=args.lid,
         lid_model=args.lid_model,
+        dialect=args.dialect,
+        dialect_model=args.dialect_model,
     )
     if args.cmd == "video":
         rec = process_video(
