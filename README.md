@@ -4,7 +4,7 @@
 [![PyTorch cu128](https://img.shields.io/badge/torch-2.11%2Bcu128-orange)](https://pytorch.org/)
 [![GPU](https://img.shields.io/badge/GPU-RTX%205000%20sm__75-76B900)](docs/ARCHITECTURE.md#vram-budget-rtx-5000-16gb-sm_75)
 [![Arabic ASR](https://img.shields.io/badge/arabic-ASR-green)](https://huggingface.co/CohereLabs/cohere-transcribe-arabic-07-2026)
-[![Tests](https://img.shields.io/badge/tests-96%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-97%20passing-brightgreen)](tests/)
 [![Scope](https://img.shields.io/badge/v1%2Bv2-optional%20diarize%2FLID-lightgrey)](docs/PLAN_V1_V2.md)
 [![Code Intelligence](https://img.shields.io/badge/🧠_Code_Graph-docs-blue)](docs/CODEBASE-INTELLIGENCE.md)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
@@ -37,7 +37,8 @@ runs are offline-capable once `prefetch` reports `local`.
 ## Setup (GPU machine)
 
 ```bash
-pip install -e ".[engine]"   # coherex, yt-dlp, pydantic, polars
+pip install -e ".[engine]"   # coherex, yt-dlp, polars
+pip install -e ".[viewer]"   # streamlit (dataset viewer)
 pip install -e ".[test]"     # pytest
 # ffmpeg: system install preferred; otherwise imageio-ffmpeg is auto-shimmed
 # to data/bin/ffmpeg.exe on first run (coherex shells out to `ffmpeg`).
@@ -183,7 +184,7 @@ metadata only (YouTube ToS / copyright).
 ## Testing
 
 ```bash
-python -m pytest -q   # 96 tests, all offline (mocked network/GPU boundaries)
+python -m pytest -q   # 97 tests, all offline (mocked network/GPU boundaries)
 ```
 
 `tests/test_contract.py` covers the schema/normalizer/parquet contract;

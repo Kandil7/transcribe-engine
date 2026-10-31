@@ -11,6 +11,7 @@ engine = [
   "yt-dlp",
   "polars",
 ]
+viewer = ["streamlit>=1.57"]
 test = ["pytest"]
 
 [tool.pytest.ini_options]
