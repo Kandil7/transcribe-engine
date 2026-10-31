@@ -147,8 +147,23 @@ decision when its "revisit if" condition fires.
   commit even when each model fits alone (freed pages return lazily).
 - Decision: `load_local_first(loader)` attempts every load cache-only
   (`HF_HUB_OFFLINE=1`) and only goes online on a genuine cache miss;
-  `cli prefetch` verifies all four models in one subprocess each, so
-  memory is reclaimed at process exit. Statuses report `local` vs
+  `cli prefetch` verifies every pipeline model in one subprocess each,
+  so memory is reclaimed at process exit. Statuses report `local` vs
   `downloaded`.
 - Revisit if: huggingface_hub grows a first-class offline-first mode
   (then the wrapper can shrink to it).
+
+## 16. Written-dialect tag on MARBERTv2
+
+- Context: the roadmap wants a dialect tag; audio dialect ID would need
+  the deleted audio, but transcripts exist for every record.
+- Fact: `IbrahimAmin/marbertv2-arabic-written-dialect-classifier` has
+  named labels (`MAGHREB|LEV|MSA|GLF|EGY`) covering Egyptian; the more
+  downloaded alternative ships anonymous `LABEL_0..17` (unusable without
+  a mapping). Trained on written text — applied to transcripts, no audio.
+- Decision: `--dialect` opt-in; classification averages softmax over
+  spread text windows (start/middle/end, MARBERT caps at 512 tokens);
+  results land on the record as metadata only (never QA-flags — a
+  dialect is not a defect).
+- Revisit if: a finer-grained Arabic dialect model (city/governorate
+  level) lands with clean labels.

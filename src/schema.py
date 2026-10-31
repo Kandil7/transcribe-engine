@@ -49,6 +49,9 @@ class VideoRecord:
     lid_status: str = ""  # ok | failed | "" (not requested)
     lid_lang: str = ""  # ISO 639-3 detection (ara, eng, ...)
     lid_confidence: float = 0.0
+    dialect_status: str = ""  # ok | failed | "" (not requested)
+    dialect: str = ""  # MAGHREB | LEV | MSA | GLF | EGY
+    dialect_confidence: float = 0.0
     timings: dict = field(default_factory=dict)  # download/transcribe seconds
     segments: list = field(default_factory=list)
     word_segments: list = field(default_factory=list)

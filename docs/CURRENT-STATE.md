@@ -13,7 +13,7 @@ chore sits uncommitted (stale-count/badge fixes).
   `videos.jsonl`; `segments.parquet` **5,453 rows × 13 cols, 0 nulls**,
   all `align=ok`. Checkpoint db: 41 ok, 1 failed
   (`rx7mm2Ck7Cs`, audio-load error during an interrupted run, retryable).
-- 91/91 tests pass, all offline (mocked network/GPU). v1 toolset includes
+- 96/96 tests pass, all offline (mocked network/GPU). v1 toolset includes
   `src/score_wer.py` WER scorer, `src/viewer.py` Streamlit viewer, and
   `qa_scores` numeric metrics (backfilled across all 41 records:
   mean_word_score 0.571–0.743 (mean 0.633), speech_ratio 0.91–0.97,
@@ -75,6 +75,12 @@ chore sits uncommitted (stale-count/badge fixes).
 - **`--language`**: explicit language code pass-through (default `ar`),
   engine-reported language now recorded on each `VideoRecord`. True
   auto-detect is impossible in coherex (it raises on `language=None`).
+- **Written-dialect tag** (`--dialect`): `src/dialect.py` on MARBERTv2
+  (`IbrahimAmin/marbertv2-arabic-written-dialect-classifier`, labels
+  `MAGHREB|LEV|MSA|GLF|EGY`). Classifies transcript text (no audio
+  needed), averages softmax over spread windows, records
+  `dialect`/`dialect_confidence` as metadata (never QA-flags).
+  **Verified on all 41 transcripts: EGY × 41, confidence mean 0.979**.
 - **Audio LID** (`--lid`): `src/lid.py` on `facebook/mms-lid-1024`
   (1B params, CC-BY-NC — flagged in docs). Transient per-video load,
   scores a 30s middle clip, records `lid_lang`/`lid_confidence`, QA
