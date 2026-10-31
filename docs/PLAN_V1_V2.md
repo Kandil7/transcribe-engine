@@ -10,10 +10,19 @@
 - `feature/jsonl-parquet` — `src/jsonl_to_parquet.py` + `tests/test_contract.py`
 - `feature/pipeline` — `src/youtube.py` + `src/transcribe.py` + `src/pipeline.py`
 - `feature/cli` — `src/cli.py`, HF token wiring, resume skip, usage docs
-- `feature/gpu-run-fixes` *(unmerged work in tree)* — ffmpeg shim, `noplaylist`
-  guard, audio reuse + ownership, `float16` default, OOM fallback, VRAM release
-- `feature/full-fixes` *(unmerged work in tree)* — `TranscribeSession`,
-  `qa.py`, JSONL upsert, manifest, prefetch, CLI knobs, mocked test suites
+- `feature/engine-fixes` — GPU-run hardening: ffmpeg shim, `noplaylist`
+  guard, audio reuse + ownership, `float16` default, OOM fallback,
+  `TranscribeSession`, `qa.py`, JSONL upsert, manifest, prefetch,
+  full docs refresh
+- `feature/v2-diarization` — Nemotron-3 diarization, HF cache resolver,
+  QA scores, WER scorer + viewer, CUDA Dockerfile, Colab notebook
+- `feature/lid-local-first` — audio LID, local-first loading, `prefetch`
+- `feature/wer-tooling` — segment-aligned reference template,
+  per-segment WER scoring
+- `feature/dialect-tag` — MARBERTv2 written-dialect tag
+- `feature/license-cross-asr` — Apache-2.0 license, cross-ASR agreement
+- `feature/playlist-complete` — 57-video corpus completion, ADR 17
+- `feature/nemotron-sole-diarizer` — pyannote removed (ADR 18)
 
 ## v1 — current (locked scope, implemented + proven on GPU)
 

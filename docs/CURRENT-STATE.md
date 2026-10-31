@@ -13,7 +13,7 @@ chore sits uncommitted (stale-count/badge fixes).
   **57 videos, 35.7 audio hours, 10,836 segments × 14 cols (0 nulls),
   297,037 word timestamps**, QA: 56 clean + 1 `align_segment_only`
   (memory-pressure casualty, re-alignable), dialect `EGY` × 57.
-- 96/96 tests pass, all offline (mocked network/GPU). v1 toolset includes
+- 97/97 tests pass, all offline (mocked network/GPU). v1 toolset includes
   `src/score_wer.py` WER scorer, `src/viewer.py` Streamlit viewer, and
   `qa_scores` numeric metrics (backfilled across all 41 records:
   mean_word_score 0.571–0.743 (mean 0.633), speech_ratio 0.91–0.97,
