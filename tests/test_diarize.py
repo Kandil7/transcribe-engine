@@ -1,4 +1,4 @@
-"""Offline tests for src/diarize.py — pure annotation, no pyannote models."""
+"""Offline tests for src/diarize.py — pure annotation, no model stacks."""
 
 import sys
 from pathlib import Path

@@ -50,9 +50,11 @@ Goal: Arabic YouTube → transcription dataset on local RTX 5000.
 
 ## v2 — future (not started)
 
-- Speaker diarization via `pyannote/speaker-diarization-community-1`
-  (`exclusive_speaker_diarization` reconciled to word timestamps).
-- `vad_method=pyannote` option; vLLM backend for throughput.
+- Speaker diarization via Nemotron-3 (`nvidia/Nemotron-3-Diarization`;
+  the planned `pyannote/speaker-diarization-community-1` was dropped —
+  gated models, ADR 18).
+- `vllm` backend for throughput (the `vad_method=pyannote` option was
+  dropped with pyannote, ADR 18).
 - Language auto-detect (`coherex[langid]`) with explicit-`ar` default.
 - `segments.parquet` gains `speaker` column; JSONL gains `speakers`.
 - Dialect tag + per-video QA scores (empty-ratio, LID confidence,
