@@ -100,11 +100,14 @@ chore sits uncommitted (stale-count/badge fixes).
 
 ## Known limitations
 
-- Remaining playlist work: 15 videos + 1 retry (see above).
+- **Playlist run in progress** (resumed 2026-10-31): 41 ok / 1 retry /
+  15 unattempted; parquet rebuilds at the run's end.
 - YouTube throttling on this link (~0.3–1 MB/s): audio re-downloads and
   model fetches are slow but resumable.
-- No license file for this repo yet — pending user decision (Apache-2.0
-  suggested to match coherex) before publishing.
-- True WER/CER unmeasured: no manual captions exist for any playlist
-  video (`docs/experiments/wer-spotcheck-01.md`); needs a ~10-min hand
-  transcript.
+- LICENSE: Apache-2.0 added (2026-10-31); swap before public push if a
+  different license is wanted.
+- WER: cross-ASR agreement measured
+  (`docs/experiments/cross-asr-agreement.md`, CER disagreement 0.532
+  between Whisper-large-v3-turbo and the pipeline). The gold-standard
+  hand reference remains pending user correction
+  (`docs/experiments/wer-eval-protocol.md`).

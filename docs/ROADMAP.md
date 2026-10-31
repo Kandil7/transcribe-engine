@@ -13,11 +13,15 @@ unchanged from `PLAN_V1_V2.md` except where noted.
    (retryable) / 15 unattempted; rerun the CLI command, then rebuild
    `segments.parquet` (`python -m src.jsonl_to_parquet data/output/
    videos.jsonl data/output/segments.parquet`).
-4. **WER/CER spot-check**: infra ready (`src/score_wer.py` + 6 tests,
-   audio + correctable draft on disk), protocol in
-   `docs/experiments/wer-eval-protocol.md` — hand-correction by the user
-   is the remaining step before the number exists.
-5. **Add repo LICENSE** — user chose to defer; revisit before publishing.
+4. **WER/CER spot-check**: infra ready (`src/score_wer.py` + tests,
+   audio + correctable template on disk), protocol in
+   `docs/experiments/wer-eval-protocol.md`. Cross-ASR agreement measured
+   (`docs/experiments/cross-asr-agreement.md`: Whisper-large-v3-turbo vs
+   pipeline, CER disagreement 0.532 — Arabic segmentation inflates WER).
+   The hand reference remains the gold standard and gates v1 "done".
+5. ~~**Add repo LICENSE**~~ **Done**: Apache-2.0 (2026-10-31), README
+   badge added. Swappable in one command if a different license is
+   preferred before public push.
 
 ## Then (v2, from the plan)
 
