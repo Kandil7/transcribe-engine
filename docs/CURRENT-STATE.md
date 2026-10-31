@@ -13,7 +13,7 @@ chore sits uncommitted (stale-count/badge fixes).
   `videos.jsonl`; `segments.parquet` **5,453 rows × 13 cols, 0 nulls**,
   all `align=ok`. Checkpoint db: 41 ok, 1 failed
   (`rx7mm2Ck7Cs`, audio-load error during an interrupted run, retryable).
-- 83/83 tests pass, all offline (mocked network/GPU). v1 toolset includes
+- 91/91 tests pass, all offline (mocked network/GPU). v1 toolset includes
   `src/score_wer.py` WER scorer, `src/viewer.py` Streamlit viewer, and
   `qa_scores` numeric metrics (backfilled across all 41 records:
   mean_word_score 0.571–0.743 (mean 0.633), speech_ratio 0.91–0.97,

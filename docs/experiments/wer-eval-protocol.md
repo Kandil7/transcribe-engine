@@ -26,21 +26,24 @@ tags, which carry each word exactly once: that yields a 1,426-word draft
 
 ## Steps to produce the number
 
-1. Play `data/raw_audio/eval/AeVhRpg0OuY_full.mp3`.
-2. Correct `data/eval/AeVhRpg0OuY_autocaptions_draft.txt` against the
-   audio: fix words, delete hallucinated fillers, add missed speech.
-   When it matches the audio word-for-word, save as
-   `data/eval/AeVhRpg0OuY_reference.txt` (do not edit the draft in a
-   language-converting editor; keep UTF-8 and RTL direction only).
-3. Score:
+1. Generate a segment-aligned correction template (auto-captions carry
+   per-word timestamps; each of the 55 segments gets one `[start-end]`
+   line prefilled with the draft text):
+   ```
+   python -m src.make_reference AeVhRpg0OuY
+   ```
+2. Play `data/raw_audio/eval/AeVhRpg0OuY_full.mp3` — the Streamlit
+   viewer's `st.audio` plays exactly a selected segment's window — and
+   correct `data/eval/AeVhRpg0OuY_reference_template.txt` line by line
+   against the audio. Save as
+   `data/eval/AeVhRpg0OuY_reference.txt` (keep UTF-8).
+3. Score (understands the `[start-end]` line format and reports
+   per-segment WER with the worst 5 lines):
    ```
    python -m src.score_wer AeVhRpg0OuY data/eval/AeVhRpg0OuY_reference.txt
    ```
-   Optional windowscoring of a part:
-   `--slice 2:00-6:00` restricts the hypothesis (and thus the needed
-   reference span) by pipeline segment times.
-4. Paste the output into the results table below and regenerate the
-   parquet-independent stats.
+   Optional window scoring of a part: `--slice 2:00-6:00`.
+4. Paste the output into the results table below.
 
 ## Scoring semantics
 

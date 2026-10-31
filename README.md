@@ -4,7 +4,7 @@
 [![PyTorch cu128](https://img.shields.io/badge/torch-2.11%2Bcu128-orange)](https://pytorch.org/)
 [![GPU](https://img.shields.io/badge/GPU-RTX%205000%20sm__75-76B900)](docs/ARCHITECTURE.md#vram-budget-rtx-5000-16gb-sm_75)
 [![Arabic ASR](https://img.shields.io/badge/arabic-ASR-green)](https://huggingface.co/CohereLabs/cohere-transcribe-arabic-07-2026)
-[![Tests](https://img.shields.io/badge/tests-83%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-91%20passing-brightgreen)](tests/)
 [![Scope](https://img.shields.io/badge/v1%2Bv2-optional%20diarize%2FLID-lightgrey)](docs/PLAN_V1_V2.md)
 [![Code Intelligence](https://img.shields.io/badge/🧠_Code_Graph-docs-blue)](docs/CODEBASE-INTELLIGENCE.md)
 
@@ -178,7 +178,7 @@ metadata only (YouTube ToS / copyright).
 ## Testing
 
 ```bash
-python -m pytest -q   # 83 tests, all offline (mocked network/GPU boundaries)
+python -m pytest -q   # 91 tests, all offline (mocked network/GPU boundaries)
 ```
 
 `tests/test_contract.py` covers the schema/normalizer/parquet contract;
@@ -229,6 +229,7 @@ src/
   normalize_ar.py     versioned Arabic fold
   jsonl_to_parquet.py JSONL → parquet/pandas/csv
   score_wer.py        WER/CER scorer vs hand reference (slice support)
+  make_reference.py   segment-aligned reference template from auto-captions
   viewer.py           Streamlit dataset viewer + segment audio playback
   diarize.py          pyannote speaker diarization (v2, gated model)
 docs/

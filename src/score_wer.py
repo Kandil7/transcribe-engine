@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 
@@ -144,6 +145,46 @@ def score(hyp: str, ref: str) -> dict:
     }
 
 
+_TIMED_LINE = re.compile(r"^\[([\d:.]+)-([\d:.]+)\]\s*(.*)$")
+
+
+def parse_reference(text: str) -> tuple[list[tuple[float, float, str]], str]:
+    """Detect a timestamped reference (``[A-B] text`` lines).
+
+    Returns ``(lines, flattened_text)``; ``lines`` is empty for plain
+    references, in which case ``flattened_text`` is the whole input.
+    """
+    lines: list[tuple[float, float, str]] = []
+    matched_any = False
+    for raw in text.splitlines():
+        s = raw.strip()
+        if not s:
+            continue
+        m = _TIMED_LINE.match(s)
+        if m:
+            matched_any = True
+            lines.append((_parse_t(m.group(1)), _parse_t(m.group(2)), m.group(3)))
+        elif matched_any:
+            lines.append((0.0, 0.0, s))  # untimed line inside a timed ref
+    if not matched_any:
+        return [], text
+    return lines, " ".join(t for _, _, t in lines)
+
+
+def score_reference_lines(
+    rec: dict, lines: list[tuple[float, float, str]]
+) -> list[dict]:
+    """Per-line WER: each reference line vs the hyp segments in its window."""
+    out = []
+    for t0, t1, text in lines:
+        hyp = hypothesis_for(rec, (t0, t1)) if t1 > t0 else ""
+        m = score(hyp, text)
+        m["start"], m["end"] = t0, t1
+        m["text"] = text
+        out.append(m)
+    return out
+
+
 def main(argv=None) -> dict:
     p = argparse.ArgumentParser(description="WER/CER vs hand reference")
     p.add_argument("video_id")
@@ -158,7 +199,8 @@ def main(argv=None) -> dict:
     ref = Path(args.reference).read_text(encoding="utf-8")
     if not ref.strip():
         raise SystemExit("reference file is empty")
-    m = score(hyp, ref)
+    lines, flat = parse_reference(ref)
+    m = score(hyp, flat)
     m["video_id"] = args.video_id
     print(
         "WER={wer:.3f} CER={cer:.3f} ref_words={ref_words} hyp_words={hyp_words}\n"
@@ -166,7 +208,24 @@ def main(argv=None) -> dict:
             **m
         )
     )
+    if lines:
+        per_line = score_reference_lines(d, lines)
+        scored = [x for x in per_line if x["ref_words"] > 0]
+        scored.sort(key=lambda x: -x["wer"])
+        print(f"\nper-segment WER ({len(scored)} lines), worst 5:")
+        for x in scored[:5]:
+            print(
+                f"  {_fmt_line(x['start'])}-{_fmt_line(x['end'])} "
+                f"WER={x['wer']:.2f} ({x['substitutions']}s {x['deletions']}d {x['insertions']}i) "
+                f"{x['text'][:60]}"
+            )
     return m
+
+
+def _fmt_line(t: float) -> str:
+    m, s = divmod(int(t), 60)
+    h, m = divmod(m, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
 
 
 if __name__ == "__main__":
