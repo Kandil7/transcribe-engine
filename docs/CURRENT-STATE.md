@@ -9,10 +9,10 @@ chore sits uncommitted (stale-count/badge fixes).
   17.4-min Arabic video → **112 segments, 2,622 word timestamps,
   `align=ok`**, VAD+ASR in ~44s.
 - Resume from checkpoint does zero network for done videos (proven).
-- Dataset state on disk: **41 completed videos, 17.5 audio hours** in
-  `videos.jsonl`; `segments.parquet` **5,453 rows × 13 cols, 0 nulls**,
-  all `align=ok`. Checkpoint db: 41 ok, 1 failed
-  (`rx7mm2Ck7Cs`, audio-load error during an interrupted run, retryable).
+- **Full playlist complete (2026-10-31): 57/57 ok, 0 failed.** Corpus:
+  **57 videos, 35.7 audio hours, 10,836 segments × 14 cols (0 nulls),
+  297,037 word timestamps**, QA: 56 clean + 1 `align_segment_only`
+  (memory-pressure casualty, re-alignable), dialect `EGY` × 57.
 - 96/96 tests pass, all offline (mocked network/GPU). v1 toolset includes
   `src/score_wer.py` WER scorer, `src/viewer.py` Streamlit viewer, and
   `qa_scores` numeric metrics (backfilled across all 41 records:
@@ -35,13 +35,15 @@ chore sits uncommitted (stale-count/badge fixes).
 | ASR resident | ~4GB VRAM; +aligner ~6GB in playlist sessions |
 | Corpus so far (41 videos) | 17.5h audio, 5,453 segments, ~55k words |
 
-## Playlist run status (paused 2026-10-30)
+## Playlist run status — COMPLETE (2026-10-31)
 
-- Hon checklist against the 57-video playlist: **41 ok / 1 failed /
-  15 unattempted**.
-- Resuming with the same `cli playlist` command skips the 41 ok videos
-  without network and re-attempts the 1 failure; `--to-parquet` should be
-  re-run afterwards (or use the converter module directly).
+- **57/57 ok, 0 failed** (1,648s elapsed for the final 10; earlier
+  partial runs contributed the first 47). Parquet rebuilt at run end.
+- Memory lesson: the 100+ min videos (200MB+ wavs) need ~800MB transient
+  for coherex's whole-file audio load; under commit pressure they
+  failed / degraded to `align=segment_only` / hung a reader thread. With
+  headroom freed (Docker stopped, hung process killed) the same videos
+  completed clean with full alignment. Documented in ADR 17.
 
 ## v2 features wired (2026-10-30)
 

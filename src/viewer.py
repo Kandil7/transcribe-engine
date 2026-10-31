@@ -65,6 +65,11 @@ def record_status(rec: dict) -> dict:
             if rec.get("lid_lang")
             else ""
         ),
+        "dialect": (
+            f"{rec.get('dialect', '')} ({rec.get('dialect_confidence', 0):.2f})"
+            if rec.get("dialect")
+            else ""
+        ),
         "dl_s": round(d.get("download") or 0.0),
         "asr_s": round(d.get("transcribe") or 0.0),
         "total_s": round(d.get("total") or 0.0),
