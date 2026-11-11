@@ -6,9 +6,7 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
-from youtube import (  # noqa: E402
+from src.youtube import (
     _reusable_wav,
     download_audio,
     video_id_from_url,

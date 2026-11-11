@@ -15,8 +15,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-NEMOTRON_MODEL = "nvidia/Nemotron-3-Diarization"
-DIARIZE_MODEL = NEMOTRON_MODEL
+from .audio_io import load_audio_16k
+from .hub import load_local_first, resolve_cache_dir
+from .models import DIARIZE_MODEL
+
+NEMOTRON_MODEL = DIARIZE_MODEL
 
 
 @dataclass
@@ -27,39 +30,8 @@ class Turn:
 
 
 def _load_audio_16k(path: str, sampling_rate: int = 16000):
-    """Decode audio to a float32 mono waveform via the ffmpeg CLI.
-
-    transformers.audio_utils.load_audio needs torchcodec + shared-FFmpeg
-    DLLs; the pipeline already standardizes on a plain ffmpeg CLI
-    (coherex does the same), so decode through it: ffmpeg -i <path> -f
-    f32le -ac 1 -ar <rate> pipe:1
-    """
-    import subprocess
-
-    import numpy as np
-
-    try:
-        from .transcribe import ensure_ffmpeg_on_path
-    except ImportError:  # script-style execution
-        from transcribe import ensure_ffmpeg_on_path  # type: ignore
-
-    ensure_ffmpeg_on_path()
-    cmd = [
-        "ffmpeg",
-        "-v",
-        "error",
-        "-i",
-        path,
-        "-f",
-        "f32le",
-        "-ac",
-        "1",
-        "-ar",
-        str(sampling_rate),
-        "pipe:1",
-    ]
-    raw = subprocess.run(cmd, capture_output=True, check=True).stdout
-    return np.frombuffer(raw, dtype=np.float32).copy()
+    """Backwards-compatible name for :func:`audio_io.load_audio_16k`."""
+    return load_audio_16k(path, sampling_rate)
 
 
 def diarize_audio(
@@ -78,11 +50,6 @@ def diarize_audio(
     """
     import torch
     from transformers import AutoModelForAudioFrameClassification, AutoProcessor
-
-    try:
-        from .transcribe import load_local_first, resolve_cache_dir
-    except ImportError:  # script-style execution
-        from transcribe import load_local_first, resolve_cache_dir  # type: ignore
 
     cache_dir = resolve_cache_dir(model_id)
 

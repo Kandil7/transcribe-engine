@@ -1,12 +1,6 @@
 """Offline tests for src/lid.py — pure helpers, no transformers/torch."""
 
-from pathlib import Path
-
-import sys
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-
-from lid import clip_window, lid_codes_equal  # noqa: E402
+from src.lid import clip_window, lid_codes_equal
 
 
 def test_clip_window_short_audio():

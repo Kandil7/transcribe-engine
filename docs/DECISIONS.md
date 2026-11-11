@@ -201,3 +201,26 @@ decision when its "revisit if" condition fires.
   calls it.
 - Revisit if: pyannote models become ungated AND outperform Nemotron-3
   on this corpus (then reintroduce as an option behind the same flag).
+
+## 19. Shared-infrastructure extraction (models/hub/audio_io/store)
+
+- Context: the v2 feature set made `transcribe.py` a four-concern god
+  module (engine session + HF loading infra + ffmpeg/audio decoding +
+  model ids), with `resolve_cache_dir` as the top hub node (21 edges);
+  model repo ids were duplicated in 12 places; the videos.jsonl reader
+  existed three times; and every module carried a try/except
+  dual-import dance because tests imported modules top-level.
+- Decision (2026-10-31): four extractions, behavior-preserving —
+  `models.py` (single source of truth for repo ids),
+  `hub.py` (cache resolver, local-first, offline context, token),
+  `audio_io.py` (ffmpeg shim + waveform decoding),
+  `store.py` (the one JSONL reader). Tests now import the real package
+  via `tests/conftest.py`, so the dual-import dance is deleted (viewer
+  keeps a small bootstrap: streamlit runs it as a bare script). The
+  never-fail stage wrappers (`_apply_*`) collapsed into `_stage` +
+  `_do_<name>` with a shared reset table. The session→pipeline result
+  dict is declared as `EngineResult` (TypedDict in schema.py). Flat
+  layout kept — no package split; 16 modules don't need core/feture
+  directories.
+- Revisit if: another consumer imports modules as bare top-level
+  scripts (that re-introduces the dual-import need for new modules).

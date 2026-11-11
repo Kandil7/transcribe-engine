@@ -8,28 +8,18 @@ import sqlite3
 import time
 from pathlib import Path
 
-try:
-    from .normalize_ar import NORM_VERSION, normalize_ar
-    from .qa import qa_checks, qa_scores
-    from .schema import VideoRecord
-    from .transcribe import TranscribeConfig, TranscribeSession, transcribe_ar
-    from .youtube import (
-        download_audio,
-        extract_metadata,
-        get_playlist_video_urls,
-        video_id_from_url as _video_id_from_url,
-    )
-except ImportError:  # script-style execution
-    from normalize_ar import NORM_VERSION, normalize_ar  # type: ignore
-    from qa import qa_checks, qa_scores  # type: ignore
-    from schema import VideoRecord  # type: ignore
-    from transcribe import TranscribeConfig, TranscribeSession, transcribe_ar  # type: ignore
-    from youtube import (  # type: ignore
-        download_audio,
-        extract_metadata,
-        get_playlist_video_urls,
-        video_id_from_url as _video_id_from_url,
-    )
+from .normalize_ar import NORM_VERSION, normalize_ar
+from .qa import qa_checks, qa_scores
+from .schema import VideoRecord
+from .transcribe import TranscribeConfig, TranscribeSession
+from .youtube import (
+    download_audio,
+    extract_metadata,
+    get_playlist_video_urls,
+)
+from .youtube import (
+    video_id_from_url as _video_id_from_url,
+)
 
 log = logging.getLogger("transcribe-engine")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -253,7 +243,7 @@ def process_video(
                     rec.qa or "clean",
                 )
                 return rec
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 log.exception("attempt %d/%d failed for %s", attempt, retries, vid)
                 _mark(con, vid, "failed", str(e))
                 time.sleep(2**attempt)

@@ -1,12 +1,8 @@
 """Offline tests for QA gates."""
 
 import json
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
-from qa import qa_checks
+from src.qa import qa_checks
 
 
 def _segs(n=3, start=0.0, step=10.0):
@@ -102,7 +98,7 @@ def test_qa_lid_failed_flagged():
 
 # --- qa_scores: numeric quality metrics ------------------------------------------
 
-from qa import qa_scores
+from src.qa import qa_scores
 
 
 def test_scores_clean_video():
@@ -157,7 +153,7 @@ def test_scores_repeat_max():
 
 
 def test_scores_schema_backcompat():
-    from schema import VideoRecord
+    from src.schema import VideoRecord
 
     old = VideoRecord(video_id="x", video_title="t")
     line = old.to_jsonl()  # dataclass built before qa_scores existed

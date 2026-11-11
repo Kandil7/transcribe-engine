@@ -29,10 +29,7 @@ def qa_checks(
         flags.append("lid_failed")
     if lid_lang and expected_lang:
         try:
-            try:
-                from .lid import lid_codes_equal
-            except ImportError:  # script-style execution
-                from lid import lid_codes_equal  # type: ignore
+            from .lid import lid_codes_equal
 
             if not lid_codes_equal(expected_lang, lid_lang):
                 flags.append("lid_mismatch")

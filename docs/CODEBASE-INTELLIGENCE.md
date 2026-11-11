@@ -9,9 +9,9 @@ uncommitted hardening pass (`qa.py`, `TranscribeSession`, manifest, prefetch).
 
 | Layer | Status | Details |
 |-------|--------|---------|
-| **Structural Graph** | ✅ Indexed | `D-AI-Projects-transcribe-engine`, 453 nodes, 1,692 edges, 0 parse errors |
+| **Structural Graph** | ✅ Indexed | `D-AI-Projects-transcribe-engine`, re-indexable; used for boundary audits |
 | **PR Review Graph** | ✅ Built | code-review-graph full build: 93 nodes, 795 edges, at `6261e8f` |
-| **Multimodal Graph** | ✅ Built (code-only) | `graphify-out/graph.json`: 316 nodes, 559 edges, 14 communities |
+| **Multimodal Graph** | ✅ Built (code-only) | `graphify-out/graph.json`: 337 nodes, 669 edges, 17 communities (post-ADR-19 restructure) |
 | **Context Pack** | ✅ Ready | repomix outputId `98621a358edc4806`, 25 files, 14,023 tokens (markdown, compressed) |
 | **Watcher** | Auto-refresh | Watched index; rebuilt incrementally on git changes |
 
@@ -96,7 +96,11 @@ codebase-memory boundaries, not guesswork.
 |---|---|---|
 | `src/cli.py` | Entry | `video` / `playlist` / `prefetch` subcommands, engine knobs |
 | `src/pipeline.py` | Core | owns checkpoint, upsert, timings, manifest, prefetch |
-| `src/transcribe.py` | Core | `TranscribeSession`, fp16/CUDA, OOM fallback, model-loading infra (cache resolver, local-first) |
+| `src/transcribe.py` | Core | `TranscribeSession`, fp16/CUDA, OOM fallback; never-fail `_stage` runner + `_do_<name>` success paths |
+| `src/hub.py` | Infra | `resolve_cache_dir` / `load_local_first` / `local_only` / `resolve_token` (top-2 god node, 23 edges) |
+| `src/models.py` | Infra | repo-id constants, single source of truth |
+| `src/audio_io.py` | Infra | ffmpeg shim + `load_audio_16k`; shared by engine, diarize, lid |
+| `src/store.py` | Infra | the one videos.jsonl reader (`load_records`, `load_video`) |
 | `src/qa.py` | Core | QA flags + numeric `qa_scores`; never drops records |
 | `src/youtube.py` | IO/API | metadata + wav; `video_id_from_url` id authority |
 | `src/diarize.py` | Feature | Nemotron-3 sole diarizer (pyannote removed, ADR 18); pure `assign_speakers` |
@@ -131,7 +135,7 @@ codebase-memory boundaries, not guesswork.
 | Find by pattern | `codebase-memory-mcp search_graph(name_pattern="...")` |
 | Architecture | `codebase-memory-mcp get_architecture(project=..., aspects=["all"])` |
 | Uncommitted blast radius | `codebase-memory-mcp detect_changes(base_branch="main")` or `code-review-graph detect_changes(scope="impact")` |
-| God nodes | `graphify_god_nodes()` (top: `resolve_cache_dir` 21, `TranscribeSession` 17, `process_video` 15) |
+| God nodes | `graphify_god_nodes()` (post-restructure: `process_video` 26, `resolve_cache_dir` 23, `TranscribeSession` 22) |
 | Graph BFS Q&A | `graphify_query_graph(question="...")` |
 | Shortest path | `graphify_shortest_path(from="...", to="...")` |
 | Pack for LLM | `repomix_pack_codebase(directory=..., compress=true)` |

@@ -1,11 +1,11 @@
 """Parquet edge cases: missing input, empty rows, row coercion."""
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
-from jsonl_to_parquet import PARQUET_COLUMNS, coerce_rows, jsonl_to_rows, write_parquet  # noqa: E402
+from src.jsonl_to_parquet import (
+    PARQUET_COLUMNS,
+    coerce_rows,
+    jsonl_to_rows,
+    write_parquet,
+)
 
 
 def test_missing_jsonl_yields_no_rows(tmp_path):

@@ -1,14 +1,10 @@
 """Contract tests: schema roundtrip, normalizer, JSONL→rows flatten."""
 
 import json
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
-from jsonl_to_parquet import PARQUET_COLUMNS, jsonl_to_rows  # noqa: E402
-from normalize_ar import normalize_ar  # noqa: E402
-from schema import VideoRecord  # noqa: E402
+from src.jsonl_to_parquet import PARQUET_COLUMNS, jsonl_to_rows
+from src.normalize_ar import normalize_ar
+from src.schema import VideoRecord
 
 
 def test_schema_roundtrip(tmp_path):

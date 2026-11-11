@@ -19,9 +19,10 @@ summary (deletions/insertions/substitutions) via per-word alignment.
 from __future__ import annotations
 
 import argparse
-import json
 import re
 from pathlib import Path
+
+from .store import load_video
 
 
 def _edit_alignment(hyp: list[str], ref: list[str]) -> tuple[int, int, int]:
@@ -97,20 +98,6 @@ def _parse_slice(s: str) -> tuple[float, float]:
     return _parse_t(a), _parse_t(b)
 
 
-def load_video(jsonl_path: str, video_id: str) -> dict:
-    p = Path(jsonl_path)
-    if not p.exists():
-        raise SystemExit(f"missing {jsonl_path}")
-    with p.open(encoding="utf-8") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            d = json.loads(line)
-            if d.get("video_id") == video_id:
-                return d
-    raise SystemExit(f"video_id {video_id} not found in {jsonl_path}")
-
-
 def hypothesis_for(d: dict, window: tuple[float, float] | None) -> str:
     if not window:
         return d.get("transcript_raw", "")
@@ -122,10 +109,7 @@ def hypothesis_for(d: dict, window: tuple[float, float] | None) -> str:
 
 
 def score(hyp: str, ref: str) -> dict:
-    try:
-        from .normalize_ar import normalize_ar
-    except ImportError:  # loaded as top-level module (tests, scripts)
-        from normalize_ar import normalize_ar
+    from .normalize_ar import normalize_ar
 
     hn = normalize_ar(hyp).split()
     rn = normalize_ar(ref).split()

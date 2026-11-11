@@ -54,10 +54,7 @@ def classify_dialect(
     import torch
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-    try:
-        from .transcribe import load_local_first, resolve_cache_dir
-    except ImportError:  # script-style execution
-        from transcribe import load_local_first, resolve_cache_dir  # type: ignore
+    from .hub import load_local_first, resolve_cache_dir
 
     cache_dir = resolve_cache_dir(model_id)
 

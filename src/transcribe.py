@@ -1,4 +1,4 @@
-"""cohereX wrapper (bakrianoo/cohereX Python API, transcript-only v1).
+"""cohereX ASR engine wrapper (v1 core).
 
 Heavy imports (coherex, torch) are deferred to call time so the package
 imports and tests run without a GPU environment.
@@ -6,14 +6,23 @@ imports and tests run without a GPU environment.
 ``TranscribeSession`` keeps the ASR + align models loaded across videos so
 playlists pay the ~4GB weight load once instead of per video. ``transcribe_ar``
 is a thin single-shot wrapper around it (backwards compatible).
+
+Model-loading infrastructure lives in ``hub.py`` (cache resolver,
+local-first loading, offline context, token); audio decoding lives in
+``audio_io.py``; model repo ids live in ``models.py``.
 """
 
 from __future__ import annotations
 
-from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-AR_MODEL = "CohereLabs/cohere-transcribe-arabic-07-2026"
+from .audio_io import ensure_ffmpeg_on_path
+from .hub import load_local_first, resolve_cache_dir, resolve_token
+from .models import AR_MODEL, DIALECT_MODEL, DIARIZE_MODEL, LID_MODEL
+
+if TYPE_CHECKING:
+    from .schema import EngineResult
 
 
 @dataclass
@@ -43,145 +52,15 @@ class TranscribeConfig:
     # Speaker diarization: annotates segments/words with speaker. Nemotron-3
     # (OpenMDW, ungated) is the sole backend since ADR 18 (pyannote removed).
     diarize: bool = False
-    diarize_model: str = "nvidia/Nemotron-3-Diarization"
-    # Audio LID (facebook/mms-lid-1024, CC-BY-NC): records the detected
-    # language + confidence on each record; QA flags a mismatch with the
-    # requested language. Model loads transiently per video.
+    diarize_model: str = DIARIZE_MODEL
+    # Audio LID: records the detected language + confidence on each record;
+    # QA flags a mismatch with the requested language. Loads transiently.
     lid: bool = False
-    lid_model: str = "facebook/mms-lid-1024"
+    lid_model: str = LID_MODEL
     # Written-dialect tag (MARBERTv2, labels MAGHREB|LEV|MSA|GLF|EGY):
     # classifies the transcript text, records dialect + confidence.
     dialect: bool = False
-    dialect_model: str = "IbrahimAmin/marbertv2-arabic-written-dialect-classifier"
-
-
-def ensure_ffmpeg_on_path() -> str | None:
-    """Make a `ffmpeg` binary discoverable for coherex subprocess calls.
-
-    coherex.audio.load_audio hard-codes ``ffmpeg`` on PATH. On machines
-    without a system ffmpeg (e.g. Windows + imageio-ffmpeg only), copy the
-    resolved binary to ``data/bin/ffmpeg.exe`` and prepend it to PATH.
-    Returns the ffmpeg path, or None if none could be found.
-    """
-    import os
-    import shutil
-
-    try:
-        from .youtube import resolve_ffmpeg
-    except ImportError:  # script-style execution
-        from youtube import resolve_ffmpeg  # type: ignore
-
-    exe = resolve_ffmpeg()
-    if not exe or not os.path.exists(exe):
-        return shutil.which("ffmpeg")
-    # Only usable as-is when literally named ffmpeg(.exe), e.g. not the
-    # imageio-ffmpeg `ffmpeg-win-x86_64-v7.1.exe` build.
-    if os.path.basename(exe).lower() in ("ffmpeg", "ffmpeg.exe"):
-        d = os.path.dirname(os.path.abspath(exe))
-        if d not in os.environ.get("PATH", ""):
-            os.environ["PATH"] = d + os.pathsep + os.environ.get("PATH", "")
-        return exe
-    shim_dir = os.path.join("data", "bin")
-    os.makedirs(shim_dir, exist_ok=True)
-    shim = os.path.abspath(os.path.join(shim_dir, "ffmpeg.exe"))
-    if not os.path.exists(shim):
-        shutil.copyfile(exe, shim)
-    d = os.path.dirname(shim)
-    if d not in os.environ.get("PATH", ""):
-        os.environ["PATH"] = d + os.pathsep + os.environ.get("PATH", "")
-    return shim
-
-
-def resolve_cache_dir(model_id: str) -> str | None:
-    """Pick the HF cache root that actually holds ``model_id`` on this machine.
-
-    Machine history can leave models split across two roots (e.g. HF_HOME
-    vs HF_HOME/hub after an env change or a huggingface_hub upgrade that
-    resolves the cache differently). The hub then re-downloads multi-GB
-    weights that already exist in the other root — or fails offline.
-
-    A root "holds" the model only by content, not by folder presence: a
-    failed download leaves a stub directory with config files but no
-    weights, and counting that as a holder would pick the wrong root.
-    The root with strictly more cached bytes wins; ties or no hits
-    return None so huggingface_hub uses its own default.
-    """
-    import os
-
-    candidates: list[str] = []
-    hub_cache = os.environ.get("HF_HUB_CACHE") or os.environ.get(
-        "HUGGINGFACE_HUB_CACHE"
-    )
-    hf_home = os.environ.get("HF_HOME")
-    if hub_cache:
-        candidates.append(hub_cache)
-    if hf_home:
-        candidates.extend((hf_home, os.path.join(hf_home, "hub")))
-    dirname = "models--" + model_id.replace("/", "--")
-    scored: list[tuple[int, str]] = []
-    for c in dict.fromkeys(candidates):
-        d = os.path.join(c, dirname)
-        if not os.path.isdir(d):
-            continue
-        size = sum(
-            os.path.getsize(os.path.join(dp, f)) for dp, _, fs in os.walk(d) for f in fs
-        )
-        scored.append((size, c))
-    if not scored:
-        return None
-    scored.sort(reverse=True)
-    if len(scored) == 1:
-        return scored[0][1]
-    return scored[0][1] if scored[0][0] > scored[1][0] else None
-
-
-@contextmanager
-def local_only():
-    """Force huggingface_hub to serve from the local cache (no network).
-
-    HF_HUB_OFFLINE=1 is honored by huggingface_hub and transformers and
-    also by loaders that call them internally (coherex, pyannote), so
-    one env switch makes any ``from_pretrained``-style load cache-only.
-    """
-    import os
-
-    prev = os.environ.get("HF_HUB_OFFLINE")
-    os.environ["HF_HUB_OFFLINE"] = "1"
-    try:
-        yield
-    finally:
-        if prev is None:
-            os.environ.pop("HF_HUB_OFFLINE", None)
-        else:
-            os.environ["HF_HUB_OFFLINE"] = prev
-
-
-def load_local_first(loader, *args, **kwargs):
-    """Call ``loader`` from the local cache first; fall back to online.
-
-    Local-first kills the per-load HF API round-trips and the
-    hub-re-downloads-what-exists class of bugs; the online retry only
-    runs on a genuine cache miss and its error (if any) propagates.
-    """
-    try:
-        with local_only():
-            return loader(*args, **kwargs)
-    except Exception:  # noqa: BLE001 — any cache-miss error falls back online
-        return loader(*args, **kwargs)
-
-
-def _resolve_token(hf_token: str | None) -> str | None:
-    import os
-
-    tok = (
-        hf_token
-        or os.environ.get("HF_TOKEN")
-        or os.environ.get("HUGGING_FACE_HUB_TOKEN")
-    )
-    if tok:
-        os.environ.setdefault("HF_TOKEN", tok)
-        os.environ.setdefault("HUGGING_FACE_HUB_TOKEN", tok)
-    return tok
+    dialect_model: str = DIALECT_MODEL
 
 
 def _empty_cuda_cache(device: str) -> None:
@@ -192,6 +71,15 @@ def _empty_cuda_cache(device: str) -> None:
             torch.cuda.empty_cache()
     except Exception:
         pass
+
+
+# Per-stage keys to reset on failure (never-fail contract: the run
+# continues with the stage's neutral values, never a crash).
+_STAGE_RESET = {
+    "diarize": {"speakers": []},
+    "lid": {"lid_lang": "", "lid_confidence": 0.0},
+    "dialect": {"dialect": "", "dialect_confidence": 0.0},
+}
 
 
 class TranscribeSession:
@@ -210,13 +98,13 @@ class TranscribeSession:
         # coherex shells out to `ffmpeg` (load_audio + align); without it
         # every attempt dies with FileNotFoundError [WinError 2].
         ensure_ffmpeg_on_path()
-        self.hf_token = _resolve_token(self.config.hf_token)
+        self.hf_token = resolve_token(self.config.hf_token)
         self.asr = None
         self.align_model = None
         self.align_metadata = None
         self.align_lang = ""
 
-    def open(self) -> "TranscribeSession":
+    def open(self) -> TranscribeSession:
         import shlex
 
         import coherex
@@ -272,7 +160,7 @@ class TranscribeSession:
         gc.collect()
         _empty_cuda_cache(self.config.device)
 
-    def transcribe(self, audio_path: str, language: str | None = None) -> dict:
+    def transcribe(self, audio_path: str, language: str | None = None) -> EngineResult:
         """Run VAD → ASR → forced alignment for one audio file."""
         import gc
         import logging
@@ -322,44 +210,60 @@ class TranscribeSession:
         else:
             result["align_status"] = "skipped"
             result.setdefault("word_segments", [])
-        if c.diarize:
-            self._apply_diarize(result, audio_path)
-        if c.lid:
-            self._apply_lid(result, audio_path)
-        if c.dialect:
-            self._apply_dialect(result)
+        for name, cleanup in (
+            ("diarize", False),
+            ("lid", True),
+            ("dialect", True),
+        ):
+            self._stage(name, result, getattr(self, f"_do_{name}"), audio_path, cleanup)
         result["model"] = c.model
         gc.collect()
         return result
 
-    def _apply_diarize(self, result: dict, audio_path: str) -> None:
-        """Annotate segments/words with speakers; never fails the run."""
+    def _stage(
+        self, name: str, result: dict, fn, audio_path: str, cleanup: bool = False
+    ) -> None:
+        """Run one annotation stage; never let it fail the run.
+
+        The triplicated try/except/log/reset of ``_apply_diarize`` /
+        ``_apply_lid`` / ``_apply_dialect`` collapsed here: each stage's
+        success path lives in ``_do_<name>``, and this wrapper owns the
+        never-fail contract — record the status, reset the stage's keys,
+        log the traceback, and (optionally) free GPU memory.
+        """
         try:
-            try:
-                from .diarize import assign_speakers, diarize_audio
-            except ImportError:  # script-style execution
-                from diarize import assign_speakers, diarize_audio  # type: ignore
-
-            turns = diarize_audio(
-                audio_path,
-                device=self.config.device,
-                hf_token=self.hf_token,
-                model_id=self.config.diarize_model,
-            )
-            segs, words, speakers = assign_speakers(
-                result.get("segments", []), result.get("word_segments", []), turns
-            )
-            result["segments"] = segs
-            result["word_segments"] = words
-            result["speakers"] = speakers
-            result["diarize_status"] = "ok"
+            fn(result, audio_path)
+            result[f"{name}_status"] = "ok"
         except Exception:
-            self.log.exception("diarization failed for %s", audio_path)
-            result["speakers"] = []
-            result["diarize_status"] = "failed"
+            self.log.exception("%s failed for %s", name, audio_path)
+            result[f"{name}_status"] = "failed"
+            result.update(_STAGE_RESET[name])
+        finally:
+            if cleanup:
+                import gc
 
-    def _apply_lid(self, result: dict, audio_path: str) -> None:
-        """Record detected language + confidence; never fails the run.
+                gc.collect()
+                _empty_cuda_cache(self.config.device)
+
+    def _do_diarize(self, result: dict, audio_path: str) -> None:
+        """Annotate segments/words with speakers (Nemotron-3 turns)."""
+        from .diarize import assign_speakers, diarize_audio
+
+        turns = diarize_audio(
+            audio_path,
+            device=self.config.device,
+            hf_token=self.hf_token,
+            model_id=self.config.diarize_model,
+        )
+        segs, words, speakers = assign_speakers(
+            result.get("segments", []), result.get("word_segments", []), turns
+        )
+        result["segments"] = segs
+        result["word_segments"] = words
+        result["speakers"] = speakers
+
+    def _do_lid(self, result: dict, audio_path: str) -> None:
+        """Set lid_lang/lid_confidence on the result.
 
         The LID model is transient (loaded, used, dropped) so it never
         competes with ASR/aligner VRAM across a playlist. Its ~2.5GB
@@ -374,85 +278,50 @@ class TranscribeSession:
             msg = str(e).lower()
             return "out of memory" in msg or "paging file" in msg or "error 1455" in msg
 
+        def _run(device: str) -> dict:
+            from .lid import lid_audio
+
+            return lid_audio(audio_path, device=device, model_id=self.config.lid_model)
+
         try:
-            try:
-                from .lid import lid_audio
-            except ImportError:  # script-style execution
-                from lid import lid_audio  # type: ignore
-
-            def _run(device: str) -> dict:
-                return lid_audio(
-                    audio_path, device=device, model_id=self.config.lid_model
-                )
-
+            lid = _run(self.config.device)
+        except (RuntimeError, OSError) as e:
+            if not _mem_err(e):
+                raise
+            self.log.warning(
+                "LID memory pressure on %s (%s); freeing finished models and retrying",
+                self.config.device,
+                e,
+            )
+            self._drop_align()
+            if self.asr is not None:
+                try:
+                    self.asr.shutdown()
+                except Exception:
+                    pass
+                self.asr = None
+            gc.collect()
+            _empty_cuda_cache(self.config.device)
             try:
                 lid = _run(self.config.device)
-            except (RuntimeError, OSError) as e:
-                if not _mem_err(e):
+            except (RuntimeError, OSError) as e2:
+                if not _mem_err(e2):
                     raise
-                self.log.warning(
-                    "LID memory pressure on %s (%s); freeing finished models "
-                    "and retrying",
-                    self.config.device,
-                    e,
-                )
-                self._drop_align()
-                if self.asr is not None:
-                    try:
-                        self.asr.shutdown()
-                    except Exception:
-                        pass
-                    self.asr = None
-                gc.collect()
-                _empty_cuda_cache(self.config.device)
-                try:
-                    lid = _run(self.config.device)
-                except (RuntimeError, OSError) as e2:
-                    if not _mem_err(e2):
-                        raise
-                    self.log.warning("LID still OOM; final retry on cpu")
-                    lid = _run("cpu")
-            result["lid_lang"] = lid["lang"]
-            result["lid_confidence"] = lid["confidence"]
-            result["lid_status"] = "ok"
-        except Exception:
-            self.log.exception("LID failed for %s", audio_path)
-            result["lid_lang"] = ""
-            result["lid_confidence"] = 0.0
-            result["lid_status"] = "failed"
-        finally:
-            gc.collect()
-            _empty_cuda_cache(self.config.device)
+                self.log.warning("LID still OOM; final retry on cpu")
+                lid = _run("cpu")
+        result["lid_lang"] = lid["lang"]
+        result["lid_confidence"] = lid["confidence"]
 
-    def _apply_dialect(self, result: dict) -> None:
-        """Record written-dialect tag from the transcript; never fails.
+    def _do_dialect(self, result: dict, audio_path: str) -> None:
+        """Set dialect/dialect_confidence from the transcript text."""
+        from .dialect import classify_dialect
 
-        Text classification only (no audio, no model residency juggling):
-        the MARBERTv2 classifier runs transiently on the transcript text.
-        """
-        import gc
-
-        try:
-            try:
-                from .dialect import classify_dialect
-            except ImportError:  # script-style execution
-                from dialect import classify_dialect  # type: ignore
-
-            text = " ".join(s.get("text", "") for s in result.get("segments", []))
-            tag = classify_dialect(
-                text, device=self.config.device, model_id=self.config.dialect_model
-            )
-            result["dialect"] = tag["dialect"]
-            result["dialect_confidence"] = tag["confidence"]
-            result["dialect_status"] = "ok"
-        except Exception:
-            self.log.exception("dialect tagging failed")
-            result["dialect"] = ""
-            result["dialect_confidence"] = 0.0
-            result["dialect_status"] = "failed"
-        finally:
-            gc.collect()
-            _empty_cuda_cache(self.config.device)
+        text = " ".join(s.get("text", "") for s in result.get("segments", []))
+        tag = classify_dialect(
+            text, device=self.config.device, model_id=self.config.dialect_model
+        )
+        result["dialect"] = tag["dialect"]
+        result["dialect_confidence"] = tag["confidence"]
 
     def close(self) -> None:
         import gc
@@ -467,7 +336,7 @@ class TranscribeSession:
         gc.collect()
         _empty_cuda_cache(self.config.device)
 
-    def __enter__(self) -> "TranscribeSession":
+    def __enter__(self) -> TranscribeSession:
         return self.open()
 
     def __exit__(self, *exc) -> None:
@@ -490,8 +359,8 @@ def transcribe_ar(
     vllm_api_key: str | None = None,
     vllm_args: str = "",
     diarize: bool = False,
-    diarize_model: str = "nvidia/Nemotron-3-Diarization",
-) -> dict:
+    diarize_model: str = DIARIZE_MODEL,
+) -> EngineResult:
     """Single-shot VAD → Cohere-AR ASR → forced alignment (+ optional diarization).
 
     Returns the cohereX result dict: {segments, word_segments, language}.

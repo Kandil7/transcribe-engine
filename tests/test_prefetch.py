@@ -1,12 +1,8 @@
 """Offline tests for src/prefetch.py — orchestration with mocked loaders."""
 
 import os
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-
-import prefetch
+from src import prefetch
 
 
 def test_prefetch_one_all_local(monkeypatch):

@@ -9,26 +9,24 @@ Purpose-built for two jobs:
 2. Aid hand-correcting a reference for WER evaluation: select any segment,
    the audio plays exactly that [start,end) window; attach any local mp3.
 
-UI only; pure helpers (load_records, flatten_segments, record_status) live
-here and are unit-tested without streamlit.
+UI only; pure helpers (flatten_segments, record_status) live here and are
+unit-tested without streamlit. JSONL reading is shared: ``load_records``
+ comes from ``store.py`` once for all consumers.
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
 import streamlit as st
 
-
-def load_records(jsonl_path: str | Path) -> list[dict]:
-    """videos.jsonl -> list of record dicts (tolerant to blank lines)."""
-    p = Path(jsonl_path)
-    if not p.exists():
-        return []
-    return [json.loads(line) for line in p.open(encoding="utf-8") if line.strip()]
+try:  # package execution (tests, python -m src.viewer)
+    from .store import load_records
+except ImportError:  # streamlit runs this file as a bare script
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from src.store import load_records
 
 
 def flatten_segments(rec: dict) -> list[dict]:

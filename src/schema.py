@@ -5,6 +5,33 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from typing import TypedDict
+
+from .models import AR_MODEL
+
+
+class EngineResult(TypedDict, total=False):
+    """The dict moving from ``TranscribeSession`` to the pipeline.
+
+    ``total=False`` because coherex builds the base dict and each
+    optional stage adds its own keys. Declaring it here makes the
+    session-to-pipeline contract explicit and greppable instead of
+    stringly-typed across two modules.
+    """
+
+    segments: list[dict]
+    word_segments: list[dict]
+    language: str
+    align_status: str  # ok | segment_only | skipped
+    diarize_status: str  # ok | failed
+    speakers: list[str]
+    lid_status: str  # ok | failed
+    lid_lang: str
+    lid_confidence: float
+    dialect_status: str  # ok | failed
+    dialect: str
+    dialect_confidence: float
+    model: str
 
 
 @dataclass
@@ -37,7 +64,7 @@ class VideoRecord:
     duration: float = 0.0
     language: str = "ar"
     license: str = ""
-    model: str = "CohereLabs/cohere-transcribe-arabic-07-2026"
+    model: str = AR_MODEL  # repo id (gated; see models.py)
     align_status: str = "ok"  # ok | segment_only | skipped
     transcript_raw: str = ""
     transcript_norm: str = ""

@@ -10,6 +10,8 @@ import csv
 import json
 from pathlib import Path
 
+from .normalize_ar import normalize_ar
+
 PARQUET_COLUMNS = [
     "video_id",
     "video_title",
@@ -36,11 +38,6 @@ def jsonl_to_rows(jsonl_path: str | Path) -> list[dict]:
     """
     if not Path(jsonl_path).exists():
         return []
-    try:
-        from .normalize_ar import normalize_ar
-    except ImportError:  # loaded as top-level module (tests, scripts)
-        from normalize_ar import normalize_ar
-
     rows: list[dict] = []
     with open(jsonl_path, encoding="utf-8") as f:
         for line in f:

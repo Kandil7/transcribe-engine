@@ -4,31 +4,34 @@ from __future__ import annotations
 
 import argparse
 
-try:
-    from .jsonl_to_parquet import main as jsonl_to_parquet_main
-    from .pipeline import (
-        CHECKPOINT_DB,
-        OUTPUT_JSONL,
-        process_playlist,
-        process_video,
-        write_manifest,
-    )
-    from .transcribe import TranscribeConfig
-except ImportError:  # script-style execution
-    from jsonl_to_parquet import main as jsonl_to_parquet_main  # type: ignore
-    from pipeline import (  # type: ignore
-        CHECKPOINT_DB,
-        OUTPUT_JSONL,
-        process_playlist,
-        process_video,
-        write_manifest,
-    )
-    from transcribe import TranscribeConfig  # type: ignore
+from .jsonl_to_parquet import main as jsonl_to_parquet_main
+from .models import DIALECT_MODEL, DIARIZE_MODEL, LID_MODEL
+from .pipeline import (
+    CHECKPOINT_DB,
+    OUTPUT_JSONL,
+    process_playlist,
+    process_video,
+    write_manifest,
+)
+from .transcribe import TranscribeConfig
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Transcribe Engine v1 (Arabic YouTube)")
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    sub.add_parser(
+        "make-ref",
+        help="segment-aligned WER reference template (forward all args after it)",
+    ).add_argument(
+        "tool_args", nargs=argparse.REMAINDER, help="arguments passed to make_reference"
+    )
+    sub.add_parser(
+        "score",
+        help="WER/CER vs hand reference (forward all args after it)",
+    ).add_argument(
+        "tool_args", nargs=argparse.REMAINDER, help="arguments passed to score_wer"
+    )
 
     v = sub.add_parser("video", help="transcribe a single video")
     v.add_argument("url", help="YouTube watch URL")
@@ -121,18 +124,18 @@ def build_parser() -> argparse.ArgumentParser:
         )
         s.add_argument(
             "--diarize-model",
-            default="nvidia/Nemotron-3-Diarization",
+            default=DIARIZE_MODEL,
             help="HF repo id of the Nemotron-3 diarization model",
         )
         s.add_argument(
             "--lid",
             action="store_true",
-            help="audio language ID (facebook/mms-lid-1024): records lid_lang/"
+            help="audio language ID (mms-lid-1024): records lid_lang/"
             "lid_confidence; QA flags lid_mismatch (CC-BY-NC model)",
         )
         s.add_argument(
             "--lid-model",
-            default="facebook/mms-lid-1024",
+            default=LID_MODEL,
             help="HF repo id of the LID model",
         )
         s.add_argument(
@@ -143,7 +146,7 @@ def build_parser() -> argparse.ArgumentParser:
         )
         s.add_argument(
             "--dialect-model",
-            default="IbrahimAmin/marbertv2-arabic-written-dialect-classifier",
+            default=DIALECT_MODEL,
             help="HF repo id of the dialect classifier",
         )
     return p
@@ -152,14 +155,22 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.cmd == "prefetch":
-        try:
-            from .prefetch import prefetch_models
-        except ImportError:  # script-style execution
-            from prefetch import prefetch_models  # type: ignore
+        from .prefetch import prefetch_models
 
         results = prefetch_models(device=args.device)
         for name, status in results.items():
             print(f"{name}: {status}")
+        return 0
+    if args.cmd == "score":
+        # forwarded raw: everything after `score`
+        from .score_wer import main as score_main
+
+        score_main(args.tool_args)
+        return 0
+    if args.cmd == "make-ref":
+        from .make_reference import main as make_ref_main
+
+        make_ref_main(args.tool_args)
         return 0
     config = TranscribeConfig(
         device=args.device,

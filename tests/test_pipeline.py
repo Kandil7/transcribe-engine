@@ -1,14 +1,10 @@
 """Offline pipeline tests with mocked network/GPU boundaries."""
 
 import json
-import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
-import pipeline  # noqa: E402
-from schema import VideoRecord  # noqa: E402
-
+from src import pipeline
+from src.schema import VideoRecord
 
 META = {
     "video_id": "VID12345678",

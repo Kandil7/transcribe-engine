@@ -1,11 +1,8 @@
-"""Offline tests for src/transcribe.py utilities — cache resolver + dispatch."""
+"""Offline tests for loading infra (hub) + diarize contract + LID retries."""
 
-import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-
-from transcribe import resolve_cache_dir
+from src.hub import load_local_first, local_only, resolve_cache_dir
 
 
 def _mk(root: Path, model_id: str) -> None:
@@ -62,7 +59,7 @@ def test_resolver_no_env(tmp_path, monkeypatch):
 
 
 def test_pyannote_fully_removed():
-    import diarize
+    from src import diarize
 
     # ADR 18: Nemotron-3 is the sole diarization backend
     assert not hasattr(diarize, "diarize_pyannote")
@@ -78,7 +75,7 @@ def test_pyannote_fully_removed():
 def test_diarize_audio_defaults_to_nemotron():
     import inspect
 
-    import diarize
+    from src import diarize
 
     sig = inspect.signature(diarize.diarize_audio)
     assert sig.parameters["model_id"].default == diarize.NEMOTRON_MODEL
@@ -86,8 +83,7 @@ def test_diarize_audio_defaults_to_nemotron():
 
 
 def test_lid_retry_after_freeing_models(monkeypatch):
-    import lid
-    import transcribe
+    from src import lid, transcribe
 
     calls = []
 
@@ -102,7 +98,7 @@ def test_lid_retry_after_freeing_models(monkeypatch):
     monkeypatch.setattr(lid, "lid_audio", fake_lid)
     session = transcribe.TranscribeSession(transcribe.TranscribeConfig(device="cuda"))
     result = {}
-    session._apply_lid(result, "x.wav")
+    session._stage("lid", result, session._do_lid, "x.wav", cleanup=True)
     assert calls == ["cuda", "cuda"]  # freed models, retried same device
     assert session.asr is None  # ASR dropped to reclaim commit
     assert result["lid_lang"] == "ara"
@@ -110,8 +106,7 @@ def test_lid_retry_after_freeing_models(monkeypatch):
 
 
 def test_lid_cpu_last_resort(monkeypatch):
-    import lid
-    import transcribe
+    from src import lid, transcribe
 
     calls = []
 
@@ -124,14 +119,13 @@ def test_lid_cpu_last_resort(monkeypatch):
     monkeypatch.setattr(lid, "lid_audio", fake_lid)
     session = transcribe.TranscribeSession(transcribe.TranscribeConfig(device="cuda"))
     result = {}
-    session._apply_lid(result, "x.wav")
+    session._stage("lid", result, session._do_lid, "x.wav", cleanup=True)
     assert calls == ["cuda", "cuda", "cpu"]  # free -> retry -> cpu last resort
     assert result["lid_status"] == "ok"
 
 
 def test_lid_non_memory_error_fails_without_fallback(monkeypatch):
-    import lid
-    import transcribe
+    from src import lid, transcribe
 
     calls = []
 
@@ -142,7 +136,7 @@ def test_lid_non_memory_error_fails_without_fallback(monkeypatch):
     monkeypatch.setattr(lid, "lid_audio", fake_lid)
     session = transcribe.TranscribeSession(transcribe.TranscribeConfig(device="cuda"))
     result = {}
-    session._apply_lid(result, "x.wav")
+    session._stage("lid", result, session._do_lid, "x.wav")
     assert calls == ["cuda"]  # no retry for non-memory errors
     assert result["lid_status"] == "failed"
     assert result["lid_lang"] == ""
@@ -151,15 +145,13 @@ def test_lid_non_memory_error_fails_without_fallback(monkeypatch):
 def test_local_only_env_restored(monkeypatch):
     import os
 
-    import transcribe
-
     monkeypatch.delenv("HF_HUB_OFFLINE", raising=False)
-    with transcribe.local_only():
+    with local_only():
         assert os.environ["HF_HUB_OFFLINE"] == "1"
     assert "HF_HUB_OFFLINE" not in os.environ
 
     monkeypatch.setenv("HF_HUB_OFFLINE", "0")
-    with transcribe.local_only():
+    with local_only():
         assert os.environ["HF_HUB_OFFLINE"] == "1"
     assert os.environ["HF_HUB_OFFLINE"] == "0"  # prior value restored
 
@@ -167,22 +159,18 @@ def test_local_only_env_restored(monkeypatch):
 def test_load_local_first_prefers_cache(monkeypatch):
     import os
 
-    import transcribe
-
     seen = []
 
     def loader(x):
         seen.append(os.environ.get("HF_HUB_OFFLINE"))
         return x * 2
 
-    assert transcribe.load_local_first(loader, 21) == 42
+    assert load_local_first(loader, 21) == 42
     assert seen == ["1"]  # cache-only attempt, no fallback needed
 
 
 def test_load_local_first_falls_back_online(monkeypatch):
     import os
-
-    import transcribe
 
     seen = []
 
@@ -192,18 +180,16 @@ def test_load_local_first_falls_back_online(monkeypatch):
             raise OSError("not in cache")
         return x * 2
 
-    assert transcribe.load_local_first(flaky, 21) == 42
+    assert load_local_first(flaky, 21) == 42
     assert seen == ["1", None]  # cache miss -> online retry
 
 
 def test_load_local_first_propagates_final_error():
-    import transcribe
-
     def broken():
         raise ValueError("always fails")
 
     try:
-        transcribe.load_local_first(broken)
+        load_local_first(broken)
     except ValueError as e:
         assert "always fails" in str(e)
     else:

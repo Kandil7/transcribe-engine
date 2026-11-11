@@ -14,8 +14,14 @@ YouTube URL / playlist
   → videos.jsonl → jsonl_to_parquet.py → segments.parquet
 ```
 
-Tooling around the pipeline: `score_wer.py` (WER/CER vs hand reference),
-`make_reference.py` (segment-aligned correction template),
+Shared infrastructure (ADR 19): `models.py` is the single source of
+truth for every model repo id; `hub.py` owns HF loading (cache resolver,
+local-first, offline context, token); `audio_io.py` owns the ffmpeg shim
+and waveform decoding; `store.py` is the one videos.jsonl reader used by
+all consumers.
+
+Tooling around the pipeline: `score_wer.py` and `make_reference.py`
+(also reachable as `cli score` / `cli make-ref`),
 `viewer.py` (Streamlit dataset browser + segment audio playback),
 `prefetch.py` (verify all models on local disk).
 
@@ -39,15 +45,24 @@ Tooling around the pipeline: `score_wer.py` (WER/CER vs hand reference),
 - `src/transcribe.py` — `bakrianoo/cohereX` Python API only (no CLI
   subprocess). `TranscribeSession` keeps ASR + aligner resident across
   videos (playlist pays the weight load once); `transcribe_ar` is the
-  single-shot wrapper. Options: `--vad-method` (silero), `--backend`
+  single-shot wrapper. Annotation stages run through `_stage`, the
+  never-fail wrapper whose success paths live in `_do_diarize` /
+  `_do_lid` / `_do_dialect`; `_STAGE_RESET` owns each stage's failure
+  keys. Options: `--vad-method` (silero), `--backend`
   (`local | vllm` pass-through), `--diarize`, `--lid`, `--dialect`,
   `--no-align`. Never-fail stages: a failing optional stage records its
-  status and a QA flag, the run continues. Also hosts the model-loading
-  infrastructure: `resolve_cache_dir` (picks the HF cache root that
-  actually holds a model — this machine's caches are split across two
-  roots), `load_local_first` (cache-only attempt before any network),
-  `local_only` (HF_HUB_OFFLINE context), and the LID memory-recovery
-  chain (free finished models → retry → CPU last resort).
+  status and a QA flag, the run continues. The session→pipeline result
+  contract is `schema.EngineResult` (TypedDict).
+- `src/hub.py` — model-loading infrastructure (ADR 13/15):
+  `resolve_cache_dir` (picks the HF cache root that actually holds a
+  model — this machine's caches are split across two roots),
+  `load_local_first` (cache-only attempt before any network),
+  `local_only` (HF_HUB_OFFLINE context), `resolve_token`.
+- `src/models.py` — model repo ids; the single source of truth
+  (engine config, CLI defaults, prefetch loaders all reference it).
+- `src/audio_io.py` — `ensure_ffmpeg_on_path` (the coherex shim) and
+  `load_audio_16k` (ffmpeg CLI decoding; lid and diarize both consume
+  it, no feature-to-feature imports).
 - `src/diarize.py` — Nemotron-3 speaker diarization (sole backend since
   ADR 18; pyannote removed). Arrival-ordered channels → `SPEAKER_00..`;
   `assign_speakers` maps turns onto segments/words by max time overlap
@@ -72,6 +87,10 @@ Tooling around the pipeline: `score_wer.py` (WER/CER vs hand reference),
   polars (pandas fallback, csv last resort). Rows coerced to
   `PARQUET_COLUMNS` (14 incl. `speaker`); missing input yields an empty
   table. Words stay in JSONL.
+- `src/store.py` — the one videos.jsonl reader: `load_records`
+  (tolerant, empty list on missing file) and `load_video` (strict,
+  SystemExit on missing file/id). Used by viewer, score_wer and
+  make_reference — replacing three divergent copies.
 - `src/prefetch.py` — `cli prefetch`: loads every pipeline model
   local-first in one subprocess per model (process isolation: freed
   multi-GB weights don't return Windows commit reliably in-process).
@@ -102,8 +121,8 @@ Tooling around the pipeline: `score_wer.py` (WER/CER vs hand reference),
 
 ## Model loading (ADR 13/15)
 
-Every model load is local-first: `load_local_first` attempts the load
+Every model load is local-first: `hub.load_local_first` attempts the load
 cache-only and only goes online on a genuine cache miss. Models resolve
-their cache root via `resolve_cache_dir` (handles split HF cache roots).
-`cli prefetch` verifies the full set on disk. Runs are offline-capable
-once prefetch reports `local`.
+their cache root via `hub.resolve_cache_dir` (handles split HF cache
+roots). `cli prefetch` verifies the full set on disk. Runs are
+offline-capable once prefetch reports `local`.

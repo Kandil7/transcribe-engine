@@ -1,11 +1,6 @@
 """Offline tests for src/make_reference.py — pure helpers, no network."""
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-
-from make_reference import (
+from src.make_reference import (
     assign_to_segments,
     format_template,
     parse_vtt_words,

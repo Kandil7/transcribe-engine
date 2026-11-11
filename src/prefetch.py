@@ -11,16 +11,14 @@ from __future__ import annotations
 
 import gc
 
+from .hub import local_only, resolve_cache_dir
+from .models import AR_MODEL, DIALECT_MODEL, DIARIZE_MODEL, LID_MODEL
+
 PREFETCH_MODELS = ("asr", "aligner", "nemotron", "lid", "dialect")
 
 
 def _try_local_then_online(loader) -> str:
     """Load via ``loader()`` local-first; report 'local' or 'downloaded'."""
-    try:
-        from .transcribe import local_only
-    except ImportError:  # script-style execution
-        from transcribe import local_only  # type: ignore
-
     try:
         try:
             with local_only():
@@ -72,11 +70,6 @@ def _run_worker(name: str, device: str) -> str:
 def _load_asr(device: str):
     import coherex
 
-    try:
-        from .transcribe import AR_MODEL, resolve_cache_dir
-    except ImportError:  # script-style execution
-        from transcribe import AR_MODEL, resolve_cache_dir  # type: ignore
-
     m = coherex.load_model(
         model_name=AR_MODEL,
         device=device,
@@ -95,12 +88,6 @@ def _load_asr(device: str):
 
 def _load_aligner(device: str):
     import coherex
-
-    try:
-        from .transcribe import resolve_cache_dir
-    except ImportError:  # script-style execution
-        from transcribe import resolve_cache_dir  # type: ignore
-
     from coherex import alignment as _align
 
     align_id = getattr(_align, "DEFAULT_ALIGN_MODELS_HF", {}).get("ar") or getattr(
@@ -114,12 +101,7 @@ def _load_aligner(device: str):
 def _load_nemotron(device: str):
     from transformers import AutoModelForAudioFrameClassification, AutoProcessor
 
-    try:
-        from .transcribe import resolve_cache_dir
-    except ImportError:  # script-style execution
-        from transcribe import resolve_cache_dir  # type: ignore
-
-    model_id = "nvidia/Nemotron-3-Diarization"
+    model_id = DIARIZE_MODEL
     cache_dir = resolve_cache_dir(model_id)
     proc = AutoProcessor.from_pretrained(model_id, cache_dir=cache_dir)
     mod = AutoModelForAudioFrameClassification.from_pretrained(
@@ -132,12 +114,7 @@ def _load_nemotron(device: str):
 def _load_lid(device: str):
     from transformers import AutoFeatureExtractor, Wav2Vec2ForSequenceClassification
 
-    try:
-        from .transcribe import resolve_cache_dir
-    except ImportError:  # script-style execution
-        from transcribe import resolve_cache_dir  # type: ignore
-
-    model_id = "facebook/mms-lid-1024"
+    model_id = LID_MODEL
     cache_dir = resolve_cache_dir(model_id)
     proc = AutoFeatureExtractor.from_pretrained(model_id, cache_dir=cache_dir)
     mod = Wav2Vec2ForSequenceClassification.from_pretrained(
@@ -150,12 +127,7 @@ def _load_lid(device: str):
 def _load_dialect(device: str):
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-    try:
-        from .transcribe import resolve_cache_dir
-    except ImportError:  # script-style execution
-        from transcribe import resolve_cache_dir  # type: ignore
-
-    model_id = "IbrahimAmin/marbertv2-arabic-written-dialect-classifier"
+    model_id = DIALECT_MODEL
     cache_dir = resolve_cache_dir(model_id)
     tok = AutoTokenizer.from_pretrained(model_id, cache_dir=cache_dir)
     mod = AutoModelForSequenceClassification.from_pretrained(

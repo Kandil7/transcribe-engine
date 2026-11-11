@@ -72,6 +72,10 @@ python -m src.cli playlist "https://www.youtube.com/playlist?list=PLxxx" \
 # skip alignment for a fast draft (segment timestamps only)
 python -m src.cli video "https://www.youtube.com/watch?v=VIDEO_ID" --no-align \
   --to-parquet data/output/segments.parquet
+
+# build + score a hand reference (also: python -m src.score_wer / make_reference)
+python -m src.cli make-ref VIDEO_ID
+python -m src.cli score VIDEO_ID data/eval/VIDEO_ID_reference.txt
 ```
 
 ### All flags (`video` and `playlist`)
@@ -226,11 +230,15 @@ inspect → Drive persistence.
 
 ```text
 src/
-  cli.py              argparse: video / playlist, engine knobs
+  cli.py              argparse: video / playlist / prefetch / score / make-ref
   pipeline.py         orchestration, checkpoint, retry, upsert, manifest, prefetch
   transcribe.py       TranscribeConfig + TranscribeSession + transcribe_ar
+  hub.py              HF loading infra: cache resolver, local-first, offline, token
+  models.py           model repo ids (single source of truth)
+  audio_io.py         ffmpeg shim + waveform decoding (shared by engine+features)
+  store.py            the one videos.jsonl reader (all consumers)
   youtube.py          metadata, 16kHz wav, playlist expansion, noplaylist guard
-  schema.py           VideoRecord JSONL contract
+  schema.py           VideoRecord JSONL contract (+ EngineResult TypedDict)
   qa.py               QA gates (flags, never drops)
   normalize_ar.py     versioned Arabic fold
   jsonl_to_parquet.py JSONL → parquet/pandas/csv

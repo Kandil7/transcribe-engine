@@ -73,12 +73,8 @@ def lid_audio(
     import torch
     from transformers import AutoFeatureExtractor, Wav2Vec2ForSequenceClassification
 
-    try:
-        from .diarize import _load_audio_16k
-        from .transcribe import load_local_first, resolve_cache_dir
-    except ImportError:  # script-style execution
-        from diarize import _load_audio_16k  # type: ignore
-        from transcribe import load_local_first, resolve_cache_dir  # type: ignore
+    from .audio_io import load_audio_16k
+    from .hub import load_local_first, resolve_cache_dir
 
     cache_dir = resolve_cache_dir(model_id)
 
@@ -96,7 +92,7 @@ def lid_audio(
     sampling_rate = getattr(processor, "sampling_rate", None)
     if sampling_rate is None:  # Processor-style wrapper
         sampling_rate = processor.feature_extractor.sampling_rate
-    audio = _load_audio_16k(audio_path, sampling_rate)
+    audio = load_audio_16k(audio_path, sampling_rate)
     duration = len(audio) / float(sampling_rate)
     t0, t1 = clip_window(duration, max_seconds)
     lo, hi = int(t0 * sampling_rate), int(t1 * sampling_rate)

@@ -1,12 +1,6 @@
 """Offline tests for src/dialect.py — pure helpers, no transformers/torch."""
 
-from pathlib import Path
-
-import sys
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-
-from dialect import sample_chunks  # noqa: E402
+from src.dialect import sample_chunks
 
 
 def test_sample_chunks_short_text():

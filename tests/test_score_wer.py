@@ -1,11 +1,6 @@
 """Tests for src/score_wer.py — scorer math and slice window."""
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-
-from score_wer import (
+from src.score_wer import (
     hypothesis_for,
     parse_reference,
     score,

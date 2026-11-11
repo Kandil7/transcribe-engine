@@ -1,11 +1,6 @@
 """Offline tests for src/diarize.py — pure annotation, no model stacks."""
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-
-from diarize import Turn, assign_speakers
+from src.diarize import Turn, assign_speakers
 
 TURNS = [
     {"start": 0.0, "end": 10.0, "speaker": "SPEAKER_00"},
@@ -75,7 +70,7 @@ def test_turn_dataclass():
 def test_load_audio_16k_roundtrip(tmp_path):
     import wave
 
-    from diarize import _load_audio_16k
+    from src.diarize import _load_audio_16k
 
     # 0.25s of 16kHz silence as 16-bit PCM wav
     wav = tmp_path / "t.wav"

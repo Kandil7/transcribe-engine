@@ -1,12 +1,8 @@
 """Tests for src/viewer.py — pure helpers only, no streamlit runtime."""
 
 import json
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-
-from viewer import flatten_segments, load_records, record_status
+from src.viewer import flatten_segments, load_records, record_status
 
 RECORD = {
     "video_id": "abc123",

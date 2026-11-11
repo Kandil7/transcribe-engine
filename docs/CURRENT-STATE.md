@@ -1,7 +1,8 @@
 # Transcribe Engine — Current State
 
-Updated: 2026-10-31. `main` is green through `d1e3a69`; a small docs
-chore sits uncommitted (stale-count/badge fixes).
+Updated: 2026-10-31. `main` is green through `703d85a`; the
+shared-infrastructure restructure (ADR 19) is verified and awaiting
+commit.
 
 ## What works right now
 

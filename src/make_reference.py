@@ -138,10 +138,7 @@ def main(argv=None) -> str:
     )
     ns = ap.parse_args(argv)
 
-    try:
-        from .score_wer import load_video
-    except ImportError:
-        from score_wer import load_video  # type: ignore
+    from .store import load_video
 
     rec = load_video(ns.jsonl, ns.video_id)
     segments = rec.get("segments", [])
