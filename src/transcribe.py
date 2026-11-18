@@ -104,6 +104,37 @@ class TranscribeSession:
         self.align_metadata = None
         self.align_lang = ""
 
+    @staticmethod
+    def _patch_cohere_loader_for_device(device: str) -> None:
+        if device != "cuda":
+            return
+        try:
+            import transformers
+        except Exception:
+            return
+        cls = getattr(transformers, "CohereAsrForConditionalGeneration", None)
+        if cls is None:
+            return
+        original = cls.from_pretrained
+        if getattr(original, "_te_device_map_patched", False):
+            return
+
+        def patched(*args, **kwargs):
+            kwargs.setdefault("device_map", "auto")
+            kwargs.setdefault("low_cpu_mem_usage", True)
+            kwargs.setdefault("max_memory", {0: "13GiB", "cpu": "8GiB"})
+            return original(*args, **kwargs)
+
+        patched._te_device_map_patched = True
+        cls.from_pretrained = patched
+        try:
+            import coherex.asr as _ca
+
+            if getattr(_ca, "CohereAsrForConditionalGeneration", None) is cls:
+                _ca.CohereAsrForConditionalGeneration.from_pretrained = patched
+        except Exception:
+            pass
+
     def open(self) -> TranscribeSession:
         import shlex
 
@@ -111,6 +142,7 @@ class TranscribeSession:
 
         c = self.config
         if self.asr is None:
+            self._patch_cohere_loader_for_device(c.device)
             self.asr = load_local_first(
                 coherex.load_model,
                 model_name=c.model,

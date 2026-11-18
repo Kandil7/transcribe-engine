@@ -90,7 +90,10 @@ def load_local_first(loader, *args, **kwargs):
     try:
         with local_only():
             return loader(*args, **kwargs)
-    except Exception:  # noqa: BLE001 — any cache-miss error falls back online
+    except Exception as e:  # noqa: BLE001 - cache-miss errors fall back online
+        msg = str(e).lower()
+        if "out of memory" in msg or "paging file" in msg or "error 1455" in msg:
+            raise
         return loader(*args, **kwargs)
 
 
