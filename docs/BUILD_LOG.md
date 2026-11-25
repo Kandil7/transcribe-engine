@@ -287,3 +287,68 @@ D-013 (presigned POST), D-014 (tenant segment, MinIO-only policy tests), D-015 (
 - AC-2 uses a real two-second sleep, because MinIO judges the policy against its own clock.
 - The 2 GiB upload cap is provisional (D-015); revisit with S09 ingest limits.
 - `upload_id` is the last key segment; S08 should pass the server-generated id through explicitly.
+
+## S05 — Schema, repositories, unit of work   (2026-11-26 → 2026-11-26)
+Branch: feat/S05-persistence   Merged: (pending)   Tag: —
+### What was built
+- `domain/jobs.py`: `Job`, `Media` (tenant-scoped), `Result` dataclasses; `domain/config.py` equality by canonical JSON.
+- `application/ports/repositories.py`: JobRepository, MediaRepository, ResultRepository, UnitOfWork protocols.
+- `infrastructure/db/`: Core table definitions (models.py, mirrors migration exactly and feeds Alembic),
+  SQL repositories with ON CONFLICT and compare-and-set, SqlUnitOfWork (translates database errors), make_engine.
+- `migrations/versions/0002_core_tables.py`: media, jobs, results, transcript_versions, segments, chunks, outbox.
+- `tests/fakes/repositories.py` and `tests/contracts/test_repositories_contract.py` (15 tests, fake and Postgres).
+### How it works
+A unit of work owns one connection and one transaction. Media dedupe is per tenant. A result is claimed with a
+single INSERT ... ON CONFLICT DO NOTHING RETURNING, so 20 concurrent claims give one row and one creator. Job state
+changes are a single UPDATE with WHERE state = expected, so a stale call changes nothing. The config is stored as
+canonical text, so the round trip is byte-exact.
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | d541541 docs(S05): resolve open question and record persistence decisions | Q1; D-016, D-017 | — |
+| 2 | 10017e5 test(S05): add repository contract tests (xfail) | contract tests | — |
+| 3 | 37bb8d9 feat(S05): add Job, Media, Result domain models | models | — |
+| 4 | caeb883 feat(S05): add repository ports and fakes | ports, fakes | fake side |
+| 5 | 8202cd6 build(S05): add core tables migration | migration 0002 (D-018) | state CHECK, migration round trip |
+| 6 | 26052c6 feat(S05): add SQLAlchemy repositories and unit of work | SQL repositories, uow | Postgres side |
+| 7 | 4999a6e fix(S05): address review findings | D-019 | — |
+### Verification
+- `make check`: 145 passed.
+- `make itest`: 24 passed (repository contracts on both backends, storage contracts, migration round trip).
+- Migration round trip passes at head 0002_core_tables.
+### Decisions
+D-016 (model shapes, round trip), D-017 (apply keyed by job id: accepted exception), D-018 (migration, durations in ms,
+HEAD moved to 0002), D-019 (review decisions: per-tenant media, deterministic result ids, canonical config text,
+ref_count CHECK, error translation, attempt_count in apply, shared results accepted with an S08 requirement).
+### Problems and fixes
+- The first Postgres run failed on the state CHECK test because the test read every CHECK on jobs. It now reads
+  only ck_jobs_state.
+- Media helper gave every media the same hash, so the second media row silently resolved to the first and the job
+  foreign key failed. Helper now hashes a distinct seed.
+- With result ids equal to result keys, a losing concurrent claim hit the primary key, which an ON CONFLICT target
+  on result_key does not cover. Fixed with an unqualified ON CONFLICT DO NOTHING.
+- The first concurrency test was not gated; all claimants now wait on one event before starting.
+- Commit 6 was followed by a pre-commit formatter failure that rolled back the commit. Fixed by formatting first.
+- S07 correction: the storage expiry test (AC-2) used a one-second policy that had already expired when its control
+  upload was sent. It now uses three seconds and sleeps until just past expires_at. The change landed in the S05
+  branch; it is recorded here because the S07 entry was already merged.
+### Review findings
+- architecture-reviewer: 11 findings. Fixed: fake/pg mismatch on incr_ref and duplicate add; apply could not persist
+  attempt_count; SQL errors not translated; uow built its own engine (now takes an AsyncEngine); result ids random
+  (now deterministic); Alembic target_metadata unset (now set); models missing columns (now mirror all tables);
+  D-017 exception not in BUILD_LOG (this entry). Float round trip through JSONB (now canonical text column).
+- security-reviewer: 5 findings. Fixed: media dedupe leaked across tenants (per-tenant media); ref_count could go
+  negative (CHECK and guarded update); SQL errors leaked (translated). Accepted with a requirement: shared results
+  across tenants (S08 must not return created, result_id or ref_count to clients); apply keyed by job id (D-017).
+- test-reviewer: 8 findings. Fixed: AC-3 stale call used the same transition; AC-5 fixture had no rich fields;
+  AC-2 did not count rows; AC-1 could match another constraint; interface gaps (get_by_key, incr_ref, dedupe,
+  duplicate add) now tested on both backends; random result ids; concurrency without a start gate.
+- Note: the three reviewers were not re-run on the fixed head 4999a6e. Their findings were checked against the code
+  and each was fixed or recorded in D-019.
+### Follow-ups
+- S06 needs lease, claim and fencing queries on jobs (lease columns exist, unused).
+- S08: the API must not expose result created flag, result_id or ref_count; tenant scoping of results is by design
+  shared internally, enforced at the API layer.
+- Fake get returns the stored object, so the AC-5 pass on the fake is an identity check. Accepted; the Postgres side
+  is the real proof.
+- result_key UNIQUE and ref counting: deletion of unreferenced results belongs to S21.
