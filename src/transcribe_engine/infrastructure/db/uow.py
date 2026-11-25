@@ -8,6 +8,7 @@ at the adapter boundary (CLAUDE.md). The engine is built by the composition root
 from types import TracebackType
 from typing import Self
 
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, InterfaceError, OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncTransaction
 
@@ -17,6 +18,7 @@ from transcribe_engine.infrastructure.db.repositories import (
     SqlMediaRepository,
     SqlResultRepository,
 )
+from transcribe_engine.infrastructure.db.session import SYSTEM_SCOPE
 
 __all__ = ["SqlUnitOfWork", "translate_db_error"]
 
@@ -31,8 +33,9 @@ def translate_db_error(exc: SQLAlchemyError) -> Exception:
 
 
 class SqlUnitOfWork:
-    def __init__(self, engine: AsyncEngine) -> None:
+    def __init__(self, engine: AsyncEngine, tenant_id: str | None = None) -> None:
         self._engine = engine
+        self._tenant_id = tenant_id  # None means the system scope (workers, tests) (D-024)
         self._conn: AsyncConnection | None = None
         self._tx: AsyncTransaction | None = None
         self.jobs: SqlJobRepository
@@ -42,6 +45,13 @@ class SqlUnitOfWork:
     async def __aenter__(self) -> Self:
         self._conn = await self._engine.connect()
         self._tx = await self._conn.begin()
+        if self._tenant_id is not None:
+            await self._conn.execute(
+                text("SELECT set_config('app.tenant_id', :tenant, true)"),
+                {"tenant": self._tenant_id},
+            )
+        else:
+            await self._conn.execute(SYSTEM_SCOPE)
         self.jobs = SqlJobRepository(self._conn)
         self.media = SqlMediaRepository(self._conn)
         self.results = SqlResultRepository(self._conn)
