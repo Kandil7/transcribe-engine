@@ -2,11 +2,11 @@
 
 Kept in sync with `.autopilot/state.json` by the autopilot. Status: `todo` · `in_progress` · `partial` · `blocked` · `done`.
 
-**Autopilot status:** blocked (R-002)   **Current slice:** S01   **Last update:** 2026-11-25
+**Autopilot status:** running   **Current slice:** S02   **Last update:** 2026-11-25
 
 | Order | Slice | Title | Status | Branch | Merged (main) | Tag | Notes |
 |---|---|---|---|---|---|---|---|
-| 1 | S01 | Repo foundation and CI | partial | feat/S01-foundation | — | v0.1.0 | local done; push blocked (R-002) |
+| 1 | S01 | Repo foundation and CI | done | — | 2985206 | v0.1.0 | PR #1 merged (rebase) |
 | 2 | S00 | Model selection spike | todo | | | | human reference hour → REVIEW_QUEUE |
 | 3 | S02 | Job state machine | todo | | | | |
 | 4 | S03 | Pipeline config, keys, time units | todo | | | | |
