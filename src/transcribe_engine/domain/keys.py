@@ -5,6 +5,7 @@ Every key is a type prefix plus lowercase hex SHA-256: res_, chk_, rag_, emb_.
 
 import hashlib
 import json
+import operator
 
 from transcribe_engine.domain.config import PipelineConfig
 
@@ -34,7 +35,13 @@ def chunk_id(
     media_sha256: str, config_hash: str, idx: int, start_sample: int, end_sample: int
 ) -> str:
     """Stable id for one audio chunk. A re-run gives the same ids, so saved chunks are skipped."""
-    parts = [media_sha256, config_hash, str(idx), str(start_sample), str(end_sample)]
+    parts = [
+        media_sha256,
+        config_hash,
+        str(operator.index(idx)),
+        str(operator.index(start_sample)),
+        str(operator.index(end_sample)),
+    ]
     return "chk_" + _sha256(_PIPE.join(parts))
 
 
@@ -42,7 +49,12 @@ def rag_chunk_id(transcript_id: str, version: int, start_ms: int, end_ms: int) -
     """Stable id for one searchable transcript chunk."""
     if _PIPE in transcript_id:
         raise ValueError("transcript_id must not contain '|'")
-    parts = [transcript_id, str(version), str(start_ms), str(end_ms)]
+    parts = [
+        transcript_id,
+        str(operator.index(version)),
+        str(operator.index(start_ms)),
+        str(operator.index(end_ms)),
+    ]
     return "rag_" + _sha256(_PIPE.join(parts))
 
 
@@ -52,6 +64,5 @@ def embedding_id(text_with_header: str, embedding_model: str) -> str:
         [text_with_header, embedding_model],
         ensure_ascii=False,
         separators=(",", ":"),
-        sort_keys=True,
     )
     return "emb_" + _sha256(framed)

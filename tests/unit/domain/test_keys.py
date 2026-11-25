@@ -59,7 +59,9 @@ def test_isolation_scope_changes_key() -> None:
     shared = keys.result_key(FILE_SHA, cfg)  # type: ignore[arg-type]
     tenant_a = keys.result_key(FILE_SHA, cfg, "tenant-a")  # type: ignore[arg-type]
     tenant_b = keys.result_key(FILE_SHA, cfg, "tenant-b")  # type: ignore[arg-type]
-    assert shared != tenant_a != tenant_b
+    assert shared != tenant_a
+    assert shared != tenant_b
+    assert tenant_a != tenant_b
     assert shared == keys.result_key(FILE_SHA, cfg, None)  # type: ignore[arg-type]
 
 
@@ -113,3 +115,12 @@ def test_all_keys_have_prefix_and_lowercase_hex() -> None:
         assert len(body) == 64
         assert body == body.lower()
         int(body, 16)
+
+
+def test_rejects_float_ids_and_positions() -> None:
+    """Float 16000.0 and int 16000 must not produce different ids; floats are rejected."""
+    keys = _mod("keys")
+    with pytest.raises(TypeError):
+        keys.chunk_id("a" * 64, "b" * 64, 3, 16_000.0, 32_000)
+    with pytest.raises(TypeError):
+        keys.rag_chunk_id("tr", 1, 1000.0, 4500)
