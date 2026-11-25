@@ -7,7 +7,7 @@ character, or deletes it, so the offset map back to the raw text is exact. `raw`
 import unicodedata
 from dataclasses import dataclass
 
-__all__ = ["NormalizedText", "fold_char", "normalize"]
+__all__ = ["NormalizedText", "fold_char", "map_span", "normalize"]
 
 # Rules 1-3 and D-009: alef variants, alef maksura, teh marbuta, Persian yeh.
 _LETTER_FOLDS: dict[str, str] = {
@@ -68,3 +68,13 @@ def normalize(raw: str) -> NormalizedText:
         chars.pop()
         offsets.pop()
     return NormalizedText(raw=raw, search="".join(chars), offsets=tuple(offsets))
+
+
+def map_span(n: NormalizedText, start: int, end: int) -> tuple[int, int]:
+    """Map a search-text span [start, end) to a raw-text span (end exclusive)."""
+    if not 0 <= start <= end <= len(n.search):
+        raise ValueError("span out of range")
+    if start == end:
+        pos = n.offsets[start] if start < len(n.offsets) else len(n.raw)
+        return pos, pos
+    return n.offsets[start], n.offsets[end - 1] + 1
