@@ -333,3 +333,31 @@ Rationale: a new revision is the only safe change to a merged schema; defaults k
 Reversibility: easy before S08 relies on the columns.
 Confidence: high.
 Applied in: S06 spec commit
+
+## D-022 — S06 review decisions: bounded reclaim, fenced completes, accepted residual risks
+Date: 2026-11-26 · Slice: S06 · Status: decided · Review: none
+Context: Security, architecture and test reviews of the queue found: validation leases that lapse without limit; a
+complete that could land after its lease expired; a transient heartbeat error that cancelled the handler; database
+errors leaking from claim; weak chaos and worker tests.
+Fixed:
+- The claim requires attempt_count < max_attempts (SQL and fake). A validation lease that lapses at the limit is
+  poisoned (POISON_JOB); below the limit it is released. The poison decision is the PROCESSING rule of transition().
+- A complete requires a live lease (lease_until > now()), in SQL and in the fake.
+- A transient heartbeat error is retried on the next beat; only LeaseLostError and JobCancelledError stop the handler.
+- claim translates database errors like the other queue methods.
+- Tests: worker transient retry, permanent failure, lost lease (handler cancelled, complete never called), heartbeat
+  counted; contract tests for a heartbeat after the reconciler and for a future retry; the chaos run now completes
+  one abandoned lease per job with a stale owner trying to complete afterwards (the fence refuses all of them).
+Accepted, with reasons:
+- The claim SQL sets PROCESSING directly. It is the CLAIMED edge of the table, and the contract tests check it.
+- Lease durations are float seconds at the SQL boundary. ADR-0003 governs pipeline media time, not lease lengths.
+- `complete` does not check the from-state against the transition table. Callers build the Transition from the claimed
+  state, and the owner/attempt/liveness predicate fences the write. A future change should pass the from-state.
+- Queue methods take no tenant. They are worker-internal, like apply (D-017), and import-linter keeps presentation off
+  infrastructure. S08 must not expose them.
+- `asyncio.sleep` drives heartbeat timing; the sleep is injectable so unit tests need no real time. The handler
+  checkpoint is provided by heartbeat cancellation; a between-stage check arrives with the stages (S10).
+- The chaos test uses real 1-second leases; this is the one documented exception to "tests never sleep".
+- Fairness and ordering use `seq` (D-021), not created_at, so equal-priority jobs are FIFO inside one transaction.
+- A discarded `complete` result (stale write) is not logged yet; logging arrives with S20 observability.
+Applied in: S06 review-fix commit

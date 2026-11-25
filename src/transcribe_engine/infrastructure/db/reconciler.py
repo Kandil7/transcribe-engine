@@ -39,7 +39,7 @@ _POISON = text(
     """
     UPDATE jobs SET state = 'FAILED', error_code = 'POISON_JOB',
         lease_owner = NULL, lease_until = NULL
-    WHERE id = :job_id AND state = 'PROCESSING'
+    WHERE id = :job_id AND state IN ('PROCESSING', 'PENDING_VALIDATION')
     """
 )
 
@@ -69,14 +69,19 @@ class SqlReconciler:
         self._jitter = jitter
 
     async def run_once(self, now: datetime | None = None) -> ReconcileReport:
-        """`now` is echoed in logs by callers; every comparison here uses database time (D-020)."""
+        """Comparisons use database time; `now` is accepted for the port and ignored (D-020)."""
         try:
             async with self._engine.begin() as conn:
                 expired = (await conn.execute(_LOCK_EXPIRED)).all()
                 poisoned = 0
                 for row in expired:
                     if row.state != JobState.PROCESSING.value:
-                        await conn.execute(_CLEAR_LEASE, {"job_id": row.id})
+                        # A validation lease that lapses counts against the attempt limit (D-022).
+                        if row.attempt_count >= row.max_attempts:
+                            poisoned += 1
+                            await conn.execute(_POISON, {"job_id": row.id})
+                        else:
+                            await conn.execute(_CLEAR_LEASE, {"job_id": row.id})
                         continue
                     decision = transition(
                         JobState.PROCESSING,

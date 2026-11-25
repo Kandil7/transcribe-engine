@@ -74,13 +74,19 @@ async def _seed(engine: object, job_ids: list[str]) -> None:
 
 
 async def _worker(
-    name: str, queue: object, abandon: dict[str, bool], completions: dict[str, int]
+    name: str,
+    queue: object,
+    abandon: dict[str, bool],
+    completions: dict[str, int],
+    stale: list[tuple[object, str]],
 ) -> None:
-    """Claim until nothing is claimable. An abandoned first attempt sends no heartbeat."""
+    """Claim until nothing is claimable. An abandoned first attempt sends no heartbeat, and its
+    lease object is kept: after expiry it is the stale owner's proof (D-022)."""
     jobs = _mod("transcribe_engine.domain.jobs")
     while (claimed := await queue.claim("cpu", name, LEASE)) is not None:  # type: ignore[attr-defined]
         job, lease = claimed
         if abandon[job.id] and lease.attempt == 1:
+            stale.append((lease, job.id))
             continue  # the worker "dies": the lease simply expires
         success = jobs.transition(
             jobs.JobState.PROCESSING,
@@ -125,6 +131,7 @@ async def test_kill_workers_no_loss_no_dup(pg_url: str) -> None:
     job_ids = [f"chaos-{i:04d}" for i in range(JOB_COUNT)]
     abandon = {job_id: rng.random() < ABANDON_RATE for job_id in job_ids}
     completions: dict[str, int] = {}
+    stale: list[tuple[object, str]] = []
 
     await _seed(engine, job_ids)
     reaper = asyncio.create_task(_reap_forever(reconciler))
@@ -133,7 +140,7 @@ async def test_kill_workers_no_loss_no_dup(pg_url: str) -> None:
     try:
         while True:
             await asyncio.gather(
-                *(_worker(f"w{i}", queue, abandon, completions) for i in range(WORKERS))
+                *(_worker(f"w{i}", queue, abandon, completions, stale) for i in range(WORKERS))
             )
             done, states = await _all_terminal(engine, job_ids)
             if done:
@@ -144,6 +151,13 @@ async def test_kill_workers_no_loss_no_dup(pg_url: str) -> None:
         reaper.cancel()
         await engine.dispose()
 
+    assert stale, "no lease was abandoned, so the chaos run tested nothing"
+    # Each abandoned owner now completes with its expired lease. The fence must refuse every one.
+    success = jobs.transition(
+        jobs.JobState.PROCESSING, jobs.JobEvent.SUCCEEDED, attempt_count=1, max_attempts=3
+    )
+    for lease, _job_id in stale:
+        assert not await queue.complete(lease, success), "a stale owner completed a job"  # type: ignore[attr-defined]
     assert all(count <= 1 for count in completions.values()), "a job was completed twice"
     completed = sum(1 for state in states if state == jobs.JobState.COMPLETED.value)
     assert len(completions) == completed

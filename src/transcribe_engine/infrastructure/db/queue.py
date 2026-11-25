@@ -27,6 +27,7 @@ _CLAIM = text(
         WHERE queue = :queue
           AND (state = 'QUEUED' OR (state = 'PENDING_VALIDATION' AND :queue = 'cpu'))
           AND (run_after IS NULL OR run_after <= now())
+          AND attempt_count < max_attempts
         ORDER BY priority DESC, seq
         FOR UPDATE SKIP LOCKED
         LIMIT 1
@@ -67,7 +68,7 @@ _COMPLETE = text(
         lease_owner = NULL,
         lease_until = NULL
     WHERE id = :job_id AND lease_owner = :owner AND attempt_count = :attempt
-      AND state IN ('PROCESSING', 'PENDING_VALIDATION')
+      AND lease_until > now() AND state IN ('PROCESSING', 'PENDING_VALIDATION')
     """
 )
 
@@ -79,6 +80,14 @@ class SqlJobQueue:
         self._engine = engine
 
     async def claim(self, queue: str, owner: str, lease_for: timedelta) -> tuple[Job, Lease] | None:
+        try:
+            return await self._claim(queue, owner, lease_for)
+        except SQLAlchemyError as exc:
+            raise translate_db_error(exc) from exc
+
+    async def _claim(
+        self, queue: str, owner: str, lease_for: timedelta
+    ) -> tuple[Job, Lease] | None:
         async with self._engine.begin() as conn:
             row = (
                 await conn.execute(
