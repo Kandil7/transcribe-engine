@@ -352,3 +352,56 @@ ref_count CHECK, error translation, attempt_count in apply, shared results accep
 - Fake get returns the stored object, so the AC-5 pass on the fake is an identity check. Accepted; the Postgres side
   is the real proof.
 - result_key UNIQUE and ref counting: deletion of unreferenced results belongs to S21.
+
+## S06 — Postgres job queue, lease, fencing, reconciler   (2026-11-26 → 2026-11-26)
+Branch: feat/S06-postgres-job-queue   Merged: (pending)   Tag: —
+### What was built
+- `application/ports/{queue,clock}.py`: JobQueue, Reconciler, Clock, Lease, ReconcileReport.
+- `application/worker_loop.py`: claim, heartbeat in its own task, run the handler, complete only while the lease is held.
+- `infrastructure/db/queue.py`: one-statement claim (FOR UPDATE SKIP LOCKED, priority then seq), heartbeat, fenced complete, cancellation check.
+- `infrastructure/db/reconciler.py`: one transaction expires dead leases through the domain rules and requeues due retries.
+- `migrations/versions/0003_queue_columns.py`: started_at, FIFO seq, claim index (D-021).
+- `tests/fakes/queue.py`, `tests/fakes/clock.py`; contract tests on fake and Postgres; chaos test; worker unit tests.
+### How it works
+A claim picks the highest-priority, oldest claimable row and sets the lease in the same statement, using the database
+clock. Every heartbeat and complete is fenced by owner, attempt and liveness. The reconciler moves an expired lease
+through transition(LEASE_EXPIRED): retry with backoff while attempts remain, otherwise POISON_JOB.
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | 3961f9a docs(S06): resolve open question and record queue decisions | Q1; D-020, D-021 | — |
+| 2 | 97f7229 test(S06): add queue contract and chaos tests (xfail) | contracts, chaos | — |
+| 3 | daf2191 feat(S06): add queue and clock ports with fakes | ports, fakes, domain errors | fake side |
+| 4 | 8d4f5c9 feat(S06): claim with FOR UPDATE SKIP LOCKED | claim, migration 0003 | priority, concurrent claims |
+| 5 | 217de1c feat(S06): add heartbeat and fenced complete | heartbeat, complete, cancellation | cancellation |
+| 6 | 90f712b feat(S06): add reconciler | reconciler | expiry, poison, retry |
+| 7 | 0d53825 feat(S06): add worker loop with cancellation | worker loop, chaos xfail removed | chaos |
+| 8 | e10ecbd fix(S06): address review findings | D-022 | — |
+### Verification
+- `make check`: 150 passed.
+- `make itest`: 40 passed (queue contracts on both backends, chaos run, storage, repositories, migration round trip).
+- Chaos run: 1,000 jobs, 20% of first attempts abandoned, 8 workers, fixed seed. All jobs reach a terminal state, no job
+  completes twice, and every abandoned owner's late complete is refused.
+### Decisions
+D-020 (database time for lease comparisons; fairness out of scope), D-021 (migration 0003, queue fields on Job),
+D-022 (review decisions and accepted residual risks).
+### Problems and fixes
+- Shared pg fixture imported across test modules produced duplicate-import errors; moved to tests/conftest.py.
+- The claim tests ran before reconciler existed; the reconciler import was made lazy in the test helper.
+- The reconciler's first version poisoned on the wrong state (PROCESSING only); pending leases were released without
+  limit until review found it.
+- A duplicated return line in claim was caught by mypy (unreachable statement).
+### Review findings
+- security-reviewer: 5 findings. Fixed: complete now requires a live lease; claim respects the attempt limit. Accepted:
+  queue is worker-internal (no tenant parameter, D-022); the from-state of a Transition is not checked in SQL (residual,
+  recorded). A stale write is not logged yet (S20).
+- architecture-reviewer: 12 findings. Fixed: claim translates database errors; pending expiry poisons at the limit;
+  transient heartbeat errors retried; Reconciler.run_once docstring corrected (D-022). Accepted: direct PROCESSING in
+  claim SQL (the CLAIMED edge); float lease seconds; asyncio.sleep injectable; handler checkpoint via heartbeat until S10.
+- test-reviewer: 8 findings. Fixed: chaos run now sends stale completes and asserts abandonments happened; worker tests
+  for transient, permanent and lost lease; heartbeat-after-reconciler and future-retry contracts. The chaos run keeps a
+  real 1-second lease (the documented exception).
+- Note: reviewers ran on the pre-fix head; findings were checked and fixed, not re-reviewed.
+### Follow-ups
+- Pass the from-state into complete (D-022 residual).
+- Log stale writes (S20). Between-stage cancellation checkpoint (S10).
