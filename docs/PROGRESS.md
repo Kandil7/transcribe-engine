@@ -10,7 +10,7 @@ Kept in sync with `.autopilot/state.json` by the autopilot. Status: `todo` · `i
 | 2 | S00 | Model selection spike | todo | | | | human reference hour → REVIEW_QUEUE |
 | 3 | S02 | Job state machine | done | — | 714136b | — | PR #5 merged (rebase) |
 | 4 | S03 | Pipeline config, keys, time units | done | — | eb5dd15 | — | PR #7 merged (rebase) |
-| 5 | S04 | Arabic text normalization | partial | feat/S04-arabic-text-normalization | — | — | PR open; CI pending |
+| 5 | S04 | Arabic text normalization | done | — | c909f6c | — | PR #9 merged (rebase) |
 | 6 | S07 | Object storage and presigned uploads | todo | | | | |
 | 7 | S05 | Schema, repositories, unit of work | todo | | | | |
 | 8 | S06 | Postgres job queue | todo | | | | |
