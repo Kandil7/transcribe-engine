@@ -7,7 +7,6 @@ Policy-enforcement and encryption tests (AC-1, AC-2, AC-5) run against MinIO onl
 import asyncio
 import contextlib
 import importlib
-from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from types import ModuleType
 
@@ -20,15 +19,6 @@ from testcontainers.minio import MinioContainer
 pytestmark = [pytest.mark.integration, pytest.mark.contract]
 
 MINIO_IMAGE = "cgr.dev/chainguard/minio:latest"  # D-002
-
-
-@pytest.fixture(scope="session")
-def minio() -> Iterator[MinioContainer]:
-    container = MinioContainer(MINIO_IMAGE).with_env(
-        "MINIO_KMS_SECRET_KEY", "local-test:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
-    )
-    with container:
-        yield container
 
 
 def _mod(name: str) -> ModuleType:
