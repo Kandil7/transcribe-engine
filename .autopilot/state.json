@@ -1,7 +1,7 @@
 {
   "version": 1,
   "status": "running",
-  "current": null,
+  "current": "S02",
   "remote": true,
   "iterations": 2,
   "last_run": "2026-11-25",
@@ -46,11 +46,11 @@
       "notes": "Merged via PR #1 (rebase). CI green on check+integration. R-002 resolved by force-with-lease push."
     },
     "S02": {
-      "status": "todo",
-      "branch": null,
+      "status": "partial",
+      "branch": "feat/S02-job-state-machine",
       "merged": null,
       "tag": null,
-      "notes": ""
+      "notes": "Implemented and reviewed; PR open, CI pending."
     },
     "S03": {
       "status": "todo",
