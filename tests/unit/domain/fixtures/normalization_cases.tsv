@@ -14,8 +14,11 @@ Hello	hello
 ABC def	abc def
 	
    	
-	
-	
+\t	
+\n	
+\t\n	
+a\t\tb	a b
+a\t\nb	a b
 عايز أروح	عايز اروح
 ايوه	ايوه
 تمام، شكراً	تمام، شكرا
@@ -26,9 +29,12 @@ Hello مرحبا world	hello مرحبا world
 İstanbul	İstanbul
 CAFÉ	café
 ABĆ	abć
+CAFÉ	café
+é	é
 😀 مرحبا	😀 مرحبا
 مرحبا‏demo	مرحبا‏demo
   الجُنَيْه   نزل  	الجنيه نزل
+نزلُ الجُنَيْهُ	نزل الجنيه
 سلام عليكم	سلام عليكم
 ـ	
 ً	

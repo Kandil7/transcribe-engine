@@ -53,8 +53,46 @@ def test_map_span_round_trip() -> None:
     assert n.raw[start:end] == "الجُنَيْه"
 
 
+def test_span_includes_word_final_diacritics() -> None:
+    """D-012: a word's trailing diacritics belong to the word's raw span."""
+    t = _mod()
+    n = t.normalize("ويقول نزلُ الجُنَيْهُ")
+    hit = n.search.index("نزل")
+    start, end = t.map_span(n, hit, hit + len("نزل"))
+    assert n.raw[start:end] == "نزلُ"
+
+
+def test_fold_rules_literal_table() -> None:
+    """Independent check of the folding rules against literal expected characters."""
+    t = _mod()
+    cases = {
+        "أ": "ا",  # أ -> ا
+        "إ": "ا",  # إ -> ا
+        "آ": "ا",  # آ -> ا
+        "ٱ": "ا",  # ٱ -> ا
+        "ى": "ي",  # ى -> ي
+        "ة": "ه",  # ة -> ه
+        "ی": "ي",  # ی -> ي (D-009)
+        "٥": "5",  # ٥ -> 5
+        "۵": "5",  # ۵ -> 5
+        "A": "a",
+        "É": "é",  # É -> é
+        "İ": "İ",  # İ lowercases to two chars, so it is kept (D-010)
+        "ک": "ک",  # ک is not folded (D-009)
+    }
+    for raw, expected in cases.items():
+        assert t.normalize(raw).search == expected, hex(ord(raw))
+
+
+def test_span_includes_deleted_marks_at_the_raw_boundary() -> None:
+    """D-012: a leading deleted mark belongs to the word; the interior mark is kept too."""
+    t = _mod()
+    n = t.normalize("ًab")  # search "ab"
+    assert t.map_span(n, 0, 2) == (0, 3)
+
+
 def test_span_on_deleted_char_maps_to_nearest_kept_neighbour() -> None:
-    """A span that starts or ends on a deleted character maps to the nearest kept neighbour."""
+    """An interior deleted mark is inside the span, not dropped."""
     t = _mod()
     n = t.normalize("ab\u064bcd")  # diacritic between b and c is deleted
     start, end = t.map_span(n, 1, 3)  # search "bc"

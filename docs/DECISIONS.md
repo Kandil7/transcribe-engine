@@ -178,3 +178,16 @@ Rationale: the rule (1) and its design source are clear; only the expectation wa
 Reversibility: easy.
 Confidence: high.
 Applied in: fix(S04) commit for the fixture row
+
+## D-012 — map_span includes deleted marks that sit inside a word
+Date: 2026-11-26 · Slice: S04 · Status: decided · Review: none
+Context: The spec's edge case says a span that starts or ends on a deleted character maps to the nearest kept
+neighbour. But AC-4 requires the full raw word with its diacritics, and the architecture review found that
+a word-final diacritic was dropped (`نزلُ` mapped to `نزل`).
+Options: A) Map to the nearest kept neighbour (drop boundary marks). B) Extend the span over deleted marks
+on both sides until whitespace or a kept character.
+Decision: B.
+Rationale: AC-4 names the full word. Whitespace is never deleted, so the extension cannot cross a word boundary.
+Reversibility: easy — internal to `map_span`.
+Confidence: high.
+Applied in: fix(S04) commit for review findings
