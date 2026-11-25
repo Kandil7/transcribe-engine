@@ -144,7 +144,6 @@ def test_backoff_is_exact_when_jitter_is_zero() -> None:
     assert jobs.backoff(30, base=base, cap=cap, jitter=0.0) == cap
 
 
-@pytest.mark.xfail(strict=True, reason="S02")
 def test_stage_order_is_the_pipeline_order() -> None:
     jobs = _jobs()
     assert [s.value for s in jobs.JobStage] == [
