@@ -8,8 +8,6 @@ from types import ModuleType
 
 import pytest
 
-pytestmark = [pytest.mark.xfail(strict=True, reason="S08")]
-
 
 def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
@@ -41,7 +39,7 @@ async def _world() -> tuple[object, object, object]:
     tenants = fakes_tenants.FakeTenants()
     tenants.add("tenant-a", max_active_jobs=5, quota_audio_ms=None)
 
-    def make_uow() -> object:
+    def make_uow(tenant_id: str | None = None) -> object:
         return fakes_tenants.FakeApiUnitOfWork(store, tenants)
 
     return make_uow, storage, tenants

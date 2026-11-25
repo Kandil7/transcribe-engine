@@ -20,6 +20,11 @@ from testcontainers.minio import MinioContainer
 BUCKET = "api-test"
 
 
+def new_tenant() -> str:
+    """A tenant id unique to one test, so limits and counts never leak between tests."""
+    return "t-" + secrets.token_hex(4)
+
+
 def mod(name: str) -> ModuleType:
     return importlib.import_module(name)
 
