@@ -141,3 +141,46 @@ D-006 (`error_code` keyword on `transition`)
 ### Follow-ups
 - DB CHECK constraint for states (S05); leases, heartbeats, reconciler (S06).
 - Warning codes are not yet persisted; S05/S10 decide the storage.
+
+## S03 — Pipeline config, deterministic keys, time units   (2026-11-25 → 2026-11-25)
+Branch: feat/S03-pipeline-config-and-keys   Merged: (pending)   Tag: —
+### What was built
+- `domain/time.py`: `SAMPLE_RATE`, `samples_to_ms` (floor), `ms_to_samples`; integer only.
+- `domain/config.py`: frozen `PipelineConfig` with flat, finite, read-only parameter mappings, an explicit
+  language (never auto), `canonical_json()` (sorted keys, compact, UTF-8, NaN/Infinity rejected) and
+  `config_hash()`.
+- `domain/keys.py`: `result_key`, `chunk_id`, `rag_chunk_id`, `embedding_id` with the `res_`/`chk_`/`rag_`/`emb_`
+  prefixes and encodings in D-007.
+### How it works
+Every key is a type prefix plus SHA-256 of a fixed byte layout. `result_key` hashes file hash, `‖`, canonical
+config, and an optional `‖ isolation_scope`. Integer inputs pass through `operator.index`, so floats are rejected
+rather than hashed as `16000.0`.
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | a28150c docs(S03): resolve open question and record key encodings | Q1 answered, D-007 | — |
+| 2 | 8d1a672 test(S03): add acceptance tests (xfail) | 25 strict xfail tests with golden values | — |
+| 3 | c3b6d5b feat(S03): add time units | `time.py` | AC-5 |
+| 4 | 3f39a92 feat(S03): add PipelineConfig with canonical JSON | `config.py` | AC-2, AC-6 |
+| 5 | 592d71e feat(S03): add deterministic keys | `keys.py` | AC-1, AC-3, AC-4 |
+| 6 | c395a56 fix(S03): address review findings | immutability, integer inputs, key/language checks | — |
+### Verification
+- `make check`: 71 passed (ruff, format, mypy, lint-imports 4 KEPT).
+- No xfail markers remain for S03 (`grep -rn 'reason="S03"' tests` empty).
+### Decisions
+D-007 (key and ID encodings, Q1 accepted)
+### Problems and fixes
+- Mypy: `dict` vs `Mapping` return type after making mappings read-only; return type changed to `Mapping`.
+- Ruff TRY004 on the key/scalar checks: the spec requires `ValueError`, so the type test is bound to a
+  boolean first instead of raising in an `isinstance` branch.
+### Review findings
+- architecture-reviewer: 6 findings. Fixed: mutable mapping stored in frozen dataclass (result key could change
+  after construction); float inputs accepted by time and key functions; case-sensitive `auto` check; non-string
+  keys; vad_params NaN coverage; no-op `sort_keys` on a list.
+- test-reviewer: 6 findings. Fixed: AC-2 permuted only decoding_params; immutability tested only through the
+  proxy and not the caller's dict; 0.0-vs-0 not checked at key level; chained `!=` assertion; allow_nan path.
+  Not added: a direct test of `canonical_json` with a non-finite value injected past `__post_init__` (the
+  constructor check covers the same invariant).
+### Follow-ups
+- Adapters must emit stable parameter types (documented edge case).
+- S04 provides `domain.text.normalize()`; S03 does not touch text.
