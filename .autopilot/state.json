@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "status": "not_started",
-  "current": null,
-  "remote": null,
-  "iterations": 0,
-  "last_run": null,
+  "status": "running",
+  "current": "S01",
+  "remote": true,
+  "iterations": 1,
+  "last_run": "2026-11-25",
   "order": [
     "S01",
     "S00",
@@ -39,8 +39,8 @@
       "notes": ""
     },
     "S01": {
-      "status": "todo",
-      "branch": null,
+      "status": "in_progress",
+      "branch": "feat/S01-foundation",
       "merged": null,
       "tag": null,
       "notes": ""
