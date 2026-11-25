@@ -7,11 +7,12 @@ Library errors are translated into domain errors at this boundary (CLAUDE.md).
 
 import asyncio
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Literal
 
 from botocore.exceptions import ClientError
 
-from transcribe_engine.application.ports.storage import ObjectInfo
+from transcribe_engine.application.ports.storage import ObjectInfo, UploadTicket
 from transcribe_engine.domain.errors import PermanentError, TransientError
 
 if TYPE_CHECKING:
@@ -40,6 +41,29 @@ class S3ObjectStorage:
     def __init__(self, client: "S3Client", bucket: str) -> None:
         self._client = client
         self._bucket = bucket
+
+    async def presign_upload(self, key: str, max_bytes: int, expires: timedelta) -> UploadTicket:
+        """Presigned POST whose signed policy limits the size and pins the exact key (D-013)."""
+        issued = datetime.now(UTC)
+        post = await asyncio.to_thread(
+            self._client.generate_presigned_post,
+            Bucket=self._bucket,
+            Key=key,
+            Conditions=[
+                ["content-length-range", 0, max_bytes],
+                {"key": key},
+                {"x-amz-server-side-encryption": SSE_ALGORITHM},
+            ],
+            Fields={"x-amz-server-side-encryption": SSE_ALGORITHM},
+            ExpiresIn=int(expires.total_seconds()),
+        )
+        return UploadTicket(
+            upload_id=key.rsplit("/", 1)[-1],
+            url=post["url"],
+            fields=post["fields"],
+            expires_at=issued + expires,
+            max_bytes=max_bytes,
+        )
 
     async def head(self, key: str) -> ObjectInfo | None:
         try:

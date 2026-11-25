@@ -3,7 +3,6 @@
 The fake does not enforce upload policies or encryption; those are proven against MinIO (D-014).
 """
 
-import uuid
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -24,9 +23,8 @@ class FakeObjectStorage:
         return self.objects
 
     async def presign_upload(self, key: str, max_bytes: int, expires: timedelta) -> UploadTicket:
-        upload_id = uuid.uuid4().hex
         return UploadTicket(
-            upload_id=upload_id,
+            upload_id=key.rsplit("/", 1)[-1],
             url=f"fake://upload/{key}",
             fields={"key": key},
             expires_at=datetime.now(UTC) + expires,
