@@ -361,3 +361,46 @@ Accepted, with reasons:
 - Fairness and ordering use `seq` (D-021), not created_at, so equal-priority jobs are FIFO inside one transaction.
 - A discarded `complete` result (stale write) is not logged yet; logging arrives with S20 observability.
 Applied in: S06 review-fix commit
+
+## D-023 — Upload ticket, job creation, and the media placeholder
+Date: 2026-11-26 · Slice: S08 · Status: decided · Review: none
+Context: A job needs a media row (foreign key), but the file's sha256 is only known after ingest (S09). Creating a job
+must still check that the upload object exists (404 otherwise).
+Options: A) Create the media row at job creation with sha256 `upload:{upload_id}` as a placeholder, replaced by S09
+with the real hash and then deduplicated. B) Add an uploads table in S08. C) Delay job creation until ingest.
+Decision: A. The upload id is the media id. Existence is checked with the storage port (`head` on incoming_key).
+Rationale: keeps the job row and FK in one transaction; S09 owns the hash. B adds a table with no second use.
+Reversibility: easy until S09 runs; the placeholder format is one function.
+Confidence: medium.
+Applied in: S08 spec commit
+
+## D-024 — Row-level security on jobs: tenant setting, explicit system scope
+Date: 2026-11-26 · Slice: S08 · Status: decided · Review: none
+Context: The spec wants RLS on `jobs` as a second layer. Workers, the reconciler and the contract tests work across
+tenants by design (D-017, D-022), and the table owner bypasses RLS unless FORCE is set.
+Options: A) Separate Postgres role for the API with RLS and a worker role without it. B) One role; policy admits a row
+when `app.tenant_id` matches it or `app.system = 'on'`; FORCE RLS so the owner is subject to the policy; the
+unit of work sets one of the two per transaction with SET LOCAL.
+Decision: B. Units of work with a tenant set `app.tenant_id`; units of work without one set `app.system = 'on'`.
+A raw connection with neither setting sees no jobs.
+Rationale: A needs two roles and two DSNs in CI and locally; B keeps one DSN and tests the policy directly (AC-3).
+Reversibility: moderate — policy and the unit-of-work setting.
+Confidence: medium — a database role split is the stronger long-term control; revisit at deployment.
+Applied in: S08 spec commit
+
+## D-025 — Tenant quota, concurrency limit, idempotency, webhooks, and job progress
+Date: 2026-11-26 · Slice: S08 · Status: decided · Review: none
+Context: The spec leaves quota numbers, the concurrency limit, the idempotency store, webhooks and `progress` open.
+Decisions:
+- `tenants.quota_audio_ms` is nullable (NULL = unlimited). Enforced at create against the tenant's media durations.
+- `tenants.max_active_jobs` defaults to 5. Active means QUEUED, PENDING_VALIDATION, PROCESSING or RETRY_SCHEDULED.
+- Idempotency is a table `idempotency_keys` unique on (tenant_id, key), valid 24 h. A repeat returns the stored
+  response with the original status code.
+- `webhook_url` is rejected with 422 until S20 persists and delivers webhooks.
+- `Job.progress` (0–100) is added to the domain model and mapped from the existing column; default 0.
+- Result bodies: GET .../result returns 409 until the job is COMPLETED; after that the JSON body is served once S10/S15
+  write transcript versions. Until then a completed job returns 404 with a problem+json reason.
+Rationale: each default is the smallest value that does not invent pricing or delivery behaviour.
+Reversibility: easy for defaults; moderate for the idempotency table.
+Confidence: medium.
+Applied in: S08 spec commit

@@ -73,5 +73,7 @@ class ApiKeyRepository(Protocol):
 8. `docs(S08): generate OpenAPI snapshot` (`docs/openapi.json`, checked in CI for drift)
 
 ## Open questions
-- [ ] Q1 — Monthly audio-hours quota is in the design ("Quotas لكل Tenant") without numbers. Proposed:
+- [x] Q1 — Monthly audio-hours quota is in the design ("Quotas لكل Tenant") without numbers. Proposed:
   field on `tenants`, enforced at create time, default unlimited until pricing exists.
+  **Resolved (autopilot, 2026-11-26, D-025):** `tenants.quota_audio_ms` nullable (NULL = unlimited); enforced
+  at create time against the sum of the tenant's non-deleted media durations.
