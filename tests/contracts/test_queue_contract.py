@@ -18,11 +18,6 @@ import pytest
 pytestmark = [pytest.mark.integration, pytest.mark.contract]
 
 KINDS = ["fake", "postgres"]
-# Postgres stays xfail until heartbeat, complete and the reconciler land (later S06 commits).
-KINDS_PENDING = [
-    "fake",
-    pytest.param("postgres", marks=pytest.mark.xfail(strict=True, reason="S06")),
-]
 
 
 def _mod(name: str) -> ModuleType:
@@ -118,7 +113,7 @@ async def _load(backend: _Backend, job_id: str) -> object:
     return job
 
 
-@pytest.mark.parametrize("kind", KINDS_PENDING)
+@pytest.mark.parametrize("kind", KINDS)
 async def test_fenced_complete_rejects_stale_owner(kind: str, pg_url: str) -> None:
     """AC-2: after a lease expires and the job is retried, the old owner's complete is refused."""
     jobs = _mod("transcribe_engine.domain.jobs")
@@ -140,7 +135,7 @@ async def test_fenced_complete_rejects_stale_owner(kind: str, pg_url: str) -> No
     assert final.state == jobs.JobState.COMPLETED  # type: ignore[attr-defined]
 
 
-@pytest.mark.parametrize("kind", KINDS_PENDING)
+@pytest.mark.parametrize("kind", KINDS)
 async def test_expired_lease_retried_then_poison(kind: str, pg_url: str) -> None:
     """AC-3: three expired leases in a row (max_attempts 3) end in FAILED with POISON_JOB."""
     jobs = _mod("transcribe_engine.domain.jobs")
@@ -155,7 +150,7 @@ async def test_expired_lease_retried_then_poison(kind: str, pg_url: str) -> None
     assert final.error_code == jobs.ErrorCode.POISON_JOB  # type: ignore[attr-defined]
 
 
-@pytest.mark.parametrize("kind", KINDS_PENDING)
+@pytest.mark.parametrize("kind", KINDS)
 async def test_retry_due_requeues(kind: str, pg_url: str) -> None:
     """AC-4: a retry with a past run_after is requeued; one scheduled in the future is not."""
     jobs = _mod("transcribe_engine.domain.jobs")
