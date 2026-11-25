@@ -64,5 +64,14 @@ class PipelineConfig:
             payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
         )
 
+    # Equality is the canonical form (D-016): a read-only mapping compares by identity otherwise.
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, PipelineConfig):
+            return NotImplemented
+        return self.canonical_json() == other.canonical_json()
+
+    def __hash__(self) -> int:
+        return hash(self.canonical_json())
+
     def config_hash(self) -> str:
         return hashlib.sha256(self.canonical_json().encode("utf-8")).hexdigest()
