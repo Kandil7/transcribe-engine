@@ -1,0 +1,90 @@
+"""Worker loop behaviour (S06) on the fake queue: no sleeps, time moved only by the stub."""
+
+import asyncio
+from dataclasses import replace
+from datetime import timedelta
+
+from tests.fakes.clock import FakeClock
+from tests.fakes.queue import FakeJobQueue
+from tests.fakes.repositories import FakeStore
+from transcribe_engine.application.worker_loop import WorkerSettings, run_once
+from transcribe_engine.domain.config import PipelineConfig
+from transcribe_engine.domain.jobs import Job, JobEvent, JobState, Media, transition
+
+SETTINGS = WorkerSettings(
+    queue_name="cpu", owner="w1", lease_for=timedelta(minutes=2), heartbeat_every=30.0
+)
+
+
+def _seed(store: FakeStore) -> None:
+    config = PipelineConfig(
+        engine="faster-whisper",
+        model_revision="large-v3@r1",
+        language="ar",
+        decoding_params={"beam_size": 5},
+        vad_params={"threshold": 0.5},
+        diarization_enabled=False,
+        pipeline_version="1.0.0",
+    )
+    store.media_by_tenant_sha[("tenant-a", "d" * 64)] = Media(
+        id="media-w",
+        tenant_id="tenant-a",
+        sha256="d" * 64,
+        storage_key="k",
+        duration_ms=1,
+        format="wav",
+        size_bytes=1,
+    )
+    store.jobs["job-w"] = Job(
+        id="job-w",
+        tenant_id="tenant-a",
+        media_id="media-w",
+        state=JobState.QUEUED,
+        stage=None,
+        attempt_count=0,
+        max_attempts=3,
+        queue="cpu",
+        config=config,
+        result_id=None,
+        error_code=None,
+        warnings=(),
+    )
+
+
+async def _no_sleep(_: float) -> None:
+    await asyncio.sleep(0)
+
+
+async def test_completes_when_the_owner_keeps_its_lease() -> None:
+    store = FakeStore()
+    _seed(store)
+    queue = FakeJobQueue(store, FakeClock())
+
+    async def handler(job: Job) -> object:
+        return transition(
+            JobState.PROCESSING, JobEvent.SUCCEEDED, attempt_count=job.attempt_count, max_attempts=3
+        )
+
+    assert await run_once(queue, handler, SETTINGS, sleep=_no_sleep)
+    assert store.jobs["job-w"].state == JobState.COMPLETED
+    assert "job-w" not in store.leases
+
+
+async def test_cancellation_discards_the_handler_output() -> None:
+    store = FakeStore()
+    _seed(store)
+    queue = FakeJobQueue(store, FakeClock())
+    never = asyncio.Event()
+
+    async def handler(job: Job) -> object:
+        await never.wait()  # a long stage that only cancellation interrupts
+        return transition(
+            JobState.PROCESSING, JobEvent.SUCCEEDED, attempt_count=job.attempt_count, max_attempts=3
+        )
+
+    async def cancel_then_return(_: float) -> None:
+        # Between two heartbeats, someone cancels the job.
+        store.jobs["job-w"] = replace(store.jobs["job-w"], state=JobState.CANCELLED)
+
+    assert await run_once(queue, handler, SETTINGS, sleep=cancel_then_return)
+    assert store.jobs["job-w"].state == JobState.CANCELLED
