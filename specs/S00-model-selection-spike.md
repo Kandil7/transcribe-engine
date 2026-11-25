@@ -55,6 +55,8 @@ forced alignment is mandatory, measured on our own Egyptian audio. No product co
 6. `docs(adr): 0007 default ASR engine`
 
 ## Open questions
-- [ ] Q1 — Who transcribes the reference hour, and is the audio ours or consented? Proposed: in-house
+- [x] Q1 — Who transcribes the reference hour, and is the audio ours or consented? Proposed: in-house
   recordings only `[D: الخصوصية ودورة حياة البيانات]`.
-- [ ] Q2 — Target GPU for the decision: L4 (design default) or what we will actually rent?
+  **Resolved:** in-house recordings only, transcribed by the team per the guidelines; audio stays in `data/` outside git.
+- [x] Q2 — Target GPU for the decision: L4 (design default) or what we will actually rent?
+  **Resolved:** L4 (design default).
