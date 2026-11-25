@@ -1,0 +1,55 @@
+"""Repository ports for jobs, media and results (S05). Infrastructure and fakes implement them.
+
+`apply` is keyed by job id, without tenant (D-017): workers and the reconciler hold the id.
+Every other job read takes the tenant id.
+"""
+
+from typing import Protocol, Self
+
+from transcribe_engine.domain.config import PipelineConfig
+from transcribe_engine.domain.jobs import Job, JobStage, JobState, Media, Result, Transition
+
+__all__ = ["JobRepository", "MediaRepository", "ResultRepository", "UnitOfWork"]
+
+
+class JobRepository(Protocol):
+    async def add(self, job: Job) -> None: ...
+
+    async def get(self, tenant_id: str, job_id: str) -> Job | None: ...
+
+    async def apply(
+        self, job_id: str, t: Transition, *, expected: JobState, stage: JobStage | None = None
+    ) -> bool:
+        """Compare-and-set on state. False if the current state is not `expected`."""
+        ...
+
+
+class MediaRepository(Protocol):
+    async def upsert(self, media: Media) -> Media:
+        """Return the stored media for this sha256, inserting it if new."""
+        ...
+
+
+class ResultRepository(Protocol):
+    async def claim_key(
+        self, result_key: str, media_id: str, config: PipelineConfig
+    ) -> tuple[Result, bool]:
+        """Create the result for this key, or return the existing one. The bool is True only for
+        the call that created it (INSERT ... ON CONFLICT DO NOTHING RETURNING)."""
+        ...
+
+    async def get_by_key(self, result_key: str) -> Result | None: ...
+
+    async def incr_ref(self, result_id: str, delta: int) -> int: ...
+
+
+class UnitOfWork(Protocol):
+    jobs: JobRepository
+    media: MediaRepository
+    results: ResultRepository
+
+    async def __aenter__(self) -> Self: ...
+
+    async def __aexit__(self, *exc_info: object) -> None: ...
+
+    async def commit(self) -> None: ...
