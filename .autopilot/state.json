@@ -3,7 +3,7 @@
   "status": "running",
   "current": null,
   "remote": true,
-  "iterations": 7,
+  "iterations": 8,
   "last_run": "2026-11-25",
   "order": [
     "S01",
@@ -74,11 +74,11 @@
       "notes": "Merged via PR #13 (rebase). 145 unit tests, 24 itest; reviews applied (4999a6e)."
     },
     "S06": {
-      "status": "todo",
+      "status": "done",
       "branch": null,
-      "merged": null,
+      "merged": "f216ccd",
       "tag": null,
-      "notes": ""
+      "notes": "Merged via PR #15 (rebase). 150 unit tests, 40 itest incl. chaos; reviews applied (e10ecbd)."
     },
     "S07": {
       "status": "done",
