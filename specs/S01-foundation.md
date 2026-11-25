@@ -51,4 +51,5 @@ locally, and Alembic has an empty baseline. Nothing product-specific yet.
 5. `ci(S01): verify pipeline on first PR` (only if CI needed fixes)
 
 ## Open questions
-- [ ] Q1 — GitHub or another host? CI file assumes GitHub Actions.
+- [x] Q1 — GitHub or another host? CI file assumes GitHub Actions.
+  **Resolved:** GitHub Actions (`.github/workflows/ci.yml` kept; PRs via `gh`).
