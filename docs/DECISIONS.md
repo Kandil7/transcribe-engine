@@ -204,3 +204,19 @@ Rationale: only B makes S3 reject an oversized upload before it lands. C puts al
 Reversibility: moderate — clients use a POST form instead of a PUT.
 Confidence: high.
 Applied in: S07 spec commit
+
+## D-014 — Tenant segment in storage keys; contract tests that only real S3 can prove
+Date: 2026-11-26 · Slice: S07 · Status: decided · Review: none
+Context: S07 says "keys always start with the tenant id" and also gives `incoming/{tenant}/{upload_id}`. A key
+cannot both start with the tenant id and begin with a class prefix. Also, AC-1, AC-2 and AC-5 test S3 policy
+enforcement and encryption, which the in-memory fake cannot prove.
+Options: A) Keys start with the tenant id (`{tenant}/incoming/{upload_id}`). B) Keep the class prefix and
+treat the tenant segment as the second path segment. C) Drop the class prefix.
+Decision: B. Keys are `incoming/{tenant}/...` and `work/{tenant}/...`; the tenant is always the second segment,
+and tenant ids are validated (no `/`, no `..`, non-empty). AC-1, AC-2 and AC-5 run against MinIO only; the
+fake runs the shared contract tests (AC-3, AC-6). MinIO is started with a local KMS key so SSE-S3 works.
+Rationale: B keeps the spec's key layout and tenant isolation in a single, testable place. Testing the policy
+on the fake would prove nothing about S3.
+Reversibility: moderate — key layout is stored in the database after S05.
+Confidence: medium — the spec's wording is ambiguous; this is the reading that keeps both statements true.
+Applied in: S07 test commit
