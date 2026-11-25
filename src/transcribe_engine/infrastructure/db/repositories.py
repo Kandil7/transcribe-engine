@@ -7,7 +7,7 @@ Result ids are the result key itself, so they are deterministic (CLAUDE.md, D-01
 import json
 from typing import Any
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import Row, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncConnection
 
@@ -44,6 +44,26 @@ def _config_from_canonical(text: str) -> PipelineConfig:
 def _config_jsonb(config: PipelineConfig) -> dict[str, Any]:
     loaded: dict[str, Any] = json.loads(config.canonical_json())
     return loaded
+
+
+def job_from_row(row: Row) -> Job:  # type: ignore[type-arg]
+    """Map a jobs row to the domain Job. Shared by the repository and the queue (S06)."""
+    return Job(
+        id=row.id,
+        tenant_id=row.tenant_id,
+        media_id=row.media_id,
+        state=JobState(row.state),
+        stage=JobStage(row.stage) if row.stage else None,
+        attempt_count=row.attempt_count,
+        max_attempts=row.max_attempts,
+        queue=row.queue,
+        config=_config_from_canonical(row.config_canonical),
+        result_id=row.result_id,
+        error_code=ErrorCode(row.error_code) if row.error_code else None,
+        warnings=tuple(row.warnings),
+        priority=row.priority,
+        run_after=row.run_after,
+    )
 
 
 class SqlMediaRepository:
@@ -103,6 +123,8 @@ class SqlJobRepository:
                 warnings=list(job.warnings),
                 pipeline_config=_config_jsonb(job.config),
                 config_canonical=job.config.canonical_json(),
+                priority=job.priority,
+                run_after=job.run_after,
             )
         )
 
@@ -112,22 +134,7 @@ class SqlJobRepository:
                 select(jobs).where(jobs.c.id == job_id, jobs.c.tenant_id == tenant_id)
             )
         ).one_or_none()
-        if row is None:
-            return None
-        return Job(
-            id=row.id,
-            tenant_id=row.tenant_id,
-            media_id=row.media_id,
-            state=JobState(row.state),
-            stage=JobStage(row.stage) if row.stage else None,
-            attempt_count=row.attempt_count,
-            max_attempts=row.max_attempts,
-            queue=row.queue,
-            config=_config_from_canonical(row.config_canonical),
-            result_id=row.result_id,
-            error_code=ErrorCode(row.error_code) if row.error_code else None,
-            warnings=tuple(row.warnings),
-        )
+        return None if row is None else job_from_row(row)
 
     async def apply(
         self,

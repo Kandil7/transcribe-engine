@@ -60,6 +60,8 @@ jobs = sa.Table(
     sa.Column("pipeline_config", postgresql.JSONB, nullable=False),
     sa.Column("config_canonical", sa.Text, nullable=False),
     sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+    sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
+    sa.Column("seq", sa.BigInteger, sa.Identity(), nullable=False),
 )
 
 transcript_versions = sa.Table(

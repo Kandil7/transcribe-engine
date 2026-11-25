@@ -12,7 +12,7 @@ from testcontainers.community.postgres import PostgresContainer
 pytestmark = pytest.mark.integration
 
 ROOT = Path(__file__).resolve().parents[2]
-HEAD = "0002_core_tables"  # D-018: moved from 0001 when S05 added the core tables
+HEAD = "0003_queue_columns"  # D-021: moved from 0002 when S06 added queue columns
 
 
 def _alembic_config() -> Config:
