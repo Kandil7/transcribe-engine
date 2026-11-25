@@ -404,3 +404,21 @@ Rationale: each default is the smallest value that does not invent pricing or de
 Reversibility: easy for defaults; moderate for the idempotency table.
 Confidence: medium.
 Applied in: S08 spec commit
+
+## D-026 — API keys, scopes and problem+json errors
+Date: 2026-11-26 · Slice: S08 · Status: decided · Review: none
+Context: The spec fixes SHA-256 hashing, two scopes, and RFC 9457 errors. It does not fix the key format or how
+errors expose detail.
+Decisions:
+- A key is `te_` plus 32 URL-safe random characters from `secrets`. Only its SHA-256 hash is stored (api_keys.key_hash,
+  unique). A raw key is shown once (seed) and never logged or read back by the system.
+- Scopes are `transcribe:read` and `transcribe:write`. Missing or unknown key: 401. Key without the scope: 403.
+- Errors are `application/problem+json` with type, title, status and code. The exception message is never returned,
+  so internal detail cannot leak; titles are fixed per error.
+- The key lookup runs in the system scope because api_keys has no RLS; every later query uses the key's tenant.
+- `make seed` creates the local tenant `local` and one key, prints the key once, and writes `.env.local`
+  (git-ignored). The system never reads `.env.local` back.
+Rationale: hashed keys mean a database read cannot reveal a usable key; fixed titles keep error bodies uniform.
+Reversibility: easy — key format and error titles are local.
+Confidence: high.
+Applied in: S08 auth commit

@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 UV := uv run
 
-.PHONY: help setup fmt lint typecheck imports test check itest cov eval up down migrate ci autopilot
+.PHONY: help setup fmt lint typecheck imports test check itest cov eval up down migrate seed ci autopilot
 
 help: ## Show targets
 	@grep -E '^[a-z]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -52,3 +52,6 @@ ci: check cov ## What CI runs on every PR
 
 autopilot: ## Build the project autonomously, one slice per run (see docs/AUTOPILOT.ar.md)
 	scripts/autopilot.sh
+
+seed: ## Create the local tenant and API key (printed once, saved to .env.local)
+	uv run python scripts/seed.py

@@ -52,7 +52,7 @@ async def test_upload_missing_is_not_found() -> None:
     use_cases = _mod("transcribe_engine.application.use_cases.create_job")
     make_uow, storage, _ = await _world()
     create = use_cases.CreateTranscriptionJob(make_uow, storage)
-    with pytest.raises(errors.UploadNotFound):
+    with pytest.raises(errors.UploadNotFoundError):
         await create(_command("upload-missing"))
 
 
@@ -62,7 +62,7 @@ async def test_another_tenants_upload_is_not_found() -> None:
     use_cases = _mod("transcribe_engine.application.use_cases.create_job")
     make_uow, storage, _ = await _world()
     create = use_cases.CreateTranscriptionJob(make_uow, storage)
-    with pytest.raises(errors.UploadNotFound):
+    with pytest.raises(errors.UploadNotFoundError):
         await create(_command("upload-b"))
 
 
@@ -72,7 +72,7 @@ async def test_unsupported_language_is_refused_before_any_write() -> None:
     make_uow, storage, _ = await _world()
     await storage.put("incoming/tenant-a/upload-a", b"RIFF")
     create = use_cases.CreateTranscriptionJob(make_uow, storage)
-    with pytest.raises(errors.UnsupportedLanguage):
+    with pytest.raises(errors.UnsupportedLanguageError):
         await create(_command("upload-a", language="en"))
 
 
@@ -82,7 +82,7 @@ async def test_webhook_is_refused_until_s20() -> None:
     make_uow, storage, _ = await _world()
     await storage.put("incoming/tenant-a/upload-a", b"RIFF")
     create = use_cases.CreateTranscriptionJob(make_uow, storage)
-    with pytest.raises(errors.UnsupportedFeature):
+    with pytest.raises(errors.UnsupportedFeatureError):
         await create(_command("upload-a", webhook_url="https://example.invalid/hook"))
 
 
@@ -95,5 +95,5 @@ async def test_concurrency_limit_refuses_the_extra_job() -> None:
     await storage.put("incoming/tenant-a/upload-2", b"RIFF")
     create = use_cases.CreateTranscriptionJob(make_uow, storage)
     await create(_command("upload-1"))
-    with pytest.raises(errors.TooManyActiveJobs):
+    with pytest.raises(errors.TooManyActiveJobsError):
         await create(_command("upload-2"))

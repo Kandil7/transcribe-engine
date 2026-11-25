@@ -5,6 +5,7 @@ Result ids are the result key itself, so they are deterministic (CLAUDE.md, D-01
 """
 
 import json
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import Row, insert, select, update
@@ -63,6 +64,7 @@ def job_from_row(row: Row) -> Job:  # type: ignore[type-arg]
         warnings=tuple(row.warnings),
         priority=row.priority,
         run_after=row.run_after,
+        progress=row.progress,
     )
 
 
@@ -135,6 +137,14 @@ class SqlJobRepository:
             )
         ).one_or_none()
         return None if row is None else job_from_row(row)
+
+    async def request_deletion(self, tenant_id: str, job_id: str, at: datetime) -> bool:
+        result = await self._conn.execute(
+            update(jobs)
+            .where(jobs.c.id == job_id, jobs.c.tenant_id == tenant_id)
+            .values(deletion_requested_at=at)
+        )
+        return bool(result.rowcount == 1)
 
     async def apply(
         self,

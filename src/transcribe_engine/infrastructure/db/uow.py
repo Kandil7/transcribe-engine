@@ -13,6 +13,11 @@ from sqlalchemy.exc import IntegrityError, InterfaceError, OperationalError, SQL
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncTransaction
 
 from transcribe_engine.domain.errors import PermanentError, TransientError
+from transcribe_engine.infrastructure.db.api_keys import (
+    SqlApiKeyRepository,
+    SqlIdempotencyRepository,
+    SqlTenantRepository,
+)
 from transcribe_engine.infrastructure.db.repositories import (
     SqlJobRepository,
     SqlMediaRepository,
@@ -41,6 +46,9 @@ class SqlUnitOfWork:
         self.jobs: SqlJobRepository
         self.media: SqlMediaRepository
         self.results: SqlResultRepository
+        self.tenants: SqlTenantRepository
+        self.idempotency: SqlIdempotencyRepository
+        self.api_keys: SqlApiKeyRepository
 
     async def __aenter__(self) -> Self:
         self._conn = await self._engine.connect()
@@ -55,6 +63,9 @@ class SqlUnitOfWork:
         self.jobs = SqlJobRepository(self._conn)
         self.media = SqlMediaRepository(self._conn)
         self.results = SqlResultRepository(self._conn)
+        self.tenants = SqlTenantRepository(self._conn)
+        self.idempotency = SqlIdempotencyRepository(self._conn)
+        self.api_keys = SqlApiKeyRepository(self._conn)
         return self
 
     async def __aexit__(
