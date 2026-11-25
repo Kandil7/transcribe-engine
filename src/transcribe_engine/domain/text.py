@@ -5,8 +5,9 @@ character, or deletes it, so the offset map back to the raw text is exact. `raw`
 """
 
 import unicodedata
+from dataclasses import dataclass
 
-__all__ = ["fold_char"]
+__all__ = ["NormalizedText", "fold_char", "normalize"]
 
 # Rules 1-3 and D-009: alef variants, alef maksura, teh marbuta, Persian yeh.
 _LETTER_FOLDS: dict[str, str] = {
@@ -35,3 +36,35 @@ def fold_char(ch: str) -> str:
         if len(lowered) == 1:
             return lowered
     return ch
+
+
+# Rule 4: tatweel and the diacritics U+064B-U+0652, U+0670 are deleted.
+_DELETE = frozenset({0x0640, 0x0670, *range(0x064B, 0x0653)})
+
+
+@dataclass(frozen=True)
+class NormalizedText:
+    raw: str
+    search: str
+    offsets: tuple[int, ...]  # offsets[i] is the index in `raw` of search[i]
+
+
+def normalize(raw: str) -> NormalizedText:
+    """Return the search text for `raw` with an exact offset map back to it."""
+    chars: list[str] = []
+    offsets: list[int] = []
+    for index, ch in enumerate(raw):
+        if ord(ch) in _DELETE:
+            continue
+        if ch.isspace():
+            # Rule 6 (D-010): keep the first space of a run; drop the others and leading space.
+            if not chars or chars[-1] == " ":
+                continue
+            chars.append(" ")
+        else:
+            chars.append(fold_char(ch))
+        offsets.append(index)
+    if chars and chars[-1] == " ":
+        chars.pop()
+        offsets.pop()
+    return NormalizedText(raw=raw, search="".join(chars), offsets=tuple(offsets))
