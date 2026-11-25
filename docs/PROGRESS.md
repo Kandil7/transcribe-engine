@@ -12,7 +12,7 @@ Kept in sync with `.autopilot/state.json` by the autopilot. Status: `todo` · `i
 | 4 | S03 | Pipeline config, keys, time units | done | — | eb5dd15 | — | PR #7 merged (rebase) |
 | 5 | S04 | Arabic text normalization | done | — | c909f6c | — | PR #9 merged (rebase) |
 | 6 | S07 | Object storage and presigned uploads | done | — | a29dd33 | — | PR #11 merged (rebase) |
-| 7 | S05 | Schema, repositories, unit of work | partial | feat/S05-persistence | — | — | PR open; CI pending |
+| 7 | S05 | Schema, repositories, unit of work | done | — | 2af874b | — | PR #13 merged (rebase) |
 | 8 | S06 | Postgres job queue | todo | | | | |
 | 9 | S08 | API, auth, job endpoints | todo | | | | |
 | 10 | S09 | Ingest: probe, hash, dedupe, normalize | todo | | | | |

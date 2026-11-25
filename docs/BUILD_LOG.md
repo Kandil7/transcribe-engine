@@ -289,7 +289,7 @@ D-013 (presigned POST), D-014 (tenant segment, MinIO-only policy tests), D-015 (
 - `upload_id` is the last key segment; S08 should pass the server-generated id through explicitly.
 
 ## S05 — Schema, repositories, unit of work   (2026-11-26 → 2026-11-26)
-Branch: feat/S05-persistence   Merged: (pending)   Tag: —
+Branch: feat/S05-persistence   Merged: 2af874b (PR #13)   Tag: —
 ### What was built
 - `domain/jobs.py`: `Job`, `Media` (tenant-scoped), `Result` dataclasses; `domain/config.py` equality by canonical JSON.
 - `application/ports/repositories.py`: JobRepository, MediaRepository, ResultRepository, UnitOfWork protocols.
