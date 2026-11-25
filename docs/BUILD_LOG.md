@@ -233,3 +233,57 @@ correction), D-012 (span includes word-boundary marks)
 ### Follow-ups
 - CAMeL Tools morphology: a later Port (ADR-0008).
 - Case table is hand-written; S16 will add a corpus-based check.
+
+## S07 — Object storage and presigned uploads   (2026-11-26 → 2026-11-26)
+Branch: feat/S07-object-storage   Merged: (pending)   Tag: —
+### What was built
+- `domain/storage_keys.py`: `incoming_key`, `work_key` (tenant is the second segment, D-014), plus
+  `check_incoming_key` and `check_prefix` used by every adapter and the fake.
+- `application/ports/storage.py`: `ObjectStorage` Protocol, `UploadTicket`, `ObjectInfo`.
+- `infrastructure/storage/s3.py`: `S3ObjectStorage` over a boto3 client, calls in worker threads; presigned
+  POST with `content-length-range`, exact key condition and SSE; SSE-S3 on every put; `delete_prefix` with
+  pagination and batches of 1000; botocore and client errors translated to domain errors.
+- `tests/fakes/storage.py`: in-memory fake with the same validation and error contract.
+- `tests/contracts/test_storage_contract.py` (contract on fake and MinIO) and
+  `tests/unit/domain/test_storage_keys.py`.
+### How it works
+A ticket is a presigned POST: S3 checks the signed policy on upload, so an oversized file, a different key or
+an expired policy is refused before it lands. Keys are built from validated ids only. Reads use HTTP Range
+headers; `delete_prefix` lists with pagination and deletes in batches, counting only what was removed.
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | fcb33c0 docs(S07): resolve open question and record upload policy | Q1; D-013; design wording | — |
+| 2 | 55be7ed test(S07): add storage contract tests (xfail) | keys (unit), contracts (MinIO) | — |
+| 3 | 64401fe feat(S07): add storage keys and port with fake | keys, port, fake | AC-4 |
+| 4 | 0bf500e feat(S07): add S3 adapter: put, head, stream, read_range | adapter core | AC-3, AC-5 |
+| 5 | a8924b3 feat(S07): add presigned upload with size policy | presign | AC-1, AC-2 |
+| 6 | 5458a30 feat(S07): add delete_prefix | delete | AC-6 |
+| 7 | 07b3904 fix(S07): address review findings | D-015 validation, error contract, stronger contracts | — |
+### Verification
+- `make check`: 145 passed (ruff, format, mypy, lint-imports 4 KEPT).
+- `make itest`: 9 passed against MinIO (5 contract tests on both backends plus the migration test).
+- AC-1 proves the size gate with a control upload (204) and the refusal (400, EntityTooLarge).
+- AC-2 proves expiry with a control upload (204), a sleep of two seconds and a refusal (403, expired).
+### Decisions
+D-013 (presigned POST), D-014 (tenant segment, MinIO-only policy tests), D-015 (upload limits and error contract)
+### Problems and fixes
+- MinIO needs a KMS key for SSE-S3; set in the test fixture (`MINIO_KMS_SECRET_KEY`).
+- Strict xfail markers were removed one test at a time as the adapter gained each method (protocol).
+- A `make check` failure was not caught on the first attempt because the commit line ran after it; the
+  commit was redone once lint passed.
+### Review findings
+- architecture-reviewer: 3 findings (positive controls for AC-1/AC-2; error translation for connection
+  errors; fake and adapter must raise the same errors). Fixed the first and last; connection-error translation
+  fixed in the shared `_call` helper.
+- security-reviewer: 3 findings (prefix can match other tenants; key not bound to the incoming layout;
+  read start negative). All fixed through domain validators (D-015).
+- test-reviewer: 6 findings (AC-1/AC-2 status-only checks; SSE on the iterator path; fake divergence on
+  missing keys and EOF; no test beyond one batch; unclear variable name). Fixed except the rename, which is
+  cosmetic and left as is.
+### Follow-ups
+- `put` with an async iterator buffers the whole object in memory. Multipart upload is needed before large
+  generated objects (S10). Recorded as a known limitation.
+- AC-2 uses a real two-second sleep, because MinIO judges the policy against its own clock.
+- The 2 GiB upload cap is provisional (D-015); revisit with S09 ingest limits.
+- `upload_id` is the last key segment; S08 should pass the server-generated id through explicitly.
