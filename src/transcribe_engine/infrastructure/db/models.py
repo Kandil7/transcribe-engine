@@ -62,6 +62,7 @@ jobs = sa.Table(
     sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
     sa.Column("seq", sa.BigInteger, sa.Identity(), nullable=False),
+    sa.Column("deletion_requested_at", sa.DateTime(timezone=True), nullable=True),
 )
 
 transcript_versions = sa.Table(
@@ -116,4 +117,36 @@ outbox = sa.Table(
     sa.Column("payload", postgresql.JSONB, nullable=False),
     sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     sa.Column("published_at", sa.DateTime(timezone=True), nullable=True),
+)
+
+tenants = sa.Table(
+    "tenants",
+    metadata,
+    sa.Column("id", sa.Text, primary_key=True),
+    sa.Column("max_active_jobs", sa.Integer, nullable=False, server_default="5"),
+    sa.Column("quota_audio_ms", sa.BigInteger, nullable=True),
+    sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+)
+
+api_keys = sa.Table(
+    "api_keys",
+    metadata,
+    sa.Column("id", sa.Text, primary_key=True),
+    sa.Column("tenant_id", sa.Text, sa.ForeignKey("tenants.id"), nullable=False),
+    sa.Column("key_hash", sa.Text, nullable=False, unique=True),
+    sa.Column("scopes", postgresql.ARRAY(sa.Text), nullable=False),
+    sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+    sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
+)
+
+idempotency_keys = sa.Table(
+    "idempotency_keys",
+    metadata,
+    sa.Column("tenant_id", sa.Text, sa.ForeignKey("tenants.id"), nullable=False),
+    sa.Column("key", sa.Text, nullable=False),
+    sa.Column("job_id", sa.Text, sa.ForeignKey("jobs.id"), nullable=False),
+    sa.Column("status", sa.Integer, nullable=False),
+    sa.Column("body", postgresql.JSONB, nullable=False),
+    sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+    sa.PrimaryKeyConstraint("tenant_id", "key", name="pk_idempotency_keys"),
 )

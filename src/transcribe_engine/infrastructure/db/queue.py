@@ -14,6 +14,7 @@ from transcribe_engine.application.ports.queue import Lease
 from transcribe_engine.domain.errors import JobCancelledError, LeaseLostError
 from transcribe_engine.domain.jobs import Job, JobStage, Transition
 from transcribe_engine.infrastructure.db.repositories import job_from_row
+from transcribe_engine.infrastructure.db.session import SYSTEM_SCOPE
 from transcribe_engine.infrastructure.db.uow import translate_db_error
 
 __all__ = ["SqlJobQueue"]
@@ -89,6 +90,7 @@ class SqlJobQueue:
         self, queue: str, owner: str, lease_for: timedelta
     ) -> tuple[Job, Lease] | None:
         async with self._engine.begin() as conn:
+            await conn.execute(SYSTEM_SCOPE)
             row = (
                 await conn.execute(
                     _CLAIM,
@@ -108,6 +110,7 @@ class SqlJobQueue:
     async def heartbeat(self, lease: Lease, extend_by: timedelta) -> Lease:
         try:
             async with self._engine.begin() as conn:
+                await conn.execute(SYSTEM_SCOPE)
                 row = (
                     await conn.execute(
                         _HEARTBEAT,
@@ -137,6 +140,7 @@ class SqlJobQueue:
     async def complete(self, lease: Lease, t: Transition, *, stage: JobStage | None = None) -> bool:
         try:
             async with self._engine.begin() as conn:
+                await conn.execute(SYSTEM_SCOPE)
                 result = await conn.execute(
                     _COMPLETE,
                     {
@@ -154,7 +158,8 @@ class SqlJobQueue:
 
     async def is_cancelled(self, job_id: str) -> bool:
         try:
-            async with self._engine.connect() as conn:
+            async with self._engine.begin() as conn:
+                await conn.execute(SYSTEM_SCOPE)
                 state = (await conn.execute(_STATE_OF, {"job_id": job_id})).scalar_one_or_none()
         except SQLAlchemyError as exc:
             raise translate_db_error(exc) from exc

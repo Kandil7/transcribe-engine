@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from transcribe_engine.application.ports.queue import ReconcileReport
 from transcribe_engine.domain.jobs import JobEvent, JobState, backoff, transition
+from transcribe_engine.infrastructure.db.session import SYSTEM_SCOPE
 from transcribe_engine.infrastructure.db.uow import translate_db_error
 
 __all__ = ["SqlReconciler"]
@@ -72,6 +73,7 @@ class SqlReconciler:
         """Comparisons use database time; `now` is accepted for the port and ignored (D-020)."""
         try:
             async with self._engine.begin() as conn:
+                await conn.execute(SYSTEM_SCOPE)
                 expired = (await conn.execute(_LOCK_EXPIRED)).all()
                 poisoned = 0
                 for row in expired:
