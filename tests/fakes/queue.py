@@ -11,6 +11,7 @@ from tests.fakes.repositories import FakeStore
 from transcribe_engine.application.ports.queue import Lease, ReconcileReport
 from transcribe_engine.domain.errors import JobCancelledError, LeaseLostError
 from transcribe_engine.domain.jobs import (
+    ErrorCode,
     JobEvent,
     JobStage,
     JobState,
@@ -36,6 +37,7 @@ class FakeJobQueue:
             for job in self._store.jobs.values()
             if job.queue == queue
             and (job.run_after is None or job.run_after <= now)
+            and job.attempt_count < job.max_attempts
             and (
                 job.state == JobState.QUEUED
                 or (job.state == JobState.PENDING_VALIDATION and queue == "cpu")
@@ -81,7 +83,8 @@ class FakeJobQueue:
             or job is None
             or current.owner != lease.owner
             or current.attempt != lease.attempt
-            or job.state != JobState.PROCESSING
+            or job.state not in (JobState.PROCESSING, JobState.PENDING_VALIDATION)
+            or current.until <= self._clock.now()
         ):
             return False
         self._store.jobs[lease.job_id] = replace(
@@ -120,8 +123,16 @@ class FakeReconciler:
             del self._store.leases[job_id]
             expired += 1
             job = self._store.jobs[job_id]
+            if job.state == JobState.PENDING_VALIDATION:
+                # Validation leases count against the attempt limit too (D-022).
+                if job.attempt_count >= job.max_attempts:
+                    poisoned += 1
+                    self._store.jobs[job_id] = replace(
+                        job, state=JobState.FAILED, error_code=ErrorCode.POISON_JOB
+                    )
+                continue
             if job.state != JobState.PROCESSING:
-                continue  # PENDING_VALIDATION leases simply lapse
+                continue
             t = transition(
                 job.state,
                 JobEvent.LEASE_EXPIRED,

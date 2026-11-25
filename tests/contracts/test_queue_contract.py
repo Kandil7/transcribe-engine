@@ -252,3 +252,28 @@ async def test_concurrent_claims_unique(pg_url: str) -> None:
     claimed = [job_id for worker in per_worker for job_id in worker]
     assert len(claimed) == 200
     assert len(set(claimed)) == 200
+
+
+@pytest.mark.parametrize("kind", KINDS)
+async def test_heartbeat_after_reconciler_raises_lease_lost(kind: str, pg_url: str) -> None:
+    """Spec edge case: the reconciler took the job, so the old owner's heartbeat is refused."""
+    errors = _mod("transcribe_engine.domain.errors")
+    backend = _backend(kind, pg_url)
+    await _seed(backend, ["job-reclaimed"])
+    _, lease = await backend.queue.claim("cpu", "slow-worker", timedelta(0))  # type: ignore[attr-defined]
+    await backend.reconcile(timedelta(hours=1)).run_once(None)  # type: ignore[attr-defined]
+    with pytest.raises(errors.LeaseLostError):
+        await backend.queue.heartbeat(lease, timedelta(minutes=2))  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize("kind", KINDS)
+async def test_future_retry_is_not_claimable_and_reports_counts(kind: str, pg_url: str) -> None:
+    """A retry scheduled in the future is not claimable; the report counts the expiries."""
+    backend = _backend(kind, pg_url)
+    await _seed(backend, ["job-a", "job-b"])
+    await backend.queue.claim("cpu", "w", timedelta(0))  # type: ignore[attr-defined]
+    await backend.queue.claim("cpu", "w", timedelta(0))  # type: ignore[attr-defined]
+    report = await backend.reconcile(timedelta(hours=1)).run_once(None)  # type: ignore[attr-defined]
+    assert report.leases_expired == 2  # type: ignore[attr-defined]
+    assert report.retries_requeued == 0  # type: ignore[attr-defined]
+    assert await backend.queue.claim("cpu", "w", timedelta(minutes=2)) is None  # type: ignore[attr-defined]

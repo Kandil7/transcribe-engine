@@ -31,11 +31,14 @@ class WorkerSettings:
 async def _beat(
     queue: JobQueue, lease: Lease, lease_for: timedelta, every: float, sleep: Sleep
 ) -> None:
-    """Renew the lease until cancelled. Raises LeaseLostError or JobCancelledError to the caller."""
+    """Renew the lease until cancelled. LeaseLostError or JobCancelledError ends the loop."""
     current = lease
     while True:
         await sleep(every)
-        current = await queue.heartbeat(current, lease_for)
+        try:
+            current = await queue.heartbeat(current, lease_for)
+        except TransientError:
+            continue  # a database blip does not stop the handler; the next beat retries (D-022)
 
 
 def _failure_transition(error: Exception, job: Job) -> Transition:
