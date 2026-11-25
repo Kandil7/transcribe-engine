@@ -78,5 +78,6 @@ class Clock(Protocol):
 7. `feat(S06): add worker loop with cancellation`
 
 ## Open questions
-- [ ] Q1 — Fair scheduling between tenants is not in the design doc. Proposed: out of scope; revisit
+- [x] Q1 — Fair scheduling between tenants is not in the design doc. Proposed: out of scope; revisit
   when one tenant's batch delays others (metric in S20).
+  **Resolved (autopilot, 2026-11-26, D-020):** accepted; out of scope for S06.
