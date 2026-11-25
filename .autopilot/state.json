@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "status": "running",
+  "status": "blocked",
   "current": "S01",
   "remote": true,
   "iterations": 1,
@@ -36,14 +36,14 @@
       "branch": null,
       "merged": null,
       "tag": null,
-      "notes": ""
+      "notes": "Not started. Depends on local profile D-001; needs human reference (R-001)."
     },
     "S01": {
-      "status": "in_progress",
+      "status": "partial",
       "branch": "feat/S01-foundation",
       "merged": null,
       "tag": null,
-      "notes": ""
+      "notes": "Local build done (AC-1,2,3,4,6 verified). AC-5 CI unverified: push blocked (R-002). Not merged."
     },
     "S02": {
       "status": "todo",
@@ -193,5 +193,6 @@
       "notes": ""
     }
   },
-  "statuses_help": "todo | in_progress | partial | blocked | done"
+  "statuses_help": "todo | in_progress | partial | blocked | done",
+  "blocked_reason": "Force push of feat/S01-foundation denied by permission classifier; approval needed (R-002). All later slices depend on S01 merge."
 }
