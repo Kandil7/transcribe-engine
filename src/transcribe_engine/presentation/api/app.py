@@ -1,0 +1,17 @@
+"""FastAPI application factory (S08). Dependencies arrive as values; no infrastructure imports."""
+
+from collections.abc import Callable
+
+from fastapi import FastAPI
+
+from transcribe_engine.application.ports.storage import ObjectStorage
+from transcribe_engine.presentation.api.errors import install_error_handlers
+
+
+def create_app(make_uow: Callable[[str | None], object], storage: ObjectStorage) -> FastAPI:
+    """`make_uow(tenant_id)` opens a unit of work scoped to a tenant (None = system, D-024)."""
+    app = FastAPI(title="Transcribe Engine", version="0.1.0")
+    app.state.make_uow = make_uow
+    app.state.storage = storage
+    install_error_handlers(app)
+    return app

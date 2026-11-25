@@ -4,8 +4,11 @@
 Every other job read takes the tenant id.
 """
 
+from datetime import datetime
 from typing import Protocol, Self
 
+from transcribe_engine.application.ports.auth import ApiKeyRepository
+from transcribe_engine.application.ports.tenancy import IdempotencyRepository, TenantRepository
 from transcribe_engine.domain.config import PipelineConfig
 from transcribe_engine.domain.jobs import Job, JobStage, JobState, Media, Result, Transition
 
@@ -16,6 +19,10 @@ class JobRepository(Protocol):
     async def add(self, job: Job) -> None: ...
 
     async def get(self, tenant_id: str, job_id: str) -> Job | None: ...
+
+    async def request_deletion(self, tenant_id: str, job_id: str, at: datetime) -> bool:
+        """Mark the job for deletion (S21 deletes). False if it is not this tenant's job."""
+        ...
 
     async def apply(
         self,
@@ -58,6 +65,9 @@ class UnitOfWork(Protocol):
     jobs: JobRepository
     media: MediaRepository
     results: ResultRepository
+    tenants: TenantRepository
+    idempotency: IdempotencyRepository
+    api_keys: ApiKeyRepository
 
     async def __aenter__(self) -> Self: ...
 

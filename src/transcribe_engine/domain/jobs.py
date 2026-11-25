@@ -233,6 +233,7 @@ class Job:
     error_code: ErrorCode | None
     warnings: tuple[str, ...]
     priority: int = 0  # higher claims first (S06)
+    progress: int = 0  # 0-100 (S08 status endpoint)
     run_after: datetime | None = None  # a retry is not claimable before this time (S06)
 
 
