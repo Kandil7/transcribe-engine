@@ -12,7 +12,7 @@ from testcontainers.community.postgres import PostgresContainer
 pytestmark = pytest.mark.integration
 
 ROOT = Path(__file__).resolve().parents[2]
-HEAD = "0001_baseline"
+HEAD = "0002_core_tables"  # D-018: moved from 0001 when S05 added the core tables
 
 
 def _alembic_config() -> Config:
