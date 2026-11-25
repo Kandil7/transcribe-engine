@@ -54,3 +54,54 @@ into this code; production S3 is a separate concern (S21/cloud).
 Reversibility: easy — image name and healthcheck are in `docker-compose.yml` and `Makefile`.
 Confidence: high for local dev.
 Applied in: (bootstrap commit, see BUILD_LOG)
+
+## D-003 — Attempt exhaustion is decided at the error (no RETRY_SCHEDULED → FAILED edge)
+Date: 2026-11-25 · Slice: S02 · Status: decided · Review: none
+Context: The design diagram shows `RETRY_SCHEDULED → FAILED (attempts exhausted)`, the transition table does
+not. S02 spec Q1.
+Options: A) Decide exhaustion on the error event (`PROCESSING → FAILED`), drop the diagram edge.
+B) Keep the diagram edge and let the retry timer check the attempt count.
+Decision: A, as proposed in the spec.
+Rationale: [D: آليات الاعتمادية] one decision point per error keeps `transition()` pure and needs no timer
+logic in the domain. The diagram edge is removed in `docs/design.md` in the S02 branch.
+Reversibility: easy — one table row.
+Confidence: high.
+Applied in: S02 spec commit
+
+## D-004 — Backoff defaults and jitter source
+Date: 2026-11-25 · Slice: S02 · Status: decided · Review: none
+Context: The design gives no backoff numbers. S02 spec Q2. `backoff()` takes no RNG parameter.
+Options: A) Config defaults base 30 s, cap 10 min, jitter 0.2, jitter drawn with stdlib `random`.
+B) Deterministic jitter derived from attempt number (no randomness).
+Decision: A. Delay = min(cap, base · 2^(attempt−1)) scaled by a uniform factor in [1−jitter, 1+jitter] and
+clamped to [0, cap]. `jitter=0` gives an exact, deterministic result.
+Rationale: stdlib `random` is allowed in `domain`. Random jitter is what spreads retries out; a fixed
+function of the attempt number does not. Bounds are testable with Hypothesis (AC-5).
+Reversibility: easy — defaults are config.
+Confidence: medium — numbers are a proposal, not measured.
+Applied in: S02 spec commit
+
+## D-005 — PROFILING stage added; STAGE_HANDOFF accepted per ADR-0006
+Date: 2026-11-25 · Slice: S02 · Status: decided · Review: none
+Context: Section 1.5 adds a profiling step absent from the design's stage list (S02 Q3). The
+`PROCESSING → QUEUED` hand-off is not in the design table (S02 Q4, ADR-0006 Proposed).
+Options: A) Add `PROFILING` after `NORMALIZING` and the `STAGE_HANDOFF` row; B) omit both.
+Decision: A. ADR-0006 is accepted with this slice.
+Rationale: the stage and the hand-off are both needed by S13 and S10; leaving them out would force later
+schema changes.
+Reversibility: easy — enum members and one table row.
+Confidence: high.
+Applied in: S02 spec commit
+
+## D-006 — `transition()` takes an optional error code for permanent and validation failures
+Date: 2026-11-25 · Slice: S02 · Status: decided · Review: none
+Context: The spec says `VALIDATION_FAILED` and `PERMANENT_ERROR` go to `FAILED` with the code "from caller",
+but the signature has no code parameter.
+Options: A) Add keyword `error_code: ErrorCode | None = None`, required for those two events; B) a separate
+function per event.
+Decision: A. Missing code for those events raises `ValueError`.
+Rationale: keeps the single `transition()` entry point from the spec; the keyword does not change any other
+call.
+Reversibility: easy.
+Confidence: high.
+Applied in: S02 spec commit
