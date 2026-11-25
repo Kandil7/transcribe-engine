@@ -76,7 +76,6 @@ async def test_delete_prefix_counts(minio: MinioContainer) -> None:
         assert await storage.head("del/a") is None
 
 
-@pytest.mark.xfail(strict=True, reason="S07")
 async def test_upload_over_limit_rejected(minio: MinioContainer) -> None:
     """AC-1: a presigned POST larger than max_bytes is refused by S3."""
     storage = _s3(minio)
@@ -90,7 +89,6 @@ async def test_upload_over_limit_rejected(minio: MinioContainer) -> None:
     assert response.status_code >= 400
 
 
-@pytest.mark.xfail(strict=True, reason="S07")
 async def test_ticket_expires(minio: MinioContainer) -> None:
     """AC-2: after the expiry the policy is refused. Uses a one-second expiry."""
     storage = _s3(minio)
