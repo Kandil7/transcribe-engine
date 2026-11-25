@@ -64,7 +64,6 @@ async def test_read_range_exact_bytes(minio: MinioContainer) -> None:
         assert await storage.read_range("contract/range.bin", len(data) - 3, 3) == data[-3:]
 
 
-@pytest.mark.xfail(strict=True, reason="S07")
 async def test_delete_prefix_counts(minio: MinioContainer) -> None:
     """AC-6: delete_prefix returns the number of objects removed and leaves other keys alone."""
     for storage in (_fake(), _s3(minio)):

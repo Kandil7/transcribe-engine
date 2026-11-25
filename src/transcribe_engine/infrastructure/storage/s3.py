@@ -22,6 +22,7 @@ __all__ = ["S3ObjectStorage"]
 
 SSE_ALGORITHM: Literal["AES256"] = "AES256"  # every put is encrypted at rest (S07 rule)
 _NOT_FOUND = frozenset({"404", "NoSuchKey", "NotFound"})
+_DELETE_BATCH = 1000  # S3 accepts at most 1000 keys per DeleteObjects call
 _TRANSIENT = frozenset({"SlowDown", "RequestTimeout", "ServiceUnavailable", "InternalError"})
 
 
@@ -117,3 +118,31 @@ class S3ObjectStorage:
             )
         except ClientError as exc:
             raise _translate(exc) from exc
+
+    async def delete_prefix(self, prefix: str) -> int:
+        """Delete every object under `prefix`; return how many were removed."""
+        keys = await asyncio.to_thread(self._list_keys, prefix)
+        removed = 0
+        for start in range(0, len(keys), _DELETE_BATCH):
+            batch = keys[start : start + _DELETE_BATCH]
+            try:
+                response = await asyncio.to_thread(
+                    self._client.delete_objects,
+                    Bucket=self._bucket,
+                    Delete={"Objects": [{"Key": key} for key in batch], "Quiet": True},
+                )
+            except ClientError as exc:
+                raise _translate(exc) from exc
+            failed = response.get("Errors", [])
+            if failed:
+                raise TransientError(f"{len(failed)} objects could not be deleted")
+            removed += len(batch)
+        return removed
+
+    def _list_keys(self, prefix: str) -> list[str]:
+        keys: list[str] = []
+        for page in self._client.get_paginator("list_objects_v2").paginate(
+            Bucket=self._bucket, Prefix=prefix
+        ):
+            keys.extend(obj["Key"] for obj in page.get("Contents", []))
+        return keys
