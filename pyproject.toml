@@ -138,6 +138,7 @@ exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError", "\\.\\.\\."]
 # ---------------------------------------------------------------- import-linter
 [tool.importlinter]
 root_package = "transcribe_engine"
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "Clean Architecture layers"
