@@ -167,3 +167,14 @@ letters unfolded, which is not what rule 7 says.
 Reversibility: easy — internal to `text.py`.
 Confidence: high.
 Applied in: S04 spec commit
+
+## D-011 — Correct the alef-variant case row (fixture expectation error)
+Date: 2026-11-26 · Slice: S04 · Status: decided · Review: none
+Context: The case row `أإآٱ` was written with expected `االا` (lam in it). Rule 1 maps all four characters to
+alef, so the correct expectation is four alefs. The first run of `test_cases_table` failed on this row.
+Options: A) Change the implementation to match the wrong row. B) Correct the row. C) Delete the row.
+Decision: B. The fixture row is corrected in its own commit; the rule itself is unchanged.
+Rationale: the rule (1) and its design source are clear; only the expectation was mistyped.
+Reversibility: easy.
+Confidence: high.
+Applied in: fix(S04) commit for the fixture row
