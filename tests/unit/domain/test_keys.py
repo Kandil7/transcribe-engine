@@ -38,7 +38,6 @@ CHANGES = {
 }
 
 
-@pytest.mark.xfail(strict=True, reason="S03")
 @pytest.mark.parametrize("field", sorted(CHANGES))
 def test_each_config_field_changes_key(field: str) -> None:
     """AC-1: changing any single config field changes result_key."""
@@ -48,13 +47,11 @@ def test_each_config_field_changes_key(field: str) -> None:
     assert keys.result_key(FILE_SHA, base) != keys.result_key(FILE_SHA, changed)  # type: ignore[arg-type]
 
 
-@pytest.mark.xfail(strict=True, reason="S03")
 def test_result_key_depends_on_file_hash() -> None:
     keys = _mod("keys")
     assert keys.result_key(FILE_SHA, _config()) != keys.result_key("e" * 64, _config())  # type: ignore[arg-type]
 
 
-@pytest.mark.xfail(strict=True, reason="S03")
 def test_isolation_scope_changes_key() -> None:
     """AC-3: an isolation scope changes the key; different scopes differ; no scope is stable."""
     keys = _mod("keys")
@@ -66,7 +63,6 @@ def test_isolation_scope_changes_key() -> None:
     assert shared == keys.result_key(FILE_SHA, cfg, None)  # type: ignore[arg-type]
 
 
-@pytest.mark.xfail(strict=True, reason="S03")
 def test_result_key_golden() -> None:
     keys = _mod("keys")
     assert keys.result_key(FILE_SHA, _config()) == (  # type: ignore[arg-type]
@@ -74,7 +70,6 @@ def test_result_key_golden() -> None:
     )
 
 
-@pytest.mark.xfail(strict=True, reason="S03")
 def test_chunk_id_stable_across_runs() -> None:
     """AC-4: golden values; the same inputs always give the same id."""
     keys = _mod("keys")
@@ -83,7 +78,6 @@ def test_chunk_id_stable_across_runs() -> None:
     assert got == keys.chunk_id("a" * 64, "b" * 64, 3, 16_000, 32_000)
 
 
-@pytest.mark.xfail(strict=True, reason="S03")
 def test_rag_chunk_id_golden() -> None:
     keys = _mod("keys")
     assert keys.rag_chunk_id("tr_1", 2, 1000, 4500) == (
@@ -91,14 +85,12 @@ def test_rag_chunk_id_golden() -> None:
     )
 
 
-@pytest.mark.xfail(strict=True, reason="S03")
 def test_rag_chunk_id_rejects_pipe_in_transcript_id() -> None:
     keys = _mod("keys")
     with pytest.raises(ValueError, match="must not contain"):
         keys.rag_chunk_id("tr|1", 1, 0, 1)
 
 
-@pytest.mark.xfail(strict=True, reason="S03")
 def test_embedding_id_golden_and_unambiguous() -> None:
     keys = _mod("keys")
     got = keys.embedding_id("مرحبا بالعالم", "bge-m3")
@@ -107,7 +99,6 @@ def test_embedding_id_golden_and_unambiguous() -> None:
     assert keys.embedding_id("a|b", "c") != keys.embedding_id("a", "b|c")
 
 
-@pytest.mark.xfail(strict=True, reason="S03")
 def test_all_keys_have_prefix_and_lowercase_hex() -> None:
     keys = _mod("keys")
     values = [
