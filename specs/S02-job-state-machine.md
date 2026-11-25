@@ -28,6 +28,9 @@ class JobState(StrEnum):
 class JobStage(StrEnum):  # order matters
     VALIDATING, NORMALIZING, PROFILING, VAD, ASR, ALIGNING, DIARIZING, POSTPROCESSING, PERSISTING
 
+class Warning(StrEnum):  # DIARIZATION_FAILED, NO_SPEECH, LOW_SNR; chunk_failed_warning(idx) -> 'chunk_failed:<idx>'
+    ...
+
 class JobEvent(StrEnum):
     VALIDATED, CACHE_HIT, VALIDATION_FAILED, CLAIMED, STAGE_HANDOFF, SUCCEEDED,
     TRANSIENT_ERROR, PERMANENT_ERROR, LEASE_EXPIRED, RETRY_DUE, CANCEL_REQUESTED
@@ -41,10 +44,12 @@ class Transition:
     to: JobState
     error_code: ErrorCode | None = None
 
-def transition(state: JobState, event: JobEvent, *, attempt_count: int, max_attempts: int) -> Transition:
+def transition(state: JobState, event: JobEvent, *, attempt_count: int, max_attempts: int,
+               error_code: ErrorCode | None = None) -> Transition:  # error_code: VALIDATION_FAILED / PERMANENT_ERROR only (D-006)
     """Raises InvalidTransitionError for pairs not in the table."""
 
-def backoff(attempt: int, *, base: timedelta, cap: timedelta, jitter: float) -> timedelta: ...
+def backoff(attempt: int, *, base: timedelta, cap: timedelta, jitter: float,
+            rng: random.Random | None = None) -> timedelta: ...  # rng injectable for tests (D-004)
 def processing_timeout(duration_ms: int, *, rtf_p95: float, factor: float = 3.0,
                        overhead: timedelta = timedelta(seconds=120)) -> timedelta: ...
 ```

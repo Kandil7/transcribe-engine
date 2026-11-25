@@ -94,9 +94,19 @@ def test_terminal_states_absorb() -> None:
                 )
 
 
-@pytest.mark.parametrize("attempts", [2, 3, 4])  # max-1, max, max+1 with max=3
-@pytest.mark.parametrize("event", ["TRANSIENT_ERROR", "LEASE_EXPIRED"])
-def test_attempts_boundary(attempts: int, event: str) -> None:
+# Rows: attempt_count, event, expected to, expected error code (max_attempts is 3).
+ATTEMPT_ROWS = [
+    (2, "TRANSIENT_ERROR", "RETRY_SCHEDULED", None),
+    (3, "TRANSIENT_ERROR", "FAILED", "ATTEMPTS_EXHAUSTED"),
+    (4, "TRANSIENT_ERROR", "FAILED", "ATTEMPTS_EXHAUSTED"),
+    (2, "LEASE_EXPIRED", "RETRY_SCHEDULED", None),
+    (3, "LEASE_EXPIRED", "FAILED", "POISON_JOB"),
+    (4, "LEASE_EXPIRED", "FAILED", "POISON_JOB"),
+]
+
+
+@pytest.mark.parametrize(("attempts", "event", "to", "error_code"), ATTEMPT_ROWS)
+def test_attempts_boundary(attempts: int, event: str, to: str, error_code: str | None) -> None:
     jobs = _jobs()
     result = jobs.transition(
         jobs.JobState.PROCESSING,
@@ -104,10 +114,20 @@ def test_attempts_boundary(attempts: int, event: str) -> None:
         attempt_count=attempts,
         max_attempts=3,
     )
-    if attempts < 3:
-        assert result.to == jobs.JobState.RETRY_SCHEDULED
-    else:
-        assert result.to == jobs.JobState.FAILED
+    assert result.to == jobs.JobState(to)
+    assert result.error_code == (None if error_code is None else jobs.ErrorCode(error_code))
+
+
+def test_max_attempts_one_fails_on_first_lease_expiry() -> None:
+    jobs = _jobs()
+    result = jobs.transition(
+        jobs.JobState.PROCESSING,
+        jobs.JobEvent.LEASE_EXPIRED,
+        attempt_count=1,
+        max_attempts=1,
+    )
+    assert result.to == jobs.JobState.FAILED
+    assert result.error_code == jobs.ErrorCode.POISON_JOB
 
 
 def test_max_attempts_one_fails_on_first_transient_error() -> None:
@@ -122,10 +142,34 @@ def test_max_attempts_one_fails_on_first_transient_error() -> None:
     assert result.error_code == jobs.ErrorCode.ATTEMPTS_EXHAUSTED
 
 
+def test_warnings_are_strings_and_chunk_warning_is_formatted() -> None:
+    """Warnings are plain codes; they never enter transition(), so they cannot change state."""
+    jobs = _jobs()
+    assert [w.value for w in jobs.Warning] == ["diarization_failed", "no_speech", "low_snr"]
+    assert jobs.chunk_failed_warning(3) == "chunk_failed:3"
+    with pytest.raises(ValueError, match="non-negative"):
+        jobs.chunk_failed_warning(-1)
+
+
+def test_happy_path_reaches_completed() -> None:
+    jobs = _jobs()
+    state = jobs.JobState.PENDING_VALIDATION
+    for event in ["VALIDATED", "CLAIMED", "SUCCEEDED"]:
+        state = jobs.transition(state, jobs.JobEvent(event), attempt_count=1, max_attempts=3).to
+    assert state == jobs.JobState.COMPLETED
+
+
 def test_timeout_formula() -> None:
     """1 h audio at RTF_p95 0.02: 3600 s × 0.02 × 3 + 120 s = 336 s."""
     jobs = _jobs()
     assert jobs.processing_timeout(3_600_000, rtf_p95=0.02) == timedelta(seconds=336)
+
+
+def test_timeout_accepts_explicit_factor_and_overhead() -> None:
+    jobs = _jobs()
+    assert jobs.processing_timeout(
+        60_000, rtf_p95=0.5, factor=2.0, overhead=timedelta(seconds=10)
+    ) == timedelta(seconds=70)
 
 
 def test_backoff_is_exact_when_jitter_is_zero() -> None:
