@@ -143,7 +143,7 @@ D-006 (`error_code` keyword on `transition`)
 - Warning codes are not yet persisted; S05/S10 decide the storage.
 
 ## S03 — Pipeline config, deterministic keys, time units   (2026-11-25 → 2026-11-25)
-Branch: feat/S03-pipeline-config-and-keys   Merged: (pending)   Tag: —
+Branch: feat/S03-pipeline-config-and-keys   Merged: eb5dd15 (PR #7)   Tag: —
 ### What was built
 - `domain/time.py`: `SAMPLE_RATE`, `samples_to_ms` (floor), `ms_to_samples`; integer only.
 - `domain/config.py`: frozen `PipelineConfig` with flat, finite, read-only parameter mappings, an explicit
