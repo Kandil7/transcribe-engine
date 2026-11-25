@@ -11,3 +11,11 @@ class UploadTicketOut(BaseModel):
     fields: dict[str, str]
     expires_at: datetime
     max_bytes: int
+
+
+class CreateTranscriptionIn(BaseModel):
+    upload_id: str
+    language: str
+    engine: str | None = None
+    diarization: bool = False
+    webhook_url: str | None = None

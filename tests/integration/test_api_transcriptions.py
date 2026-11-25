@@ -13,6 +13,7 @@ from tests.integration.api_support import (
     create_job,
     force_state,
     issue_key,
+    new_tenant,
     seed_tenant,
     storage_for,
     upload,
@@ -24,12 +25,12 @@ pytestmark = [pytest.mark.integration]
 PAYLOAD = b"RIFF" + b"\x00" * 64
 
 
-@pytest.mark.xfail(strict=True, reason="S08")
-async def test_create_returns_202_and_location(minio: object, pg_url: str) -> None:
+async def test_create_returns_202_and_location(minio: object, app_url: str) -> None:
     """AC-1: upload, then create a job: 202 Accepted with Location to the job."""
-    engine = make_engine(pg_url)
-    await seed_tenant(engine, "tenant-a")
-    write = await issue_key(engine, "tenant-a", ["transcribe:write"])
+    tenant = new_tenant()
+    engine = make_engine(app_url)
+    await seed_tenant(engine, tenant)
+    write = await issue_key(engine, tenant, ["transcribe:write"])
     async with build_client(engine, storage_for(minio)) as client:  # type: ignore[arg-type]
         upload_id = await upload(client, write, PAYLOAD)
         response = await create_job(client, write, upload_id)
@@ -40,16 +41,22 @@ async def test_create_returns_202_and_location(minio: object, pg_url: str) -> No
 
 
 @pytest.mark.xfail(strict=True, reason="S08")
-async def test_other_tenant_gets_404(minio: object, pg_url: str) -> None:
+async def test_other_tenant_gets_404(minio: object, app_url: str) -> None:
     """AC-2: another tenant's job id is 404 for read, cancel, delete and result (never 403)."""
-    engine = make_engine(pg_url)
-    await seed_tenant(engine, "tenant-a")
-    await seed_tenant(engine, "tenant-b")
-    a_write = await issue_key(engine, "tenant-a", ["transcribe:write", "transcribe:read"])
-    b_read = await issue_key(engine, "tenant-b", ["transcribe:write", "transcribe:read"])
+    tenant = new_tenant()
+    other = new_tenant()
+    engine = make_engine(app_url)
+    await seed_tenant(engine, tenant)
+    await seed_tenant(engine, other)
+    a_write = await issue_key(engine, tenant, ["transcribe:write", "transcribe:read"])
+    b_read = await issue_key(engine, other, ["transcribe:write", "transcribe:read"])
     async with build_client(engine, storage_for(minio)) as client:  # type: ignore[arg-type]
         upload_id = await upload(client, a_write, PAYLOAD)
         job_id = (await create_job(client, a_write, upload_id)).json()["id"]
+        own = await client.get(f"/v1/transcriptions/{job_id}", headers=auth(a_write))
+        assert (
+            own.status_code == 200
+        )  # a positive control: 404s elsewhere must not pass by accident
         read = await client.get(f"/v1/transcriptions/{job_id}", headers=auth(b_read))
         cancel = await client.post(f"/v1/transcriptions/{job_id}:cancel", headers=auth(b_read))
         delete = await client.delete(f"/v1/transcriptions/{job_id}", headers=auth(b_read))
@@ -62,12 +69,12 @@ async def test_other_tenant_gets_404(minio: object, pg_url: str) -> None:
     await engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S08")
-async def test_rls_is_the_second_layer(minio: object, pg_url: str) -> None:
+async def test_rls_is_the_second_layer(minio: object, app_url: str) -> None:
     """AC-3 (api side): the tenant setting limits a raw query; without it the query sees no jobs."""
-    engine = make_engine(pg_url)
-    await seed_tenant(engine, "tenant-a")
-    write = await issue_key(engine, "tenant-a", ["transcribe:write"])
+    tenant = new_tenant()
+    engine = make_engine(app_url)
+    await seed_tenant(engine, tenant)
+    write = await issue_key(engine, tenant, ["transcribe:write"])
     async with build_client(engine, storage_for(minio)) as client:  # type: ignore[arg-type]
         upload_id = await upload(client, write, PAYLOAD)
         job_id = (await create_job(client, write, upload_id)).json()["id"]
@@ -75,18 +82,18 @@ async def test_rls_is_the_second_layer(minio: object, pg_url: str) -> None:
         bare = await conn.execute(text("SELECT count(*) FROM jobs WHERE id = :id"), {"id": job_id})
         assert bare.scalar_one() == 0
     async with engine.begin() as conn:
-        await conn.execute(text("SELECT set_config('app.tenant_id', 'tenant-a', true)"))
+        await conn.execute(text("SELECT set_config('app.tenant_id', :t, true)"), {"t": tenant})
         mine = await conn.execute(text("SELECT count(*) FROM jobs WHERE id = :id"), {"id": job_id})
         assert mine.scalar_one() == 1
     await engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S08")
-async def test_idempotency_key_replays_response(minio: object, pg_url: str) -> None:
+async def test_idempotency_key_replays_response(minio: object, app_url: str) -> None:
     """AC-4: the same Idempotency-Key gives the same job; one job row exists."""
-    engine = make_engine(pg_url)
-    await seed_tenant(engine, "tenant-a")
-    write = await issue_key(engine, "tenant-a", ["transcribe:write"])
+    tenant = new_tenant()
+    engine = make_engine(app_url)
+    await seed_tenant(engine, tenant)
+    write = await issue_key(engine, tenant, ["transcribe:write"])
     headers = {**auth(write), "Idempotency-Key": "order-42"}
     async with build_client(engine, storage_for(minio)) as client:  # type: ignore[arg-type]
         upload_id = await upload(client, write, PAYLOAD)
@@ -96,15 +103,17 @@ async def test_idempotency_key_replays_response(minio: object, pg_url: str) -> N
     assert first.status_code == second.status_code == 202
     assert first.json()["id"] == second.json()["id"]
     async with engine.begin() as conn:
-        await conn.execute(text("SELECT set_config('app.system', 'on', true)"))
-        count = await conn.execute(text("SELECT count(*) FROM jobs"))
+        await conn.execute(text("SELECT set_config('app.tenant_id', :t, true)"), {"t": tenant})
+        count = await conn.execute(
+            text("SELECT count(*) FROM jobs WHERE id = :id"), {"id": first.json()["id"]}
+        )
         assert count.scalar_one() == 1
     await engine.dispose()
 
 
-async def test_missing_or_bad_key_401(minio: object, pg_url: str) -> None:
+async def test_missing_or_bad_key_401(minio: object, app_url: str) -> None:
     """AC-5: no key and a made-up key are both 401 with problem+json."""
-    engine = make_engine(pg_url)
+    engine = make_engine(app_url)
     async with build_client(engine, storage_for(minio)) as client:  # type: ignore[arg-type]
         missing = await client.post("/v1/uploads")
         bogus = await client.post("/v1/uploads", headers=auth("te_not-a-real-key"))
@@ -114,11 +123,12 @@ async def test_missing_or_bad_key_401(minio: object, pg_url: str) -> None:
     await engine.dispose()
 
 
-async def test_wrong_scope_403(minio: object, pg_url: str) -> None:
+async def test_wrong_scope_403(minio: object, app_url: str) -> None:
     """AC-5: a read-only key cannot create uploads (403)."""
-    engine = make_engine(pg_url)
-    await seed_tenant(engine, "tenant-a")
-    read_only = await issue_key(engine, "tenant-a", ["transcribe:read"])
+    tenant = new_tenant()
+    engine = make_engine(app_url)
+    await seed_tenant(engine, tenant)
+    read_only = await issue_key(engine, tenant, ["transcribe:read"])
     async with build_client(engine, storage_for(minio)) as client:  # type: ignore[arg-type]
         response = await client.post("/v1/uploads", headers=auth(read_only))
     assert response.status_code == 403
@@ -126,11 +136,12 @@ async def test_wrong_scope_403(minio: object, pg_url: str) -> None:
 
 
 @pytest.mark.xfail(strict=True, reason="S08")
-async def test_get_non_terminal_has_retry_after(minio: object, pg_url: str) -> None:
+async def test_get_non_terminal_has_retry_after(minio: object, app_url: str) -> None:
     """AC-6: a non-terminal job reports its state and Retry-After."""
-    engine = make_engine(pg_url)
-    await seed_tenant(engine, "tenant-a")
-    write = await issue_key(engine, "tenant-a", ["transcribe:write", "transcribe:read"])
+    tenant = new_tenant()
+    engine = make_engine(app_url)
+    await seed_tenant(engine, tenant)
+    write = await issue_key(engine, tenant, ["transcribe:write", "transcribe:read"])
     async with build_client(engine, storage_for(minio)) as client:  # type: ignore[arg-type]
         upload_id = await upload(client, write, PAYLOAD)
         job_id = (await create_job(client, write, upload_id)).json()["id"]
@@ -142,11 +153,12 @@ async def test_get_non_terminal_has_retry_after(minio: object, pg_url: str) -> N
 
 
 @pytest.mark.xfail(strict=True, reason="S08")
-async def test_cancel_terminal_409(minio: object, pg_url: str) -> None:
+async def test_cancel_terminal_409(minio: object, app_url: str) -> None:
     """AC-7: cancelling a completed job is 409 Conflict."""
-    engine = make_engine(pg_url)
-    await seed_tenant(engine, "tenant-a")
-    write = await issue_key(engine, "tenant-a", ["transcribe:write", "transcribe:read"])
+    tenant = new_tenant()
+    engine = make_engine(app_url)
+    await seed_tenant(engine, tenant)
+    write = await issue_key(engine, tenant, ["transcribe:write", "transcribe:read"])
     async with build_client(engine, storage_for(minio)) as client:  # type: ignore[arg-type]
         upload_id = await upload(client, write, PAYLOAD)
         job_id = (await create_job(client, write, upload_id)).json()["id"]
@@ -156,12 +168,12 @@ async def test_cancel_terminal_409(minio: object, pg_url: str) -> None:
     await engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S08")
-async def test_concurrency_limit_429(minio: object, pg_url: str) -> None:
+async def test_concurrency_limit_429(minio: object, app_url: str) -> None:
     """AC-8: the third active job over a limit of two is refused with 429."""
-    engine = make_engine(pg_url)
-    await seed_tenant(engine, "tenant-a", max_active_jobs=2)
-    write = await issue_key(engine, "tenant-a", ["transcribe:write"])
+    tenant = new_tenant()
+    engine = make_engine(app_url)
+    await seed_tenant(engine, tenant, max_active_jobs=2)
+    write = await issue_key(engine, tenant, ["transcribe:write"])
     async with build_client(engine, storage_for(minio)) as client:  # type: ignore[arg-type]
         ids = [await upload(client, write, PAYLOAD + bytes([i])) for i in range(3)]
         first = await create_job(client, write, ids[0])
@@ -174,11 +186,12 @@ async def test_concurrency_limit_429(minio: object, pg_url: str) -> None:
 
 
 @pytest.mark.xfail(strict=True, reason="S08")
-async def test_delete_request_and_result_states(minio: object, pg_url: str) -> None:
+async def test_delete_request_and_result_states(minio: object, app_url: str) -> None:
     """DELETE marks the job (202, deletion_requested_at set); result is 409 until COMPLETED."""
-    engine = make_engine(pg_url)
-    await seed_tenant(engine, "tenant-a")
-    write = await issue_key(engine, "tenant-a", ["transcribe:write", "transcribe:read"])
+    tenant = new_tenant()
+    engine = make_engine(app_url)
+    await seed_tenant(engine, tenant)
+    write = await issue_key(engine, tenant, ["transcribe:write", "transcribe:read"])
     async with build_client(engine, storage_for(minio)) as client:  # type: ignore[arg-type]
         upload_id = await upload(client, write, PAYLOAD)
         job_id = (await create_job(client, write, upload_id)).json()["id"]

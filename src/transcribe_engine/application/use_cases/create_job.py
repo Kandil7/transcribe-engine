@@ -1,0 +1,152 @@
+"""Create a transcription job (S08).
+
+One transaction: media row, job in PENDING_VALIDATION on the cpu queue, and the idempotency record.
+A repeated Idempotency-Key returns the stored response (D-025).
+"""
+
+import secrets
+from collections.abc import Callable
+from contextlib import AbstractAsyncContextManager
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
+
+from transcribe_engine.application.errors import (
+    QuotaExceededError,
+    TooManyActiveJobsError,
+    UnsupportedFeatureError,
+    UnsupportedLanguageError,
+    UploadNotFoundError,
+)
+from transcribe_engine.application.ports.repositories import UnitOfWork
+from transcribe_engine.application.ports.storage import ObjectStorage
+from transcribe_engine.application.ports.tenancy import StoredResponse, TenantLimits
+from transcribe_engine.domain.config import PipelineConfig
+from transcribe_engine.domain.jobs import Job, JobState, Media
+from transcribe_engine.domain.storage_keys import incoming_key
+
+__all__ = ["CreateJobCommand", "CreateJobResult", "CreateTranscriptionJob"]
+
+DEFAULT_ENGINE = "faster-whisper"  # D-001 local profile; the production engine is chosen in S12
+DEFAULT_MODEL_REVISION = "pending-s00"  # S00 has not measured a revision yet (see REVIEW_QUEUE)
+PIPELINE_VERSION = "1.0.0"
+SUPPORTED_LANGUAGE = "ar"
+DEFAULT_TENANT_LIMITS = (5, None)  # (max active jobs, quota in ms) when a tenant has no row
+
+
+@dataclass(frozen=True)
+class CreateJobCommand:
+    tenant_id: str
+    upload_id: str
+    language: str
+    engine: str | None
+    diarization: bool
+    webhook_url: str | None
+    idempotency_key: str | None
+
+
+@dataclass(frozen=True)
+class CreateJobResult:
+    job_id: str
+    status: int
+    body: dict[str, Any]
+    replayed: bool
+
+
+MakeUow = Callable[[str | None], AbstractAsyncContextManager[UnitOfWork]]
+
+
+class CreateTranscriptionJob:
+    def __init__(self, make_uow: MakeUow, storage: ObjectStorage) -> None:
+        self._make_uow = make_uow
+        self._storage = storage
+
+    async def __call__(self, cmd: CreateJobCommand) -> CreateJobResult:
+        _validate(cmd)
+        head = await self._storage.head(incoming_key(cmd.tenant_id, cmd.upload_id))
+        if head is None:
+            raise UploadNotFoundError
+
+        async with self._make_uow(cmd.tenant_id) as uow:
+            if cmd.idempotency_key is not None:
+                stored = await uow.idempotency.get(cmd.tenant_id, cmd.idempotency_key)
+                if stored is not None:
+                    return CreateJobResult(stored.job_id, stored.status, stored.body, replayed=True)
+            await _check_limits(uow, cmd.tenant_id)
+
+            await uow.media.upsert(
+                Media(
+                    id=cmd.upload_id,
+                    tenant_id=cmd.tenant_id,
+                    sha256=f"upload:{cmd.upload_id}",  # placeholder until S09 hashes (D-023)
+                    storage_key=incoming_key(cmd.tenant_id, cmd.upload_id),
+                    duration_ms=0,
+                    format="unknown",
+                    size_bytes=head.size,
+                )
+            )
+            job = Job(
+                id=secrets.token_hex(16),
+                tenant_id=cmd.tenant_id,
+                media_id=cmd.upload_id,
+                state=JobState.PENDING_VALIDATION,
+                stage=None,
+                attempt_count=0,
+                max_attempts=3,
+                queue="cpu",
+                config=_config(cmd.language, cmd.diarization),
+                result_id=None,
+                error_code=None,
+                warnings=(),
+            )
+            await uow.jobs.add(job)
+            body = _body(job)
+            if cmd.idempotency_key is not None:
+                await uow.idempotency.put(
+                    cmd.tenant_id,
+                    cmd.idempotency_key,
+                    StoredResponse(job.id, 202, body, datetime.now(UTC)),
+                )
+            await uow.commit()
+        return CreateJobResult(job.id, 202, body, replayed=False)
+
+
+def _validate(cmd: CreateJobCommand) -> None:
+    if cmd.webhook_url is not None:
+        raise UnsupportedFeatureError  # webhooks arrive with S20 (D-025)
+    if cmd.language != SUPPORTED_LANGUAGE:
+        raise UnsupportedLanguageError
+    if cmd.engine not in (None, DEFAULT_ENGINE):
+        raise UnsupportedFeatureError
+
+
+async def _check_limits(uow: UnitOfWork, tenant_id: str) -> None:
+    limits = await uow.tenants.limits(tenant_id) or TenantLimits(tenant_id, *DEFAULT_TENANT_LIMITS)
+    if await uow.tenants.count_active_jobs(tenant_id) >= limits.max_active_jobs:
+        raise TooManyActiveJobsError
+    quota = limits.quota_audio_ms
+    if quota is not None and await uow.tenants.used_audio_ms(tenant_id) >= quota:
+        raise QuotaExceededError
+
+
+def _config(language: str, diarization: bool) -> PipelineConfig:
+    return PipelineConfig(
+        engine=DEFAULT_ENGINE,
+        model_revision=DEFAULT_MODEL_REVISION,
+        language=language,
+        decoding_params={"temperature": 0},
+        vad_params={},
+        diarization_enabled=diarization,
+        pipeline_version=PIPELINE_VERSION,
+    )
+
+
+def _body(job: Job) -> dict[str, Any]:
+    return {
+        "id": job.id,
+        "state": job.state.value,
+        "stage": None,
+        "progress": job.progress,
+        "warnings": list(job.warnings),
+        "error_code": None,
+    }
