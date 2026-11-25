@@ -45,7 +45,6 @@ ALLOWED = [
 ]
 
 
-@pytest.mark.xfail(strict=True, reason="S02")
 @pytest.mark.parametrize("row", ALLOWED)
 def test_allowed_transitions(row: tuple[str, str, int, int, str | None, str, str | None]) -> None:
     state, event, attempts, max_attempts, error_code, to, expected_code = row
@@ -59,7 +58,6 @@ def test_allowed_transitions(row: tuple[str, str, int, int, str | None, str, str
     assert result.error_code == expected
 
 
-@pytest.mark.xfail(strict=True, reason="S02")
 def test_forbidden_transitions() -> None:
     """Every (state, event) pair not in the table raises InvalidTransitionError."""
     jobs = _jobs()
@@ -80,7 +78,6 @@ def test_forbidden_transitions() -> None:
                 )
 
 
-@pytest.mark.xfail(strict=True, reason="S02")
 def test_terminal_states_absorb() -> None:
     jobs = _jobs()
     terminal = [s for s in jobs.JobState if s.is_terminal]
@@ -97,7 +94,6 @@ def test_terminal_states_absorb() -> None:
                 )
 
 
-@pytest.mark.xfail(strict=True, reason="S02")
 @pytest.mark.parametrize("attempts", [2, 3, 4])  # max-1, max, max+1 with max=3
 @pytest.mark.parametrize("event", ["TRANSIENT_ERROR", "LEASE_EXPIRED"])
 def test_attempts_boundary(attempts: int, event: str) -> None:
@@ -114,7 +110,6 @@ def test_attempts_boundary(attempts: int, event: str) -> None:
         assert result.to == jobs.JobState.FAILED
 
 
-@pytest.mark.xfail(strict=True, reason="S02")
 def test_max_attempts_one_fails_on_first_transient_error() -> None:
     jobs = _jobs()
     result = jobs.transition(

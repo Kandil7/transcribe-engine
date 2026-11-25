@@ -80,3 +80,56 @@ class ErrorCode(StrEnum):
 class Transition:
     to: JobState
     error_code: ErrorCode | None = None
+
+
+_SIMPLE: dict[tuple[JobState, JobEvent], JobState] = {
+    (JobState.PENDING_VALIDATION, JobEvent.VALIDATED): JobState.QUEUED,
+    (JobState.PENDING_VALIDATION, JobEvent.CACHE_HIT): JobState.COMPLETED,
+    (JobState.QUEUED, JobEvent.CLAIMED): JobState.PROCESSING,
+    (JobState.PROCESSING, JobEvent.SUCCEEDED): JobState.COMPLETED,
+    (JobState.PROCESSING, JobEvent.STAGE_HANDOFF): JobState.QUEUED,
+    (JobState.RETRY_SCHEDULED, JobEvent.RETRY_DUE): JobState.QUEUED,
+}
+
+# Failure events that always end in FAILED; the caller supplies the error code.
+_FAILS_WITH_CALLER_CODE = {
+    (JobState.PENDING_VALIDATION, JobEvent.VALIDATION_FAILED),
+    (JobState.PROCESSING, JobEvent.PERMANENT_ERROR),
+}
+
+# Failure events that retry while attempts remain, then fail with their own code.
+_RETRYABLE: dict[JobEvent, ErrorCode] = {
+    JobEvent.TRANSIENT_ERROR: ErrorCode.ATTEMPTS_EXHAUSTED,
+    JobEvent.LEASE_EXPIRED: ErrorCode.POISON_JOB,
+}
+
+
+def transition(
+    state: JobState,
+    event: JobEvent,
+    *,
+    attempt_count: int,
+    max_attempts: int,
+    error_code: ErrorCode | None = None,
+) -> Transition:
+    """Return the next state for `event`, or raise InvalidTransitionError if the table forbids it.
+
+    `attempt_count` counts claims, including the current one (incremented at claim time).
+    `error_code` is required for VALIDATION_FAILED and PERMANENT_ERROR and ignored otherwise.
+    """
+    if state.is_terminal:
+        raise InvalidTransitionError(f"{state} is terminal; {event} is not allowed")
+    if event is JobEvent.CANCEL_REQUESTED:
+        return Transition(to=JobState.CANCELLED)
+    key = (state, event)
+    if key in _SIMPLE:
+        return Transition(to=_SIMPLE[key])
+    if key in _FAILS_WITH_CALLER_CODE:
+        if error_code is None:
+            raise ValueError(f"{event} requires an error_code")
+        return Transition(to=JobState.FAILED, error_code=error_code)
+    if state is JobState.PROCESSING and event in _RETRYABLE:
+        if attempt_count < max_attempts:
+            return Transition(to=JobState.RETRY_SCHEDULED)
+        return Transition(to=JobState.FAILED, error_code=_RETRYABLE[event])
+    raise InvalidTransitionError(f"{event} is not allowed in {state}")
