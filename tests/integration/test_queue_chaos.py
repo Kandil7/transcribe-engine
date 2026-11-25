@@ -111,7 +111,6 @@ async def _all_terminal(engine: object, job_ids: list[str]) -> tuple[bool, list[
     return all(state in terminal for state in states), states
 
 
-@pytest.mark.xfail(strict=True, reason="S06")
 async def test_kill_workers_no_loss_no_dup(pg_url: str) -> None:
     """AC-5: every job reaches a terminal state; no job is completed by two owners."""
     jobs = _mod("transcribe_engine.domain.jobs")
