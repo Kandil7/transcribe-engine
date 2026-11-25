@@ -44,8 +44,6 @@ def test_raw_is_never_modified() -> None:
     assert _mod().normalize(raw).raw == raw
 
 
-@pytest.mark.xfail(strict=True, reason="S04")
-@pytest.mark.xfail(strict=True, reason="S04")
 def test_map_span_round_trip() -> None:
     """AC-4: a search hit on 'الجنيه' maps back to the full raw word with its diacritics."""
     t = _mod()
@@ -55,8 +53,6 @@ def test_map_span_round_trip() -> None:
     assert n.raw[start:end] == "الجُنَيْه"
 
 
-@pytest.mark.xfail(strict=True, reason="S04")
-@pytest.mark.xfail(strict=True, reason="S04")
 def test_span_on_deleted_char_maps_to_nearest_kept_neighbour() -> None:
     """A span that starts or ends on a deleted character maps to the nearest kept neighbour."""
     t = _mod()
@@ -65,8 +61,6 @@ def test_span_on_deleted_char_maps_to_nearest_kept_neighbour() -> None:
     assert n.raw[start:end] == "b\u064bc"
 
 
-@pytest.mark.xfail(strict=True, reason="S04")
-@pytest.mark.xfail(strict=True, reason="S04")
 def test_empty_span_is_allowed_and_out_of_range_rejected() -> None:
     t = _mod()
     n = t.normalize("abc")
