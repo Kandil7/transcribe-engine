@@ -191,3 +191,16 @@ Rationale: AC-4 names the full word. Whitespace is never deleted, so the extensi
 Reversibility: easy — internal to `map_span`.
 Confidence: high.
 Applied in: fix(S04) commit for review findings
+
+## D-013 — Presigned POST with a size policy for uploads
+Date: 2026-11-26 · Slice: S07 · Status: decided · Review: none
+Context: The design says "Presigned PUT URL … مع حد الحجم في التوقيع". S3 enforces a size range only in
+presigned POST policies (`content-length-range`), not in a PUT signature. S07 Q1.
+Options: A) Presigned PUT with a signed Content-Length (size not enforced by S3). B) Presigned POST with a
+policy: `content-length-range` and an exact `key` condition. C) Proxy uploads through the API.
+Decision: B. The ticket has `url` and `fields` (the signed policy fields). `head()` at ingest (S09) is the
+second size gate. The design wording is updated.
+Rationale: only B makes S3 reject an oversized upload before it lands. C puts all bytes through the API.
+Reversibility: moderate — clients use a POST form instead of a PUT.
+Confidence: high.
+Applied in: S07 spec commit

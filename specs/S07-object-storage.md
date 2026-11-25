@@ -59,6 +59,8 @@ def work_key(tenant_id: str, job_id: str, name: str) -> str
 6. `feat(S07): add delete_prefix`
 
 ## Open questions
-- [ ] Q1 — The design says "Presigned PUT URL … مع حد الحجم في التوقيع". S3 enforces a size range on
+- [x] Q1 — The design says "Presigned PUT URL … مع حد الحجم في التوقيع". S3 enforces a size range on
   presigned **POST** policies (`content-length-range`), not on plain PUT. Proposed: presigned POST,
   plus a `head()` size check at ingest (S09) as the second gate; update the design wording.
+  **Resolved (autopilot, 2026-11-26, D-013):** accepted. The ticket is a presigned POST with a
+  `content-length-range` condition and a `key` condition; `max_bytes` is enforced by S3.
