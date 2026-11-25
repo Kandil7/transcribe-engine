@@ -354,7 +354,7 @@ ref_count CHECK, error translation, attempt_count in apply, shared results accep
 - result_key UNIQUE and ref counting: deletion of unreferenced results belongs to S21.
 
 ## S06 — Postgres job queue, lease, fencing, reconciler   (2026-11-26 → 2026-11-26)
-Branch: feat/S06-postgres-job-queue   Merged: (pending)   Tag: —
+Branch: feat/S06-postgres-job-queue   Merged: f216ccd (PR #15)   Tag: —
 ### What was built
 - `application/ports/{queue,clock}.py`: JobQueue, Reconciler, Clock, Lease, ReconcileReport.
 - `application/worker_loop.py`: claim, heartbeat in its own task, run the handler, complete only while the lease is held.

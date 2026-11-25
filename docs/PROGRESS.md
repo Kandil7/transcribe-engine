@@ -13,7 +13,7 @@ Kept in sync with `.autopilot/state.json` by the autopilot. Status: `todo` · `i
 | 5 | S04 | Arabic text normalization | done | — | c909f6c | — | PR #9 merged (rebase) |
 | 6 | S07 | Object storage and presigned uploads | done | — | a29dd33 | — | PR #11 merged (rebase) |
 | 7 | S05 | Schema, repositories, unit of work | done | — | 2af874b | — | PR #13 merged (rebase) |
-| 8 | S06 | Postgres job queue, lease, fencing, reconciler | partial | feat/S06-postgres-job-queue | — | — | PR open; CI pending |
+| 8 | S06 | Postgres job queue, lease, fencing, reconciler | done | — | f216ccd | — | PR #15 merged (rebase) |
 | 9 | S08 | API, auth, job endpoints | todo | | | | |
 | 10 | S09 | Ingest: probe, hash, dedupe, normalize | todo | | | | |
 | 11 | S10 | Chunk plan, fan-out, merge | todo | | | v0.2.0 | adds `make dev`, `make demo` |
