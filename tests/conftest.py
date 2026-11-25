@@ -6,6 +6,7 @@ from collections.abc import Iterator
 import pytest
 from alembic import command
 from testcontainers.community.postgres import PostgresContainer
+from testcontainers.minio import MinioContainer
 
 from tests.integration.test_migrations import _alembic_config
 
@@ -25,3 +26,15 @@ def pg_url() -> Iterator[str]:
                 os.environ.pop("TE_DATABASE_URL", None)
             else:
                 os.environ["TE_DATABASE_URL"] = previous
+
+
+MINIO_IMAGE = "cgr.dev/chainguard/minio:latest"  # D-002
+
+
+@pytest.fixture(scope="session")
+def minio() -> Iterator[MinioContainer]:
+    container = MinioContainer(MINIO_IMAGE).with_env(
+        "MINIO_KMS_SECRET_KEY", "local-test:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+    )
+    with container:
+        yield container
