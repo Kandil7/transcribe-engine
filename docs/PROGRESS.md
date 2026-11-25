@@ -2,7 +2,7 @@
 
 Kept in sync with `.autopilot/state.json` by the autopilot. Status: `todo` · `in_progress` · `partial` · `blocked` · `done`.
 
-**Autopilot status:** not_started   **Current slice:** —   **Last update:** —
+**Autopilot status:** running   **Current slice:** S01   **Last update:** 2026-11-25
 
 | Order | Slice | Title | Status | Branch | Merged (main) | Tag | Notes |
 |---|---|---|---|---|---|---|---|
