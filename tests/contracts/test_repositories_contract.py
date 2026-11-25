@@ -97,7 +97,6 @@ def _media(media_id: str) -> object:
     )
 
 
-@pytest.mark.xfail(strict=True, reason="S05")
 async def test_state_check_matches_domain(pg_url: str) -> None:
     """AC-1: the jobs.state CHECK constraint lists exactly the JobState values."""
     jobs = _mod("transcribe_engine.domain.jobs")

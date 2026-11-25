@@ -264,3 +264,16 @@ Rationale: A and C add a round trip to every state change for a caller that alre
 Reversibility: easy — one signature.
 Confidence: medium — S08 may want row-level security to enforce the boundary instead.
 Applied in: S05 spec commit
+
+## D-018 — Core tables migration; durations in milliseconds; migration test head moves to 0002
+Date: 2026-11-26 · Slice: S05 · Status: decided · Review: none
+Context: The design table gives `duration_s`. ADR-0003 says integer milliseconds at boundaries. The migration round
+trip test pins the head revision, so it must move when 0002 is added (AC-6 requires the round trip to keep passing).
+Options: A) `duration_s` as float. B) `duration_ms` as integer (ADR-0003). For the test: edit the head constant
+to 0002, or add a second revision check.
+Decision: B for durations. The head constant moves to `0002_core_tables`; the test's round-trip logic is unchanged.
+Rationale: integer milliseconds keep the time rule from ADR-0003 at the storage boundary. Moving one constant is
+the smallest change that keeps the round trip meaningful.
+Reversibility: easy before S06 data exists; moderate after.
+Confidence: high.
+Applied in: S05 migration commit
