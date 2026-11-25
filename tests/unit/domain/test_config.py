@@ -29,14 +29,12 @@ def _config(**overrides: object) -> object:
     return t.PipelineConfig(**fields)  # type: ignore[arg-type]
 
 
-@pytest.mark.xfail(strict=True, reason="S03")
 def test_config_hash_is_sha256_of_canonical_json() -> None:
     cfg = _config()
     expected = hashlib.sha256(cfg.canonical_json().encode("utf-8")).hexdigest()  # type: ignore[attr-defined]
     assert cfg.config_hash() == expected  # type: ignore[attr-defined]
 
 
-@pytest.mark.xfail(strict=True, reason="S03")
 @given(
     mapping=st.dictionaries(
         st.text(min_size=1, max_size=8), st.integers(min_value=-5, max_value=5), max_size=8
@@ -50,7 +48,6 @@ def test_canonical_json_is_order_independent(mapping: dict[str, int]) -> None:
     assert forward.canonical_json() == backward.canonical_json()  # type: ignore[attr-defined]
 
 
-@pytest.mark.xfail(strict=True, reason="S03")
 def test_canonical_json_format() -> None:
     cfg = _config()
     text = cfg.canonical_json()  # type: ignore[attr-defined]
@@ -59,7 +56,6 @@ def test_canonical_json_format() -> None:
     assert text.index('"diarization_enabled"') < text.index('"engine"')
 
 
-@pytest.mark.xfail(strict=True, reason="S03")
 def test_rejects_nan_and_nested() -> None:
     """AC-6: NaN, Infinity and nested decoding_params are rejected with ValueError."""
     with pytest.raises(ValueError, match="finite"):
@@ -72,14 +68,12 @@ def test_rejects_nan_and_nested() -> None:
         _config(vad_params={"nested": [1, 2]})
 
 
-@pytest.mark.xfail(strict=True, reason="S03")
 @pytest.mark.parametrize("language", ["", "auto"])
 def test_language_must_be_explicit(language: str) -> None:
     with pytest.raises(ValueError, match="explicit language"):
         _config(language=language)
 
 
-@pytest.mark.xfail(strict=True, reason="S03")
 def test_int_and_float_zero_produce_different_hashes() -> None:
     """Documented edge case: 0.0 and 0 are different JSON values (adapters emit stable types)."""
     a = _config(decoding_params={"temperature": 0})

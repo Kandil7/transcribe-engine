@@ -1,0 +1,64 @@
+"""Processing configuration and its canonical serialization (S03).
+
+Field order in the dataclass never changes the serialized form: canonical JSON sorts keys
+at every level.
+"""
+
+import hashlib
+import json
+import math
+from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import cast
+
+__all__ = ["PipelineConfig"]
+
+ParamValue = str | int | float | bool
+
+
+def _check_flat(name: str, params: Mapping[str, object]) -> dict[str, ParamValue]:
+    checked: dict[str, ParamValue] = {}
+    for key, value in params.items():
+        is_scalar = isinstance(value, str | bool | int | float)
+        if not is_scalar:
+            raise ValueError(f"{name} must be a flat mapping of scalar values")
+        if isinstance(value, float) and not math.isfinite(value):
+            raise ValueError(f"{name}.{key} must be finite")
+        checked[key] = cast(ParamValue, value)  # narrowed by is_scalar above
+    return checked
+
+
+@dataclass(frozen=True)
+class PipelineConfig:
+    engine: str
+    model_revision: str
+    language: str  # explicit language code, never "auto"
+    decoding_params: Mapping[str, ParamValue]
+    vad_params: Mapping[str, ParamValue]
+    diarization_enabled: bool
+    pipeline_version: str
+
+    def __post_init__(self) -> None:
+        if not self.language or self.language == "auto":
+            raise ValueError("language must be an explicit language code")
+        object.__setattr__(
+            self, "decoding_params", _check_flat("decoding_params", self.decoding_params)
+        )
+        object.__setattr__(self, "vad_params", _check_flat("vad_params", self.vad_params))
+
+    def canonical_json(self) -> str:
+        payload = {
+            "engine": self.engine,
+            "model_revision": self.model_revision,
+            "language": self.language,
+            "decoding_params": dict(self.decoding_params),
+            "vad_params": dict(self.vad_params),
+            "diarization_enabled": self.diarization_enabled,
+            "pipeline_version": self.pipeline_version,
+        }
+        return json.dumps(
+            payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+        )
+
+    def config_hash(self) -> str:
+        return hashlib.sha256(self.canonical_json().encode("utf-8")).hexdigest()
