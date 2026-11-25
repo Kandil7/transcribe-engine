@@ -236,3 +236,31 @@ Rationale: one validator means the fake and the adapter cannot drift; the caller
 Reversibility: easy — constants and two domain functions.
 Confidence: medium on the 2 GiB cap, which is a provisional number.
 Applied in: fix(S07) commit for review findings
+
+## D-016 — Persistence model shapes and the config round-trip
+Date: 2026-11-26 · Slice: S05 · Status: decided · Review: none
+Context: The design lists core columns but not types or identifiers. S05 Q1 is answered here too.
+Options: A) Store `pipeline_config` as JSONB and rebuild it through `PipelineConfig`. B) Store the canonical JSON
+text. C) Store the flat fields separately.
+Decision: A. Ids are server-generated text (uuid4 hex). `Job`, `Media`, `Result` are frozen dataclasses in
+`domain/jobs.py`. `segments` is one row per segment with `words` as JSONB (Q1, design table). The round trip
+is checked by comparing `canonical_json()` before and after, which is byte-equal (AC-5), though JSONB itself
+does not preserve key order.
+Rationale: JSONB keeps the config queryable; the canonical form is the contract, not the stored bytes.
+Reversibility: moderate — column types are set by migration 0002.
+Confidence: high.
+Applied in: S05 spec commit
+
+## D-017 — `apply` is keyed by job id without tenant (worker-internal)
+Date: 2026-11-26 · Slice: S05 · Status: decided · Review: none
+Context: CLAUDE.md and the spec say every query on `jobs` takes `tenant_id`. The spec's `apply(job_id, t, expected,
+stage)` signature has no tenant, and its only caller is the worker, which claims jobs by id and has no tenant
+context in the lease path.
+Options: A) Add `tenant_id` to `apply`. B) Keep the spec signature and document the exception. C) Look the job
+up by tenant first, then apply.
+Decision: B. `apply` is compare-and-set on the primary key and is called only by workers and the reconciler (S06).
+The API surface (`get`, list) always takes `tenant_id`. The exception is recorded here and listed in the BUILD_LOG.
+Rationale: A and C add a round trip to every state change for a caller that already holds a trusted job id.
+Reversibility: easy — one signature.
+Confidence: medium — S08 may want row-level security to enforce the boundary instead.
+Applied in: S05 spec commit

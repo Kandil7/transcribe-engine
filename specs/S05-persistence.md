@@ -77,5 +77,6 @@ class UnitOfWork(Protocol):
 6. `feat(S05): add SQLAlchemy repositories and unit of work` (contract tests pass for Postgres)
 
 ## Open questions
-- [ ] Q1 — `segments` stored per `transcript_version` (design) or as one JSONB document per version?
+- [x] Q1 — `segments` stored per `transcript_version` (design) or as one JSONB document per version?
   Proposed: rows per segment (needed for pagination and search), words JSONB per segment.
+  **Resolved (autopilot, 2026-11-26, D-016):** accepted as proposed; it matches the design table.
