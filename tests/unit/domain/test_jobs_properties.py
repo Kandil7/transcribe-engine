@@ -28,7 +28,6 @@ def test_backoff_bounds(attempt: int, base_ms: int, cap_ms: int, jitter: float) 
     assert timedelta(0) <= delay <= cap
 
 
-@pytest.mark.xfail(strict=True, reason="S02")
 @given(
     events=st.lists(st.integers(min_value=0, max_value=10_000), max_size=40),
     attempts=st.integers(min_value=1, max_value=5),
