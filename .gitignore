@@ -25,4 +25,8 @@ data/
 # local Claude Code state
 .claude/settings.local.json
 CLAUDE.local.md
+# autopilot run logs and local outputs
+.autopilot/logs/
+out/
 .opencode/
+nul

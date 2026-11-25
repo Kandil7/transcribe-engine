@@ -25,13 +25,17 @@ Read only the sections a task needs; specs in `specs/` name them. Decisions: `do
 - Arabic text normalization only via `domain.text.normalize()`. No ad-hoc regex on Arabic text.
 - IDs and cache keys are deterministic hashes defined in `domain.keys`. Never random IDs for chunks/results.
 - Never log transcript text, file names or audio content. Log ids, durations, counts.
-- Ask before adding any dependency. Never commit `.env` or secrets.
+- Add a dependency only when a spec needs it; record it in `docs/DECISIONS.md` with its license.
+  Never commit `.env` or secrets.
 
 ## Workflow
+- Autonomous build: follow `prompts/AUTOPILOT.md`. State: `.autopilot/state.json`. Logs: `docs/BUILD_LOG.md`,
+  `docs/DECISIONS.md`, `docs/REVIEW_QUEUE.md`. Never stop to ask; decide, record, continue.
 - Work one slice at a time from `specs/SXX-*.md` on branch `feat/SXX-<slug>`. See `CONTRIBUTING.md`.
 - Commit after every step in the spec's commit plan. Every commit must pass `make check`.
 - New acceptance tests start as `@pytest.mark.xfail(strict=True, reason="SXX")`; remove the marker
   in the commit that makes them pass.
-- IMPORTANT: never edit or delete an existing test to make it pass. If a test looks wrong, stop and ask.
+- IMPORTANT: never edit or delete an existing test to make it pass. If a test is truly wrong, fix it
+  in its own `fix(SXX): correct <AC> test` commit with the reason and a decision entry.
 - A decision not covered by the spec or design doc → write an ADR (`/write-adr`) in the same branch.
 - When compacting, keep: current slice ID, spec path, files changed, failing tests, next commit step.

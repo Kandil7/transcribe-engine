@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 UV := uv run
 
-.PHONY: help setup fmt lint typecheck imports test check itest cov eval up down migrate ci
+.PHONY: help setup fmt lint typecheck imports test check itest cov eval up down migrate ci autopilot
 
 help: ## Show targets
 	@grep -E '^[a-z]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -49,3 +49,6 @@ migrate: ## Apply migrations to local DB
 	$(UV) alembic upgrade head
 
 ci: check cov ## What CI runs on every PR
+
+autopilot: ## Build the project autonomously, one slice per run (see docs/AUTOPILOT.ar.md)
+	scripts/autopilot.sh
