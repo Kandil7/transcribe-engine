@@ -7,39 +7,17 @@ Imports happen inside each test body except the test-infrastructure ones at the 
 import asyncio
 import hashlib
 import importlib
-import os
 import re
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from types import ModuleType
 
 import pytest
-from alembic import command
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
-from testcontainers.community.postgres import PostgresContainer
-
-from tests.integration.test_migrations import _alembic_config
 
 pytestmark = [pytest.mark.integration, pytest.mark.contract]
 
 KINDS = ["fake", "postgres"]
-
-
-@pytest.fixture(scope="session")
-def pg_url() -> Iterator[str]:
-    """A migrated Postgres. The URL is asyncpg-qualified for SQLAlchemy."""
-    with PostgresContainer("pgvector/pgvector:pg16") as pg:
-        dsn = "postgresql+asyncpg://" + pg.get_connection_url().split("://", 1)[1]
-        previous = os.environ.get("TE_DATABASE_URL")
-        os.environ["TE_DATABASE_URL"] = dsn
-        try:
-            command.upgrade(_alembic_config(), "head")
-            yield dsn
-        finally:
-            if previous is None:
-                os.environ.pop("TE_DATABASE_URL", None)
-            else:
-                os.environ["TE_DATABASE_URL"] = previous
 
 
 def _mod(name: str) -> ModuleType:
