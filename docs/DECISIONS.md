@@ -306,3 +306,30 @@ remains for a later slice.
 Reversibility: moderate — the schema changes are in unmerged migration 0002.
 Confidence: high.
 Applied in: S05 fix commit
+
+## D-020 — Queue time source, reconciler signature, and out-of-scope fairness
+Date: 2026-11-26 · Slice: S06 · Status: decided · Review: none
+Context: The spec says lease comparisons use the database's `now()` (clock skew), while the Fake uses the `Clock`
+port. The spec signature `Reconciler.run_once(now)` takes an explicit time. S06 Q1 asks about fair scheduling.
+Options: A) Compare in SQL with `now()` everywhere; `run_once(now)` records `now` in its report only.
+B) Pass `now` into every SQL comparison (clock skew returns).
+Decision: A. The Postgres queue compares with `now()` in SQL. The fake compares with the injected Clock. `run_once(now)`
+keeps the spec signature; the Postgres reconciler uses DB time for every comparison and echoes `now` in the report.
+Q1 (fairness between tenants) is out of scope; a metric in S20 will show when it matters.
+Rationale: one source of truth for lease expiry avoids skew between workers and the reconciler.
+Reversibility: easy.
+Confidence: high.
+Applied in: S06 spec commit
+
+## D-021 — `started_at` column and queue fields on Job (migration 0003)
+Date: 2026-11-26 · Slice: S06 · Status: decided · Review: none
+Context: The claim rule sets `started_at`, which migration 0002 does not have. Migration 0002 is merged, so the change
+goes in a new revision. The queue needs `priority` and `run_after` on the domain `Job`, which S05 did not expose.
+Options: A) Edit 0002 (already merged; not allowed). B) New migration 0003 adding `started_at`. C) Keep queue fields
+out of the domain and pass them separately.
+Decision: B. `Job` gains `priority: int = 0` and `run_after: datetime | None = None` with defaults, so existing
+callers stay valid. Lease fields (owner, until) stay in the queue layer and are returned as `Lease`.
+Rationale: a new revision is the only safe change to a merged schema; defaults keep S05 tests unchanged.
+Reversibility: easy before S08 relies on the columns.
+Confidence: high.
+Applied in: S06 spec commit
