@@ -9,14 +9,18 @@ from dataclasses import dataclass
 from datetime import timedelta
 from enum import StrEnum
 
+from transcribe_engine.domain.config import PipelineConfig
 from transcribe_engine.domain.errors import InvalidTransitionError
 
 __all__ = [
     "ErrorCode",
     "InvalidTransitionError",
+    "Job",
     "JobEvent",
     "JobStage",
     "JobState",
+    "Media",
+    "Result",
     "Transition",
     "Warning",
     "backoff",
@@ -197,3 +201,44 @@ def processing_timeout(
 ) -> timedelta:
     """Time budget for one processing attempt: duration × RTF_p95 × factor + overhead."""
     return timedelta(milliseconds=duration_ms * rtf_p95 * factor) + overhead
+
+
+@dataclass(frozen=True)
+class Media:
+    """One distinct input file, identified by its content hash (S05)."""
+
+    id: str
+    sha256: str
+    storage_key: str
+    duration_ms: int
+    format: str
+    size_bytes: int
+
+
+@dataclass(frozen=True)
+class Job:
+    """One request to process a media file under one tenant and one pipeline configuration."""
+
+    id: str
+    tenant_id: str
+    media_id: str
+    state: JobState
+    stage: JobStage | None
+    attempt_count: int
+    max_attempts: int
+    queue: str  # "cpu" or "gpu" (ADR-0006)
+    config: PipelineConfig
+    result_id: str | None
+    error_code: ErrorCode | None
+    warnings: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class Result:
+    """A processed output shared by every job with the same result key (D-007)."""
+
+    id: str
+    result_key: str
+    media_id: str
+    config: PipelineConfig
+    ref_count: int
