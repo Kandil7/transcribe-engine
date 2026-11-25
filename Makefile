@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 UV := uv run
 
-.PHONY: help setup fmt lint typecheck imports test check itest cov eval up down migrate seed ci autopilot
+.PHONY: help setup fmt lint typecheck imports test check itest cov eval up down migrate seed openapi ci autopilot
 
 help: ## Show targets
 	@grep -E '^[a-z]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -55,3 +55,6 @@ autopilot: ## Build the project autonomously, one slice per run (see docs/AUTOPI
 
 seed: ## Create the local tenant and API key (printed once, saved to .env.local)
 	uv run python scripts/seed.py
+
+openapi: ## Regenerate docs/openapi.json from the code
+	uv run python scripts/export_openapi.py
