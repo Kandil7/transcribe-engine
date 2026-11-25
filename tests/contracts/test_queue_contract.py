@@ -173,7 +173,7 @@ async def test_retry_due_requeues(kind: str, pg_url: str) -> None:
     assert (await _load(backend, "job-due")).state == jobs.JobState.RETRY_SCHEDULED  # type: ignore[attr-defined]
 
 
-@pytest.mark.parametrize("kind", KINDS_PENDING)
+@pytest.mark.parametrize("kind", KINDS)
 async def test_cancel_observed_on_heartbeat(kind: str, pg_url: str) -> None:
     """AC-6: a job cancelled while running makes its next heartbeat raise JobCancelledError."""
     jobs = _mod("transcribe_engine.domain.jobs")
