@@ -8,6 +8,7 @@ reference changes raise PermanentError (D-019).
 from dataclasses import dataclass, field, replace
 from typing import Self
 
+from transcribe_engine.application.ports.queue import Lease
 from transcribe_engine.domain.config import PipelineConfig
 from transcribe_engine.domain.errors import PermanentError
 from transcribe_engine.domain.jobs import Job, JobStage, JobState, Media, Result, Transition
@@ -18,6 +19,7 @@ class FakeStore:
     jobs: dict[str, Job] = field(default_factory=dict)
     media_by_tenant_sha: dict[tuple[str, str], Media] = field(default_factory=dict)
     results_by_key: dict[str, Result] = field(default_factory=dict)
+    leases: dict[str, Lease] = field(default_factory=dict)  # job id -> current lease (S06)
 
 
 class FakeJobRepository:

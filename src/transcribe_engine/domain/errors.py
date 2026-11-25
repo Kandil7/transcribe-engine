@@ -26,3 +26,15 @@ class InvalidTransitionError(DomainError):
     """A job state change that the state machine does not allow."""
 
     code = "invalid_transition"
+
+
+class LeaseLostError(DomainError):
+    """The caller no longer owns the lease (expired, reclaimed or fenced out). Abort."""
+
+    code = "lease_lost"
+
+
+class JobCancelledError(DomainError):
+    """The job was cancelled while it was being processed. Stop at the next checkpoint."""
+
+    code = "job_cancelled"

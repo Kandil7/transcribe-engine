@@ -6,7 +6,7 @@ write a state directly.
 
 import random
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from enum import StrEnum
 
 from transcribe_engine.domain.config import PipelineConfig
@@ -232,6 +232,8 @@ class Job:
     result_id: str | None
     error_code: ErrorCode | None
     warnings: tuple[str, ...]
+    priority: int = 0  # higher claims first (S06)
+    run_after: datetime | None = None  # a retry is not claimable before this time (S06)
 
 
 @dataclass(frozen=True)
