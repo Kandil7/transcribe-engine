@@ -36,3 +36,19 @@ def test_rejects_unsafe_tenant_ids(tenant: str) -> None:
 def test_rejects_unsafe_work_names(name: str) -> None:
     with pytest.raises(ValueError, match="name"):
         _mod().work_key("tenant-a", "job-1", name)
+
+
+def test_check_incoming_key_accepts_only_the_incoming_layout() -> None:
+    m = _mod()
+    m.check_incoming_key("incoming/tenant-a/upload-1")
+    for bad in ("work/tenant-a/upload-1", "incoming/tenant-a", "incoming/a/b/c", "incoming/../x"):
+        with pytest.raises(ValueError, match=r"incoming|invalid"):
+            m.check_incoming_key(bad)
+
+
+def test_check_prefix_requires_a_whole_segment() -> None:
+    m = _mod()
+    assert m.check_prefix("work/tenant-a/job-1/") == "work/tenant-a/job-1/"
+    for bad in ("", "work/tenant-a/job-1"):
+        with pytest.raises(ValueError, match="prefix"):
+            m.check_prefix(bad)

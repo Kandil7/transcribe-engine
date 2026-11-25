@@ -220,3 +220,19 @@ on the fake would prove nothing about S3.
 Reversibility: moderate — key layout is stored in the database after S05.
 Confidence: medium — the spec's wording is ambiguous; this is the reading that keeps both statements true.
 Applied in: S07 test commit
+
+## D-015 — Upload limits, prefix rules and the storage error contract
+Date: 2026-11-26 · Slice: S07 · Status: decided · Review: none
+Context: The security review found that presigned uploads and prefix deletes accepted values the spec did not
+bound: any expiry, any size, any key, and an empty or slash-less prefix that could match other tenants.
+The spec gives 15 minutes but no size cap.
+Options: A) Validate in each adapter separately. B) Validate in the domain (`storage_keys`) and call from every
+adapter and the fake. C) Leave validation to callers.
+Decision: B, with these limits: upload size 1 byte to 2 GiB (`MAX_UPLOAD_BYTES`, to revisit with S09 ingest
+limits); expiry above zero and at most 15 minutes; keys must be `incoming/{tenant}/{upload}`; delete prefixes
+must be non-empty and end with `/`; a negative read start is `ValueError`; a missing key or a read at or
+past the end is `PermanentError` on both the fake and S3.
+Rationale: one validator means the fake and the adapter cannot drift; the caller cannot widen the policy.
+Reversibility: easy — constants and two domain functions.
+Confidence: medium on the 2 GiB cap, which is a provisional number.
+Applied in: fix(S07) commit for review findings
