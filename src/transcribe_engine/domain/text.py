@@ -7,7 +7,7 @@ character, or deletes it, so the offset map back to the raw text is exact. `raw`
 import unicodedata
 from dataclasses import dataclass
 
-__all__ = ["NormalizedText", "fold_char", "map_span", "normalize"]
+__all__ = ["NormalizedText", "map_span", "normalize"]
 
 # Rules 1-3 and D-009: alef variants, alef maksura, teh marbuta, Persian yeh.
 _LETTER_FOLDS: dict[str, str] = {
@@ -77,4 +77,12 @@ def map_span(n: NormalizedText, start: int, end: int) -> tuple[int, int]:
     if start == end:
         pos = n.offsets[start] if start < len(n.offsets) else len(n.raw)
         return pos, pos
-    return n.offsets[start], n.offsets[end - 1] + 1
+    s = n.offsets[start]
+    e = n.offsets[end - 1] + 1
+    # D-012: include deleted marks (tatweel, diacritics) that sit inside the word, on either side.
+    # Whitespace is not deletable, so the extension stops at word boundaries.
+    while e < len(n.raw) and ord(n.raw[e]) in _DELETE:
+        e += 1
+    while s > 0 and ord(n.raw[s - 1]) in _DELETE:
+        s -= 1
+    return s, e
