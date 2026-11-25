@@ -25,3 +25,4 @@ data/
 # local Claude Code state
 .claude/settings.local.json
 CLAUDE.local.md
+.opencode/
