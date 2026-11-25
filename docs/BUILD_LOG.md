@@ -235,7 +235,7 @@ correction), D-012 (span includes word-boundary marks)
 - Case table is hand-written; S16 will add a corpus-based check.
 
 ## S07 — Object storage and presigned uploads   (2026-11-26 → 2026-11-26)
-Branch: feat/S07-object-storage   Merged: (pending)   Tag: —
+Branch: feat/S07-object-storage   Merged: a29dd33 (PR #11)   Tag: —
 ### What was built
 - `domain/storage_keys.py`: `incoming_key`, `work_key` (tenant is the second segment, D-014), plus
   `check_incoming_key` and `check_prefix` used by every adapter and the fake.
