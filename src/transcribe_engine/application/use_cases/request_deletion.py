@@ -1,0 +1,26 @@
+"""Request deletion of a job (S08). It only marks the job; S21 performs the deletion."""
+
+from collections.abc import Callable
+from contextlib import AbstractAsyncContextManager
+from datetime import UTC, datetime
+
+from transcribe_engine.application.errors import JobNotFoundError
+from transcribe_engine.application.ports.repositories import UnitOfWork
+
+__all__ = ["RequestDeletion"]
+
+MakeUow = Callable[[str | None], AbstractAsyncContextManager[UnitOfWork]]
+
+
+class RequestDeletion:
+    def __init__(self, make_uow: MakeUow) -> None:
+        self._make_uow = make_uow
+
+    async def __call__(self, tenant_id: str, job_id: str) -> datetime:
+        at = datetime.now(UTC)
+        async with self._make_uow(tenant_id) as uow:
+            found = await uow.jobs.request_deletion(tenant_id, job_id, at)
+            if not found:
+                raise JobNotFoundError
+            await uow.commit()
+        return at
