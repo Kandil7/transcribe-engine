@@ -184,3 +184,52 @@ D-007 (key and ID encodings, Q1 accepted)
 ### Follow-ups
 - Adapters must emit stable parameter types (documented edge case).
 - S04 provides `domain.text.normalize()`; S03 does not touch text.
+
+## S04 — Arabic text normalization   (2026-11-26 → 2026-11-26)
+Branch: feat/S04-arabic-text-normalization   Merged: (pending)   Tag: —
+### What was built
+- `domain/text.py`: `fold_char` (one-to-one rules), `normalize` (deletions, whitespace collapse, exact
+  offset map), `map_span` (search span to raw span), `NormalizedText`.
+- `tests/unit/domain/test_text.py`, `test_text_properties.py`, fixture `normalization_cases.tsv` (50 rows).
+- `docs/adr/0008-arabic-normalizer-in-domain.md` (D-008).
+### How it works
+One pass over the raw text. Tatweel and diacritics are dropped; alef variants, alef maksura, teh marbuta and
+Persian yeh fold to one character; Arabic-Indic and Eastern digits become ASCII; Latin letters lowercase
+when the result is one character; each whitespace run becomes one space, with leading and trailing space
+dropped. The offset of each kept character is stored. `map_span` maps a search span to the raw span and
+extends it over deleted marks inside the word (D-012).
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | 46c54b4 docs(S04): resolve open questions and record decisions | Q1, Q2; D-008..D-010 | — |
+| 2 | b6fc0c4 test(S04): add case table and property tests (xfail) | 49-row table, 57 strict xfail | — |
+| 3 | 6d7b538 feat(S04): add character folding rules | `fold_char` | — |
+| 4 | 8c5d5da fix(S04): correct alef-variant case row | fixture row (D-011) | — |
+| 5 | bd99c19 feat(S04): add normalize with exact offset map | `normalize` | AC-1, AC-2, AC-3, AC-5, raw-unmodified |
+| 6 | 680b384 feat(S04): add map_span | `map_span` | AC-4, span edge cases |
+| 7 | b51c49e docs(adr): 0008 Arabic normalizer as domain character table | ADR-0008, design sentence | — |
+| 8 | 646c856 fix(S04): address review findings | D-012, fixture escapes, stronger property tests | — |
+### Verification
+- `make check`: 138 passed (ruff, format, mypy, lint-imports 4 KEPT).
+- No xfail markers remain for S04.
+### Decisions
+D-008 (domain character table, ADR-0008), D-009 (Persian yeh), D-010 (1:1 definitions), D-011 (fixture row
+correction), D-012 (span includes word-boundary marks)
+### Problems and fixes
+- Fixture row `أإآٱ` expected a lam; corrected in its own commit (D-011).
+- Hand-written fixture generation wrote raw tab characters into cells, so the tab-only rows tested the empty
+  string. Found by the architecture review; the fixture is regenerated with escapes and explicit LF endings.
+- Commit 5 and 6 were split after the fact: `map_span` was written before the normalize commit and was
+  moved out so each commit stayed green.
+- Hypothesis alphabets: a multi-character string in `sampled_from` is rejected; split into characters.
+### Review findings
+- architecture-reviewer: 5 findings. Fixed: span dropped word-final diacritics (D-012); tab-only rows checked
+  the empty string; no word-final or combining-mark rows; `fold_char` exported only for tests (removed from
+  `__all__`). Spec edge case about boundary deletions resolved by D-012.
+- test-reviewer: 7 findings. Fixed: AC-3 used the implementation's own `fold_char` (now a literal rule
+  table); AC-2 only checked idempotence (now also forbidden output characters); rule characters rarely
+  generated (now mixed in); missing boundary and mixed-whitespace cases; duplicate fixture rows; combining
+  mark row made explicit.
+### Follow-ups
+- CAMeL Tools morphology: a later Port (ADR-0008).
+- Case table is hand-written; S16 will add a corpus-based check.
