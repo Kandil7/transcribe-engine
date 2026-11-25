@@ -1,5 +1,5 @@
 # 0006. One job row moves between the cpu and gpu queues
-Status: Proposed (confirm while implementing S02/S06)
+Status: Accepted (S02, D-005)
 Date: 2026-11-24   Slice: S02
 
 ## Context
