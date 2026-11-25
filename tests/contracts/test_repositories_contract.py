@@ -21,7 +21,10 @@ from tests.integration.test_migrations import _alembic_config
 
 pytestmark = [pytest.mark.integration, pytest.mark.contract]
 
-KINDS = ["fake", "postgres"]
+KINDS = [
+    "fake",
+    pytest.param("postgres", marks=pytest.mark.xfail(strict=True, reason="S05")),
+]
 
 
 @pytest.fixture(scope="session")
@@ -118,7 +121,6 @@ async def test_state_check_matches_domain(pg_url: str) -> None:
     assert states == {state.value for state in jobs.JobState}
 
 
-@pytest.mark.xfail(strict=True, reason="S05")
 @pytest.mark.parametrize("kind", KINDS)
 async def test_claim_key_concurrent(kind: str, pg_url: str) -> None:
     """AC-2: 20 concurrent claims on one key give one creator, 19 readers and one row."""
@@ -141,7 +143,6 @@ async def test_claim_key_concurrent(kind: str, pg_url: str) -> None:
     assert len({result_id for _, result_id in outcomes}) == 1
 
 
-@pytest.mark.xfail(strict=True, reason="S05")
 @pytest.mark.parametrize("kind", KINDS)
 async def test_apply_compare_and_set(kind: str, pg_url: str) -> None:
     """AC-3: a stale expected state returns False and changes nothing."""
@@ -164,7 +165,6 @@ async def test_apply_compare_and_set(kind: str, pg_url: str) -> None:
     assert job.state == jobs.JobState.PROCESSING
 
 
-@pytest.mark.xfail(strict=True, reason="S05")
 @pytest.mark.parametrize("kind", KINDS)
 async def test_get_other_tenant_returns_none(kind: str, pg_url: str) -> None:
     """AC-4: a job is invisible to other tenants."""
@@ -178,7 +178,6 @@ async def test_get_other_tenant_returns_none(kind: str, pg_url: str) -> None:
         assert await uow.jobs.get("tenant-a", "job-iso") is not None  # type: ignore[attr-defined]
 
 
-@pytest.mark.xfail(strict=True, reason="S05")
 @pytest.mark.parametrize("kind", KINDS)
 async def test_job_round_trip(kind: str, pg_url: str) -> None:
     """AC-5: every field survives save and load; the config's canonical JSON is byte-equal."""
