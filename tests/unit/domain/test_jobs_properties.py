@@ -4,7 +4,6 @@ import importlib
 from datetime import timedelta
 from types import ModuleType
 
-import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -13,7 +12,6 @@ def _jobs() -> ModuleType:
     return importlib.import_module("transcribe_engine.domain.jobs")
 
 
-@pytest.mark.xfail(strict=True, reason="S02")
 @given(
     attempt=st.integers(min_value=1, max_value=60),
     base_ms=st.integers(min_value=1, max_value=86_400_000),
