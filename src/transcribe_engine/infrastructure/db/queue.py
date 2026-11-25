@@ -7,11 +7,14 @@ The claim is one statement: FOR UPDATE SKIP LOCKED picks a row, the UPDATE takes
 from datetime import timedelta
 
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from transcribe_engine.application.ports.queue import Lease
-from transcribe_engine.domain.jobs import Job
+from transcribe_engine.domain.errors import JobCancelledError, LeaseLostError
+from transcribe_engine.domain.jobs import Job, JobStage, Transition
 from transcribe_engine.infrastructure.db.repositories import job_from_row
+from transcribe_engine.infrastructure.db.uow import translate_db_error
 
 __all__ = ["SqlJobQueue"]
 
@@ -41,6 +44,36 @@ _CLAIM = text(
 )
 
 
+# Heartbeat: only the current owner of the current attempt, while the lease is live and the job
+# is not cancelled. The state predicate keeps a cancelled job from being renewed.
+_HEARTBEAT = text(
+    """
+    UPDATE jobs SET lease_until = now() + make_interval(secs => :lease_seconds)
+    WHERE id = :job_id AND lease_owner = :owner AND attempt_count = :attempt
+      AND lease_until > now() AND state IN ('PROCESSING', 'PENDING_VALIDATION')
+    RETURNING lease_until
+    """
+)
+
+# Fenced complete: the write applies only while owner and attempt still match (D-019 style CAS).
+# A handoff to QUEUED switches the job to the gpu queue (ADR-0006).
+_COMPLETE = text(
+    """
+    UPDATE jobs SET
+        state = :to_state,
+        error_code = :error_code,
+        stage = COALESCE(:stage, stage),
+        queue = CASE WHEN :to_state = 'QUEUED' THEN 'gpu' ELSE queue END,
+        lease_owner = NULL,
+        lease_until = NULL
+    WHERE id = :job_id AND lease_owner = :owner AND attempt_count = :attempt
+      AND state IN ('PROCESSING', 'PENDING_VALIDATION')
+    """
+)
+
+_STATE_OF = text("SELECT state FROM jobs WHERE id = :job_id")
+
+
 class SqlJobQueue:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
@@ -62,3 +95,58 @@ class SqlJobQueue:
         job = job_from_row(row)
         lease = Lease(job_id=job.id, owner=owner, attempt=job.attempt_count, until=row.lease_until)
         return job, lease
+
+    async def heartbeat(self, lease: Lease, extend_by: timedelta) -> Lease:
+        try:
+            async with self._engine.begin() as conn:
+                row = (
+                    await conn.execute(
+                        _HEARTBEAT,
+                        {
+                            "lease_seconds": extend_by.total_seconds(),
+                            "job_id": lease.job_id,
+                            "owner": lease.owner,
+                            "attempt": lease.attempt,
+                        },
+                    )
+                ).one_or_none()
+                state = None
+                if row is None:
+                    state = (
+                        await conn.execute(_STATE_OF, {"job_id": lease.job_id})
+                    ).scalar_one_or_none()
+        except SQLAlchemyError as exc:
+            raise translate_db_error(exc) from exc
+        if row is not None:
+            return Lease(
+                job_id=lease.job_id, owner=lease.owner, attempt=lease.attempt, until=row.lease_until
+            )
+        if state == "CANCELLED":
+            raise JobCancelledError("job was cancelled")
+        raise LeaseLostError("lease is no longer held")
+
+    async def complete(self, lease: Lease, t: Transition, *, stage: JobStage | None = None) -> bool:
+        try:
+            async with self._engine.begin() as conn:
+                result = await conn.execute(
+                    _COMPLETE,
+                    {
+                        "to_state": t.to.value,
+                        "error_code": t.error_code.value if t.error_code else None,
+                        "stage": stage.value if stage else None,
+                        "job_id": lease.job_id,
+                        "owner": lease.owner,
+                        "attempt": lease.attempt,
+                    },
+                )
+                return bool(result.rowcount == 1)
+        except SQLAlchemyError as exc:
+            raise translate_db_error(exc) from exc
+
+    async def is_cancelled(self, job_id: str) -> bool:
+        try:
+            async with self._engine.connect() as conn:
+                state = (await conn.execute(_STATE_OF, {"job_id": job_id})).scalar_one_or_none()
+        except SQLAlchemyError as exc:
+            raise translate_db_error(exc) from exc
+        return state == "CANCELLED"

@@ -18,10 +18,10 @@ from transcribe_engine.infrastructure.db.repositories import (
     SqlResultRepository,
 )
 
-__all__ = ["SqlUnitOfWork"]
+__all__ = ["SqlUnitOfWork", "translate_db_error"]
 
 
-def _translate(exc: SQLAlchemyError) -> Exception:
+def translate_db_error(exc: SQLAlchemyError) -> Exception:
     """Keep SQL text and parameters out of the error the caller sees."""
     if isinstance(exc, OperationalError | InterfaceError):
         return TransientError("database connection failed")
@@ -60,7 +60,7 @@ class SqlUnitOfWork:
             if self._conn is not None:
                 await self._conn.close()
         if isinstance(exc, SQLAlchemyError):
-            raise _translate(exc) from exc
+            raise translate_db_error(exc) from exc
 
     async def commit(self) -> None:
         if self._tx is None:
@@ -68,4 +68,4 @@ class SqlUnitOfWork:
         try:
             await self._tx.commit()
         except SQLAlchemyError as exc:
-            raise _translate(exc) from exc
+            raise translate_db_error(exc) from exc
