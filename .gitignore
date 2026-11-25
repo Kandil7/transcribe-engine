@@ -1,0 +1,27 @@
+.venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.env
+.env.*
+!.env.example
+secrets/
+# audio and eval data never go in git
+data/
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.ogg
+*.mp4
+# local Claude Code state
+.claude/settings.local.json
+CLAUDE.local.md

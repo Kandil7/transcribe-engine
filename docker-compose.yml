@@ -1,0 +1,31 @@
+# Local development only. Credentials here are throwaway defaults; never reuse them.
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: te
+      POSTGRES_PASSWORD: te
+      POSTGRES_DB: transcribe
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U te -d transcribe"]
+      interval: 2s
+      retries: 30
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: te-local
+      MINIO_ROOT_PASSWORD: te-local-secret
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [miniodata:/data]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 2s
+      retries: 30
+
+volumes:
+  pgdata:
+  miniodata:

@@ -1,0 +1,174 @@
+[project]
+name = "transcribe-engine"
+version = "0.1.0"
+description = "Arabic batch speech-to-text platform with RAG-ready outputs"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+# Versions are pinned by uv.lock. Add dependencies with `uv add` (ask first, see CLAUDE.md).
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic>=2",
+    "pydantic-settings",
+    "sqlalchemy[asyncio]>=2",
+    "asyncpg",
+    "alembic",
+    "boto3",
+    "httpx",
+    "structlog",
+    "prometheus-client",
+]
+
+[project.optional-dependencies]
+# Heavy ML stack lives only in the GPU / CPU worker images (slices S11+).
+ml = [
+    "torch",
+    "torchaudio",
+    "silero-vad",
+    "numpy",
+]
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "mypy",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "hypothesis",
+    "import-linter",
+    "testcontainers[postgres,minio]",
+    "boto3-stubs[s3]",
+    "pre-commit",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/transcribe_engine"]
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+# Python only: spec and design markdown contain illustrative signatures, not code to format.
+include = ["*.py", "*.pyi"]
+extend-exclude = ["docs", "specs", "migrations/versions"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",   # pycodestyle, pyflakes
+    "I",             # import order
+    "B",             # bugbear
+    "UP",            # modern syntax
+    "SIM",           # simplifications
+    "C4",            # comprehensions
+    "C90",           # complexity
+    "N",             # naming
+    "ANN",           # type annotations required
+    "BLE",           # no blind `except Exception`
+    "TRY",           # exception hygiene
+    "RET",           # return hygiene
+    "PL",            # pylint subset
+    "PT",            # pytest style
+    "S",             # bandit security
+    "DTZ",           # timezone-aware datetimes only
+    "T20",           # no print()
+    "ERA",           # no commented-out code
+    "RUF",
+]
+ignore = [
+    "TRY003",   # long messages in exceptions are fine
+    "PLR2004",  # magic values: allowed in tests, reviewed elsewhere
+    "RUF001", "RUF002", "RUF003",  # Arabic letters are not "ambiguous"
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "ANN", "PLR0913", "S311"]
+"scripts/**" = ["T20", "S603", "S607"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 6
+max-branches = 12
+
+[tool.ruff.format]
+quote-style = "double"
+
+# ---------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+mypy_path = "src"
+packages = ["transcribe_engine"]
+
+[[tool.mypy.overrides]]
+# Third-party ML libraries ship without types.
+module = ["torch.*", "torchaudio.*", "silero_vad.*", "testcontainers.*"]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+xfail_strict = true
+asyncio_mode = "auto"
+markers = [
+    "integration: needs Docker (Postgres, MinIO via Testcontainers)",
+    "contract: same assertions against Fake and real Adapter",
+    "gpu: needs a GPU and model weights (nightly only)",
+    "eval: evaluation harness runs (nightly only)",
+]
+
+[tool.coverage.run]
+source = ["transcribe_engine"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 85
+skip_covered = true
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError", "\\.\\.\\."]
+
+# ---------------------------------------------------------------- import-linter
+[tool.importlinter]
+root_package = "transcribe_engine"
+
+[[tool.importlinter.contracts]]
+name = "Clean Architecture layers"
+type = "layers"
+layers = [
+    "transcribe_engine.presentation",
+    "transcribe_engine.infrastructure",
+    "transcribe_engine.application",
+    "transcribe_engine.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "Domain is pure (standard library only)"
+type = "forbidden"
+source_modules = ["transcribe_engine.domain"]
+forbidden_modules = [
+    "fastapi", "starlette", "pydantic", "pydantic_settings", "sqlalchemy", "asyncpg",
+    "alembic", "boto3", "botocore", "httpx", "structlog", "prometheus_client",
+    "torch", "torchaudio", "numpy", "silero_vad",
+]
+
+[[tool.importlinter.contracts]]
+name = "Application has no framework or driver imports"
+type = "forbidden"
+source_modules = ["transcribe_engine.application"]
+forbidden_modules = [
+    "fastapi", "starlette", "sqlalchemy", "asyncpg", "boto3", "httpx", "torch", "numpy",
+]
+
+[[tool.importlinter.contracts]]
+name = "Presentation reaches infrastructure only through main.py (DI)"
+type = "forbidden"
+source_modules = ["transcribe_engine.presentation"]
+forbidden_modules = ["transcribe_engine.infrastructure"]
