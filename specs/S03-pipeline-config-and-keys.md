@@ -75,5 +75,6 @@ def ms_to_samples(ms: int, sample_rate: int = SAMPLE_RATE) -> int
 5. `feat(S03): add deterministic keys`
 
 ## Open questions
-- [ ] Q1 — Should the profiling/routing policy version (section 1.5) be part of the key? Proposed: yes,
+- [x] Q1 — Should the profiling/routing policy version (section 1.5) be part of the key? Proposed: yes,
   through `pipeline_version` (bumped when routing thresholds change), no extra field.
+  **Resolved (autopilot, 2026-11-25, D-007):** accepted as proposed.

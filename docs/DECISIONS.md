@@ -105,3 +105,26 @@ call.
 Reversibility: easy.
 Confidence: high.
 Applied in: S02 spec commit
+
+## D-007 — Key and ID encodings for S03
+Date: 2026-11-25 · Slice: S03 · Status: decided · Review: none
+Context: The design gives the key and ID formulas (`[D: مفتاح الـ Idempotency]`, `[D: التقسيم]`, `[D: الـ RAG]`)
+but not how to encode the isolation scope or how to avoid separator collisions in `embedding_id`. S03 Q1 is
+also answered here: routing policy changes bump `pipeline_version`, not a new key field.
+Options: A) Raw `|`-joined strings everywhere. B) Canonical JSON arrays for every hashed tuple.
+C) `|`-joined for ids whose parts cannot contain `|` (hex hashes, integers, transcript ids), canonical JSON
+for `embedding_id`, whose text can contain any character.
+Decision: C.
+- `result_key = "res_" + sha256(file_sha256 + "‖" + canonical_json(config))`. When `isolation_scope` is
+  given, `"‖" + isolation_scope` is appended to the hashed bytes. Without a scope, the bytes are unchanged, so
+  shared-result keys are stable.
+- `chunk_id = "chk_" + sha256("|".join(media_sha256, config_hash, idx, start, end))`.
+- `rag_chunk_id = "rag_" + sha256("|".join(transcript_id, version, start_ms, end_ms))`; `transcript_id`
+  containing `|` is rejected with `ValueError`.
+- `embedding_id = "emb_" + sha256(canonical_json([text_with_header, embedding_model]))`.
+- `language` must be non-empty and may not be `"auto"` (explicit language only, per the spec).
+Rationale: the design formulas are followed literally where their parts are safe to join. The embedding text
+is free text, so a JSON array removes any ambiguity between text and model name.
+Reversibility: moderate — every stored key depends on these bytes; changing them later invalidates caches.
+Confidence: high for the encodings; the choice is pinned by golden values in tests (AC-4).
+Applied in: S03 spec commit
