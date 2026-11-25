@@ -122,14 +122,12 @@ def test_max_attempts_one_fails_on_first_transient_error() -> None:
     assert result.error_code == jobs.ErrorCode.ATTEMPTS_EXHAUSTED
 
 
-@pytest.mark.xfail(strict=True, reason="S02")
 def test_timeout_formula() -> None:
     """1 h audio at RTF_p95 0.02: 3600 s × 0.02 × 3 + 120 s = 336 s."""
     jobs = _jobs()
     assert jobs.processing_timeout(3_600_000, rtf_p95=0.02) == timedelta(seconds=336)
 
 
-@pytest.mark.xfail(strict=True, reason="S02")
 def test_backoff_is_exact_when_jitter_is_zero() -> None:
     jobs = _jobs()
     base, cap = timedelta(seconds=30), timedelta(minutes=10)

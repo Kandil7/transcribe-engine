@@ -4,7 +4,9 @@ Every job state change goes through `transition()` (added in the next step). Oth
 write a state directly.
 """
 
+import random
 from dataclasses import dataclass
+from datetime import timedelta
 from enum import StrEnum
 
 from transcribe_engine.domain.errors import InvalidTransitionError
@@ -16,6 +18,9 @@ __all__ = [
     "JobStage",
     "JobState",
     "Transition",
+    "backoff",
+    "processing_timeout",
+    "transition",
 ]
 
 
@@ -133,3 +138,35 @@ def transition(
             return Transition(to=JobState.RETRY_SCHEDULED)
         return Transition(to=JobState.FAILED, error_code=_RETRYABLE[event])
     raise InvalidTransitionError(f"{event} is not allowed in {state}")
+
+
+_MICROSECOND = timedelta(microseconds=1)
+_MAX_EXPONENT = 62  # keeps 2**n far below any realistic cap; the cap clamps the result anyway
+
+
+def backoff(attempt: int, *, base: timedelta, cap: timedelta, jitter: float) -> timedelta:
+    """Exponential delay before retry `attempt` (1-based): min(cap, base * 2**(attempt-1)).
+
+    `jitter` scales the delay by a uniform factor in [1 - jitter, 1 + jitter]; with jitter 0 the
+    result is exact. The result is always within [0, cap].
+    """
+    if attempt < 1:
+        raise ValueError("attempt is 1-based")
+    if not 0.0 <= jitter <= 1.0:
+        raise ValueError("jitter must be in [0, 1]")
+    cap_us = cap // _MICROSECOND
+    base_us = base // _MICROSECOND
+    raw_us = min(cap_us, base_us * (1 << min(attempt - 1, _MAX_EXPONENT)))
+    factor = 1.0 + random.uniform(-jitter, jitter) if jitter else 1.0  # noqa: S311 — retry jitter, not security; D-004
+    return timedelta(microseconds=max(0, min(cap_us, int(raw_us * factor))))
+
+
+def processing_timeout(
+    duration_ms: int,
+    *,
+    rtf_p95: float,
+    factor: float = 3.0,
+    overhead: timedelta = timedelta(seconds=120),
+) -> timedelta:
+    """Time budget for one processing attempt: duration × RTF_p95 × factor + overhead."""
+    return timedelta(milliseconds=duration_ms * rtf_p95 * factor) + overhead
