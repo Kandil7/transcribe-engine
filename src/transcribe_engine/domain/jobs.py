@@ -1,6 +1,6 @@
 """Job state machine: states, events, stages and error codes. Pure domain logic, no I/O.
 
-Every job state change goes through `transition()` (added in the next step). Other layers must not
+Every job state change goes through `transition()`. Other layers must not
 write a state directly.
 """
 
@@ -18,7 +18,9 @@ __all__ = [
     "JobStage",
     "JobState",
     "Transition",
+    "Warning",
     "backoff",
+    "chunk_failed_warning",
     "processing_timeout",
     "transition",
 ]
@@ -53,6 +55,21 @@ class JobStage(StrEnum):
     DIARIZING = "DIARIZING"
     POSTPROCESSING = "POSTPROCESSING"
     PERSISTING = "PERSISTING"
+
+
+class Warning(StrEnum):
+    """Non-fatal conditions recorded on a job. Warnings never change state."""
+
+    DIARIZATION_FAILED = "diarization_failed"
+    NO_SPEECH = "no_speech"
+    LOW_SNR = "low_snr"
+
+
+def chunk_failed_warning(index: int) -> str:
+    """Warning string for a failed chunk, e.g. `chunk_failed:3`."""
+    if index < 0:
+        raise ValueError("chunk index must be non-negative")
+    return f"chunk_failed:{index}"
 
 
 class JobEvent(StrEnum):
@@ -141,10 +158,19 @@ def transition(
 
 
 _MICROSECOND = timedelta(microseconds=1)
+# Retry jitter is not security-sensitive (D-004); callers can inject `rng` for deterministic tests.
+_JITTER_RNG = random.Random()  # noqa: S311 — retry jitter, not security; D-004
 _MAX_EXPONENT = 62  # keeps 2**n far below any realistic cap; the cap clamps the result anyway
 
 
-def backoff(attempt: int, *, base: timedelta, cap: timedelta, jitter: float) -> timedelta:
+def backoff(
+    attempt: int,
+    *,
+    base: timedelta,
+    cap: timedelta,
+    jitter: float,
+    rng: random.Random | None = None,
+) -> timedelta:
     """Exponential delay before retry `attempt` (1-based): min(cap, base * 2**(attempt-1)).
 
     `jitter` scales the delay by a uniform factor in [1 - jitter, 1 + jitter]; with jitter 0 the
@@ -157,7 +183,8 @@ def backoff(attempt: int, *, base: timedelta, cap: timedelta, jitter: float) -> 
     cap_us = cap // _MICROSECOND
     base_us = base // _MICROSECOND
     raw_us = min(cap_us, base_us * (1 << min(attempt - 1, _MAX_EXPONENT)))
-    factor = 1.0 + random.uniform(-jitter, jitter) if jitter else 1.0  # noqa: S311 — retry jitter, not security; D-004
+    draw = rng if rng is not None else _JITTER_RNG
+    factor = 1.0 + draw.uniform(-jitter, jitter) if jitter else 1.0
     return timedelta(microseconds=max(0, min(cap_us, int(raw_us * factor))))
 
 
