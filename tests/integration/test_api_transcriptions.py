@@ -40,7 +40,6 @@ async def test_create_returns_202_and_location(minio: object, app_url: str) -> N
     await engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S08")
 async def test_other_tenant_gets_404(minio: object, app_url: str) -> None:
     """AC-2: another tenant's job id is 404 for read, cancel, delete and result (never 403)."""
     tenant = new_tenant()
@@ -135,7 +134,6 @@ async def test_wrong_scope_403(minio: object, app_url: str) -> None:
     await engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S08")
 async def test_get_non_terminal_has_retry_after(minio: object, app_url: str) -> None:
     """AC-6: a non-terminal job reports its state and Retry-After."""
     tenant = new_tenant()
@@ -152,7 +150,6 @@ async def test_get_non_terminal_has_retry_after(minio: object, app_url: str) -> 
     await engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S08")
 async def test_cancel_terminal_409(minio: object, app_url: str) -> None:
     """AC-7: cancelling a completed job is 409 Conflict."""
     tenant = new_tenant()
@@ -185,7 +182,6 @@ async def test_concurrency_limit_429(minio: object, app_url: str) -> None:
     await engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S08")
 async def test_delete_request_and_result_states(minio: object, app_url: str) -> None:
     """DELETE marks the job (202, deletion_requested_at set); result is 409 until COMPLETED."""
     tenant = new_tenant()

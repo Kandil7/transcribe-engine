@@ -19,3 +19,17 @@ class CreateTranscriptionIn(BaseModel):
     engine: str | None = None
     diarization: bool = False
     webhook_url: str | None = None
+
+
+class JobOut(BaseModel):
+    id: str
+    state: str
+    stage: str | None
+    progress: int
+    warnings: list[str]
+    error_code: str | None
+
+
+class DeletionOut(BaseModel):
+    id: str
+    deletion_requested_at: datetime
