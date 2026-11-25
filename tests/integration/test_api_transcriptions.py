@@ -102,7 +102,6 @@ async def test_idempotency_key_replays_response(minio: object, pg_url: str) -> N
     await engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S08")
 async def test_missing_or_bad_key_401(minio: object, pg_url: str) -> None:
     """AC-5: no key and a made-up key are both 401 with problem+json."""
     engine = make_engine(pg_url)
@@ -115,7 +114,6 @@ async def test_missing_or_bad_key_401(minio: object, pg_url: str) -> None:
     await engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S08")
 async def test_wrong_scope_403(minio: object, pg_url: str) -> None:
     """AC-5: a read-only key cannot create uploads (403)."""
     engine = make_engine(pg_url)

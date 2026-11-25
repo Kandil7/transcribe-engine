@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from transcribe_engine.application.ports.storage import ObjectStorage
 from transcribe_engine.presentation.api.errors import install_error_handlers
+from transcribe_engine.presentation.api.routes_uploads import router as uploads_router
 
 
 def create_app(make_uow: Callable[[str | None], object], storage: ObjectStorage) -> FastAPI:
@@ -14,4 +15,5 @@ def create_app(make_uow: Callable[[str | None], object], storage: ObjectStorage)
     app.state.make_uow = make_uow
     app.state.storage = storage
     install_error_handlers(app)
+    app.include_router(uploads_router)
     return app
