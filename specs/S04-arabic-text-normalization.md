@@ -39,6 +39,9 @@ def map_span(n: NormalizedText, start: int, end: int) -> tuple[int, int]:
 6. Collapse whitespace runs to one space; strip ends.
 7. Latin letters lowercased; everything else unchanged.
 - `raw` is never modified; `search` is derived `[D: التمثيل المرجعي]`.
+- Whitespace collapse is a deletion: the first char of each run is kept as the single space, the others are
+  dropped, and a leading or trailing space is dropped (D-010).
+- Latin lowercasing is per character and applies only when `c.lower()` is one character (D-010).
 - Each rule is a 1:1 character mapping or a deletion, so the offset map is exact.
 
 ## Edge cases
@@ -49,7 +52,8 @@ def map_span(n: NormalizedText, start: int, end: int) -> tuple[int, int]:
 - **AC-1** `[D: 7]` — `test_text.py::test_cases_table` (unit): every row of the TSV.
 - **AC-2** — `test_text_properties.py::test_idempotent` (Hypothesis): `normalize(n.search).search == n.search`.
 - **AC-3** — `test_text_properties.py::test_offsets_point_to_source` (Hypothesis): for every i,
-  `fold(raw[offsets[i]]) == search[i]` where `fold` applies rules 1–3, 5, 7 to one char.
+  `fold(raw[offsets[i]]) == search[i]` where `fold` applies rules 1–3, 5, 7 to one char. For a search
+  space (from rule 6), the raw char must be whitespace (D-010).
 - **AC-4** `[D: التمثيل المرجعي]` — `test_text.py::test_map_span_round_trip` (unit): a search hit on
   "الجنيه" in "الجُنَيْه نزل" maps back to the full raw word with diacritics.
 - **AC-5** — `test_text_properties.py::test_offsets_monotonic` (Hypothesis).
@@ -62,9 +66,11 @@ def map_span(n: NormalizedText, start: int, end: int) -> tuple[int, int]:
 5. `feat(S04): add map_span`
 
 ## Open questions
-- [ ] Q1 — The design says "التنفيذ عبر CAMeL Tools بدل Regex يدوي", but CLAUDE.md keeps `domain` on the
+- [x] Q1 — The design says "التنفيذ عبر CAMeL Tools بدل Regex يدوي", but CLAUDE.md keeps `domain` on the
   standard library. Reading A: a `TextNormalizer` Port with a CAMeL adapter. Reading B: implement these
   character rules in the domain with `str.translate` (no regex) and reserve CAMeL for later morphology.
   Proposed: B — the rules are a fixed character table and the exact offset map is easier in pure code;
   record as ADR and update the design sentence.
-- [ ] Q2 — Should Persian/Urdu letters (ک ی) fold to Arabic (ك ي)? Not in the design. Proposed: yes for ی only.
+  **Resolved (autopilot, 2026-11-26, D-008, ADR-0008):** reading B.
+- [x] Q2 — Should Persian/Urdu letters (ک ی) fold to Arabic (ك ي)? Not in the design. Proposed: yes for ی only.
+  **Resolved (autopilot, 2026-11-26, D-009):** yes, ی (U+06CC) → ي only; ک is left unchanged.
