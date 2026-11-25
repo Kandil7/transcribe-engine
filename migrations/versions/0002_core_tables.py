@@ -1,6 +1,7 @@
 """Core tables for S05: media, jobs, results, transcript versions, segments, chunks, outbox.
 
 Columns follow docs/design.md (الجداول الأساسية). Durations are integer milliseconds (ADR-0003).
+Media is unique per tenant (D-019). `config_canonical` keeps the exact canonical JSON (D-019).
 Lease columns on `jobs` are created here and used by S06. The state CHECK equals JobState (D-016).
 
 Revision ID: 0002_core_tables
@@ -50,11 +51,13 @@ def upgrade() -> None:
     op.create_table(
         "media",
         sa.Column("id", sa.Text, primary_key=True),
-        sa.Column("sha256", sa.Text, nullable=False, unique=True),
+        sa.Column("tenant_id", sa.Text, nullable=False),
+        sa.Column("sha256", sa.Text, nullable=False),
         sa.Column("storage_key", sa.Text, nullable=False),
         sa.Column("duration_ms", sa.BigInteger, nullable=False),
         sa.Column("format", sa.Text, nullable=False),
         sa.Column("size_bytes", sa.BigInteger, nullable=False),
+        sa.UniqueConstraint("tenant_id", "sha256", name="uq_media_tenant_sha256"),
     )
     op.create_table(
         "results",
@@ -65,9 +68,11 @@ def upgrade() -> None:
         sa.Column("model_revision", sa.Text, nullable=False),
         sa.Column("pipeline_version", sa.Text, nullable=False),
         sa.Column("pipeline_config", postgresql.JSONB, nullable=False),
+        sa.Column("config_canonical", sa.Text, nullable=False),
         sa.Column("rtf", sa.Float, nullable=True),
         sa.Column("ref_count", sa.Integer, nullable=False, server_default="0"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.CheckConstraint("ref_count >= 0", name="ck_results_ref_count"),
     )
     op.create_table(
         "jobs",
@@ -88,6 +93,7 @@ def upgrade() -> None:
         sa.Column("error_code", sa.Text, nullable=True),
         sa.Column("warnings", postgresql.JSONB, nullable=False, server_default="[]"),
         sa.Column("pipeline_config", postgresql.JSONB, nullable=False),
+        sa.Column("config_canonical", sa.Text, nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.CheckConstraint(_in("state", JOB_STATES), name="ck_jobs_state"),
         sa.CheckConstraint(f"stage IS NULL OR {_in('stage', JOB_STAGES)}", name="ck_jobs_stage"),

@@ -1,6 +1,6 @@
 """Alembic environment: async engine, URL from `TE_DATABASE_URL` via Settings.
 
-`target_metadata` stays None until S05 introduces the ORM models; autogenerate then compares
+`target_metadata` is the Core metadata from infrastructure/db/models.py (S05); autogenerate compares
 against it. Migrations are written by hand or with `alembic revision --autogenerate` and reviewed.
 """
 
@@ -12,13 +12,14 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+from transcribe_engine.infrastructure.db.models import metadata
 from transcribe_engine.infrastructure.settings import Settings
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
-target_metadata = None
+target_metadata = metadata  # S05: autogenerate compares against the ORM Core tables
 
 
 def _database_url() -> str:

@@ -18,9 +18,18 @@ class JobRepository(Protocol):
     async def get(self, tenant_id: str, job_id: str) -> Job | None: ...
 
     async def apply(
-        self, job_id: str, t: Transition, *, expected: JobState, stage: JobStage | None = None
+        self,
+        job_id: str,
+        t: Transition,
+        *,
+        expected: JobState,
+        stage: JobStage | None = None,
+        attempt_count: int | None = None,
     ) -> bool:
-        """Compare-and-set on state. False if the current state is not `expected`."""
+        """Compare-and-set on state. False if the current state is not `expected`.
+
+        `attempt_count`, when given, is written in the same statement (claims increment it, D-019).
+        """
         ...
 
 
@@ -40,7 +49,9 @@ class ResultRepository(Protocol):
 
     async def get_by_key(self, result_key: str) -> Result | None: ...
 
-    async def incr_ref(self, result_id: str, delta: int) -> int: ...
+    async def incr_ref(self, result_id: str, delta: int) -> int:
+        """Add `delta` to the reference count. Raises PermanentError if it would go negative."""
+        ...
 
 
 class UnitOfWork(Protocol):
