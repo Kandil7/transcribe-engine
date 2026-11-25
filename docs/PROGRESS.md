@@ -2,13 +2,13 @@
 
 Kept in sync with `.autopilot/state.json` by the autopilot. Status: `todo` · `in_progress` · `partial` · `blocked` · `done`.
 
-**Autopilot status:** running   **Current slice:** S02   **Last update:** 2026-11-25
+**Autopilot status:** running   **Current slice:** —   **Last update:** 2026-11-25
 
 | Order | Slice | Title | Status | Branch | Merged (main) | Tag | Notes |
 |---|---|---|---|---|---|---|---|
 | 1 | S01 | Repo foundation and CI | done | — | 2985206 | v0.1.0 | PR #1 merged (rebase) |
 | 2 | S00 | Model selection spike | todo | | | | human reference hour → REVIEW_QUEUE |
-| 3 | S02 | Job state machine | partial | feat/S02-job-state-machine | — | — | PR open; CI pending |
+| 3 | S02 | Job state machine | done | — | 714136b | — | PR #5 merged (rebase) |
 | 4 | S03 | Pipeline config, keys, time units | todo | | | | |
 | 5 | S04 | Arabic text normalization | todo | | | | |
 | 6 | S07 | Object storage and presigned uploads | todo | | | | |
