@@ -125,7 +125,7 @@ class TextNormalizer(Protocol):
 
 ### دورة الطلب
 
-1. `POST /v1/uploads` ← يعيد `upload_id` وPresigned PUT URL صالحًا 15 دقيقة، مع حد الحجم في التوقيع.
+1. `POST /v1/uploads` ← يعيد `upload_id` وPresigned POST (policy) صالحًا 15 دقيقة، مع حد الحجم `content-length-range` في الـ policy (D-013).
 2. العميل يرفع الملف مباشرة إلى S3/MinIO تحت `incoming/{tenant}/{upload_id}`.
 3. `POST /v1/transcriptions` بـ `{upload_id, language, engine?, diarization, webhook_url?}` وهيدر `Idempotency-Key` اختياري.
 4. في Transaction واحدة: إنشاء صف المهمة بحالة `PENDING_VALIDATION`. المهمة هي نفسها رسالة الطابور، فلا توجد كتابة ثانية في نظام آخر.
