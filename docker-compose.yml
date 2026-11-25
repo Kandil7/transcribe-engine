@@ -14,7 +14,7 @@ services:
       retries: 30
 
   minio:
-    image: minio/minio
+    image: cgr.dev/chainguard/minio@sha256:f6243be11aaaa2fe654d260558e2b3fcef50135e78a3abfd0db802b13444f059
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: te-local
