@@ -192,9 +192,9 @@ stateDiagram-v2
     QUEUED --> PROCESSING
     PROCESSING --> COMPLETED: success
     PROCESSING --> RETRY_SCHEDULED: transient error
+    PROCESSING --> QUEUED: stage hand-off (ADR-0006)
     PROCESSING --> FAILED: permanent error
     RETRY_SCHEDULED --> QUEUED: after backoff
-    RETRY_SCHEDULED --> FAILED: attempts exhausted
     PENDING_VALIDATION --> CANCELLED
     QUEUED --> CANCELLED
     PROCESSING --> CANCELLED
@@ -218,7 +218,7 @@ stateDiagram-v2
 | `FAILED` | خطأ حتمي أو استنفاد المحاولات، مع `error_code` | — (نهائية، إعادة التشغيل تنشئ مهمة جديدة) |
 | `CANCELLED` | ألغاها العميل | — (نهائية) |
 
-المراحل داخل `PROCESSING`: `normalizing` ← `vad` ← `asr` ← `aligning` ← `diarizing` ← `postprocessing` ← `persisting`. كل مرحلة تحفظ ناتجها الوسيط في S3، فإعادة المحاولة تستأنف من آخر مرحلة ناجحة بدل إعادة الـ ASR كله.
+المراحل داخل `PROCESSING`: `normalizing` ← `profiling` ← `vad` ← `asr` ← `aligning` ← `diarizing` ← `postprocessing` ← `persisting`. كل مرحلة تحفظ ناتجها الوسيط في S3، فإعادة المحاولة تستأنف من آخر مرحلة ناجحة بدل إعادة الـ ASR كله.
 
 ### آليات الاعتمادية
 
