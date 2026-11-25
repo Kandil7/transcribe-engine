@@ -95,7 +95,7 @@ D-001 (runtime profile), D-002 (MinIO image)
 - Real CI run for AC-5 pending the push.
 
 ## S02 — Job state machine   (2026-11-25 → 2026-11-25)
-Branch: feat/S02-job-state-machine   Merged: (pending)   Tag: —
+Branch: feat/S02-job-state-machine   Merged: 714136b (PR #5)   Tag: —
 ### What was built
 - `domain/jobs.py`: `JobState` (with `is_terminal`), `JobStage`, `JobEvent`, `ErrorCode`, `Warning`,
   `Transition`, `transition()`, `backoff()`, `processing_timeout()`, `chunk_failed_warning()`.
