@@ -5,6 +5,7 @@ Imports happen inside each test body so the module collects before the implement
 """
 
 import asyncio
+import hashlib
 import importlib
 import os
 import re
@@ -21,10 +22,7 @@ from tests.integration.test_migrations import _alembic_config
 
 pytestmark = [pytest.mark.integration, pytest.mark.contract]
 
-KINDS = [
-    "fake",
-    pytest.param("postgres", marks=pytest.mark.xfail(strict=True, reason="S05")),
-]
+KINDS = ["fake", "postgres"]
 
 
 @pytest.fixture(scope="session")
@@ -89,7 +87,7 @@ def _media(media_id: str) -> object:
     jobs = _mod("transcribe_engine.domain.jobs")
     return jobs.Media(
         id=media_id,
-        sha256="a" * 64,
+        sha256=hashlib.sha256(media_id.encode()).hexdigest(),
         storage_key="incoming/tenant-a/upload-1",
         duration_ms=60_000,
         format="mp3",

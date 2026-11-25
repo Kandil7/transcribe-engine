@@ -8,7 +8,7 @@ import asyncio
 import contextlib
 import importlib
 from collections.abc import Iterator
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from types import ModuleType
 
 import boto3
@@ -131,18 +131,19 @@ async def test_upload_over_limit_rejected(minio: MinioContainer) -> None:
 
 
 async def test_ticket_expires(minio: MinioContainer) -> None:
-    """AC-2: a ticket accepted when issued is refused after its one-second expiry.
+    """AC-2: a ticket accepted when issued is refused after its three-second expiry.
 
     The sleep is real time: MinIO judges the policy against its own clock, so the Clock port
     cannot drive it (documented exception in BUILD_LOG).
     """
     storage = _s3(minio)
     ticket = await storage.presign_upload(  # type: ignore[attr-defined]
-        "incoming/t1/u2", max_bytes=100, expires=timedelta(seconds=1)
+        "incoming/t1/u2", max_bytes=100, expires=timedelta(seconds=3)
     )
     control = await _post_file(ticket, b"x" * 5)
     assert control.status_code == 204
-    await asyncio.sleep(2)
+    # Sleep past expires_at (MinIO compares whole seconds against its own clock).
+    await asyncio.sleep((ticket.expires_at - datetime.now(UTC)).total_seconds() + 1)
     refused = await _post_file(ticket, b"x" * 5)
     assert refused.status_code == 403
     assert "expired" in refused.text.lower()
