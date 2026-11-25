@@ -128,3 +128,42 @@ is free text, so a JSON array removes any ambiguity between text and model name.
 Reversibility: moderate — every stored key depends on these bytes; changing them later invalidates caches.
 Confidence: high for the encodings; the choice is pinned by golden values in tests (AC-4).
 Applied in: S03 spec commit
+
+## D-008 — Normalizer lives in the domain as pure character rules (not CAMeL)
+Date: 2026-11-26 · Slice: S04 · Status: decided · Review: none
+Context: The design says "التنفيذ عبر CAMeL Tools بدل Regex يدوي". CLAUDE.md keeps `domain` on the standard
+library, and S04 needs an exact offset map. S04 Q1.
+Options: A) `TextNormalizer` Port with a CAMeL adapter in infrastructure. B) Character rules in
+`domain/text.py` using `str.translate` and single-pass code; CAMeL reserved for morphology later.
+Decision: B. ADR-0008 records it; the design sentence is updated.
+Rationale: the rules are a fixed character table, so they are exact and testable without a dependency. A
+Port with one implementation breaks the "no abstraction without a second implementation" rule. The
+offset map is exact only when each rule is 1:1 or a deletion, which CAMeL's output does not guarantee.
+Reversibility: easy — a morphology adapter can be added later behind a Port without changing these rules.
+Confidence: high.
+Applied in: S04 spec commit
+
+## D-009 — Persian yeh folds to Arabic yeh; Persian kaf does not
+Date: 2026-11-26 · Slice: S04 · Status: decided · Review: none
+Context: The design does not mention Persian/Urdu letters. S04 Q2.
+Options: A) Fold ی and ک to ي and ك. B) Fold only ی. C) Fold nothing.
+Decision: B. ی (U+06CC) → ي (U+064A).
+Rationale: in Egyptian text, ی appears as a typing variant of ي; ک is not a common variant there, and folding
+it would change words that are distinct in Arabic.
+Reversibility: easy — one table row.
+Confidence: medium — a judgement, to check against the case table.
+Applied in: S04 spec commit
+
+## D-010 — Exact definitions of the 1:1 rules for whitespace and case
+Date: 2026-11-26 · Slice: S04 · Status: decided · Review: none
+Context: Rule 6 (collapse whitespace) maps many characters to one, which the spec's "1:1 or deletion" rule does
+not allow. Rule 7 (lowercase) can change length (for example U+0130 lowercases to two characters). AC-3 as
+written would reject a tab that becomes a space.
+Options: A) Keep the rules literal and drop the offset guarantee. B) Express collapse as "keep first,
+delete the rest" and lowercase per character only when the result is one character. C) Lowercase ASCII only.
+Decision: B. AC-3 accepts a whitespace raw char for a space in `search`.
+Rationale: keeps the offset map exact, which search and RAG depend on. Option C would leave other Latin
+letters unfolded, which is not what rule 7 says.
+Reversibility: easy — internal to `text.py`.
+Confidence: high.
+Applied in: S04 spec commit
