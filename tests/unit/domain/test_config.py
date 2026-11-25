@@ -41,10 +41,10 @@ def test_config_hash_is_sha256_of_canonical_json() -> None:
     )
 )
 def test_canonical_json_is_order_independent(mapping: dict[str, int]) -> None:
-    """AC-2: permuted insertion order gives identical canonical JSON."""
-    forward = _config(decoding_params=dict(mapping))
+    """AC-2: permuted insertion order gives identical canonical JSON, for both mappings."""
     reversed_map = dict(reversed(list(mapping.items())))
-    backward = _config(decoding_params=reversed_map)
+    forward = _config(decoding_params=dict(mapping), vad_params=dict(mapping))
+    backward = _config(decoding_params=reversed_map, vad_params=reversed_map)
     assert forward.canonical_json() == backward.canonical_json()  # type: ignore[attr-defined]
 
 
@@ -68,7 +68,7 @@ def test_rejects_nan_and_nested() -> None:
         _config(vad_params={"nested": [1, 2]})
 
 
-@pytest.mark.parametrize("language", ["", "auto"])
+@pytest.mark.parametrize("language", ["", "auto", "AUTO", " auto "])
 def test_language_must_be_explicit(language: str) -> None:
     with pytest.raises(ValueError, match="explicit language"):
         _config(language=language)
@@ -79,3 +79,45 @@ def test_int_and_float_zero_produce_different_hashes() -> None:
     a = _config(decoding_params={"temperature": 0})
     b = _config(decoding_params={"temperature": 0.0})
     assert a.config_hash() != b.config_hash()  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize("field", ["decoding_params", "vad_params"])
+def test_rejects_non_finite_in_each_mapping(field: str) -> None:
+    """AC-6 covers both parameter mappings."""
+    with pytest.raises(ValueError, match="finite"):
+        _config(**{field: {"x": math.nan}})
+    with pytest.raises(ValueError, match="finite"):
+        _config(**{field: {"x": -math.inf}})
+
+
+def test_rejects_non_string_keys() -> None:
+    with pytest.raises(ValueError, match="keys must be strings"):
+        _config(decoding_params={1: "a"})
+
+
+def test_params_cannot_change_after_construction() -> None:
+    """A result key must not change because a mapping was mutated after construction."""
+    cfg = _config()
+    with pytest.raises(TypeError):
+        cfg.decoding_params["beam_size"] = 9  # type: ignore[index]
+
+
+@pytest.mark.parametrize("field", ["decoding_params", "vad_params"])
+def test_mutating_the_source_dict_does_not_change_the_key(field: str) -> None:
+    """A result key must not change when the caller later mutates the dict it passed in."""
+    keys = importlib.import_module("transcribe_engine.domain.keys")
+    source: dict[str, object] = {"x": 1}
+    cfg = _config(**{field: source})
+    before_json = cfg.canonical_json()  # type: ignore[attr-defined]
+    before_key = keys.result_key("f" * 64, cfg)  # type: ignore[arg-type]
+    source["x"] = 2
+    source["y"] = 3
+    assert cfg.canonical_json() == before_json  # type: ignore[attr-defined]
+    assert keys.result_key("f" * 64, cfg) == before_key  # type: ignore[arg-type]
+
+
+def test_int_and_float_zero_produce_different_result_keys() -> None:
+    keys = importlib.import_module("transcribe_engine.domain.keys")
+    a = _config(decoding_params={"temperature": 0})
+    b = _config(decoding_params={"temperature": 0.0})
+    assert keys.result_key("f" * 64, a) != keys.result_key("f" * 64, b)  # type: ignore[arg-type]

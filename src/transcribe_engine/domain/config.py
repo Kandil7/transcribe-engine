@@ -9,6 +9,7 @@ import json
 import math
 from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import cast
 
 __all__ = ["PipelineConfig"]
@@ -16,16 +17,19 @@ __all__ = ["PipelineConfig"]
 ParamValue = str | int | float | bool
 
 
-def _check_flat(name: str, params: Mapping[str, object]) -> dict[str, ParamValue]:
+def _check_flat(name: str, params: Mapping[str, object]) -> Mapping[str, ParamValue]:
     checked: dict[str, ParamValue] = {}
     for key, value in params.items():
+        is_str_key = isinstance(key, str)
+        if not is_str_key:
+            raise ValueError(f"{name} keys must be strings")
         is_scalar = isinstance(value, str | bool | int | float)
         if not is_scalar:
             raise ValueError(f"{name} must be a flat mapping of scalar values")
         if isinstance(value, float) and not math.isfinite(value):
             raise ValueError(f"{name}.{key} must be finite")
         checked[key] = cast(ParamValue, value)  # narrowed by is_scalar above
-    return checked
+    return MappingProxyType(checked)  # read-only: the key must not change after construction
 
 
 @dataclass(frozen=True)
@@ -39,7 +43,7 @@ class PipelineConfig:
     pipeline_version: str
 
     def __post_init__(self) -> None:
-        if not self.language or self.language == "auto":
+        if self.language.strip().lower() in ("", "auto"):
             raise ValueError("language must be an explicit language code")
         object.__setattr__(
             self, "decoding_params", _check_flat("decoding_params", self.decoding_params)
