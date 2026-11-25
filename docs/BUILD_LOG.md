@@ -186,7 +186,7 @@ D-007 (key and ID encodings, Q1 accepted)
 - S04 provides `domain.text.normalize()`; S03 does not touch text.
 
 ## S04 — Arabic text normalization   (2026-11-26 → 2026-11-26)
-Branch: feat/S04-arabic-text-normalization   Merged: (pending)   Tag: —
+Branch: feat/S04-arabic-text-normalization   Merged: c909f6c (PR #9)   Tag: —
 ### What was built
 - `domain/text.py`: `fold_char` (one-to-one rules), `normalize` (deletions, whitespace collapse, exact
   offset map), `map_span` (search span to raw span), `NormalizedText`.
