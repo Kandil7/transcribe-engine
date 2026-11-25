@@ -5,13 +5,16 @@ Policy-enforcement and encryption tests (AC-1, AC-2, AC-5) run against MinIO onl
 """
 
 import asyncio
+import contextlib
 import importlib
 from collections.abc import Iterator
 from datetime import timedelta
 from types import ModuleType
 
+import boto3
 import httpx
 import pytest
+from botocore.exceptions import ClientError
 from testcontainers.minio import MinioContainer
 
 pytestmark = [pytest.mark.integration, pytest.mark.contract]
@@ -33,15 +36,25 @@ def _mod(name: str) -> ModuleType:
 
 
 def _s3(minio: MinioContainer) -> object:
+    """Real adapter on a MinIO bucket created for the test run."""
     s3_mod = _mod("transcribe_engine.infrastructure.storage.s3")
-    return s3_mod.S3ObjectStorage.from_minio(minio)
+    cfg = minio.get_config()
+    client = boto3.client(
+        "s3",
+        endpoint_url=f"http://{cfg['endpoint']}",
+        aws_access_key_id=cfg["access_key"],
+        aws_secret_access_key=cfg["secret_key"],
+        region_name="us-east-1",
+    )
+    with contextlib.suppress(ClientError):  # already created by an earlier test in this session
+        client.create_bucket(Bucket="contract-test")
+    return s3_mod.S3ObjectStorage(client, "contract-test")
 
 
 def _fake() -> object:
     return _mod("tests.fakes.storage").FakeObjectStorage()
 
 
-@pytest.mark.xfail(strict=True, reason="S07")
 async def test_read_range_exact_bytes(minio: MinioContainer) -> None:
     """AC-3: a range read returns exactly the requested bytes, including at the end."""
     data = bytes(range(256)) * 4
@@ -92,7 +105,6 @@ async def test_ticket_expires(minio: MinioContainer) -> None:
     assert response.status_code >= 400
 
 
-@pytest.mark.xfail(strict=True, reason="S07")
 async def test_put_sets_sse(minio: MinioContainer) -> None:
     """AC-5: every put is server-side encrypted; head reports it."""
     storage = _s3(minio)
