@@ -205,9 +205,10 @@ def processing_timeout(
 
 @dataclass(frozen=True)
 class Media:
-    """One distinct input file, identified by its content hash (S05)."""
+    """One input file, unique per tenant by content hash (S05, D-019)."""
 
     id: str
+    tenant_id: str
     sha256: str
     storage_key: str
     duration_ms: int

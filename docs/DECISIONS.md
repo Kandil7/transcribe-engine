@@ -277,3 +277,32 @@ the smallest change that keeps the round trip meaningful.
 Reversibility: easy before S06 data exists; moderate after.
 Confidence: high.
 Applied in: S05 migration commit
+
+## D-019 — Review decisions for S05 persistence
+Date: 2026-11-26 · Slice: S05 · Status: decided · Review: none
+Context: architecture, security and test reviews found tenant leakage in media dedupe, random result ids, lossy
+config storage, unchecked reference counts, leaking database errors, and weak contract tests.
+Decisions:
+- Media is unique per (tenant_id, sha256). A second tenant's identical file is a new row, so no tenant learns that
+  another tenant uploaded the same bytes (design: the client never knows a file was uploaded before).
+- Result ids are the result key (deterministic, CLAUDE.md). Result claims use an unqualified ON CONFLICT DO NOTHING,
+  since both the key and the id are unique.
+- `jobs.config_canonical` and `results.config_canonical` store the exact canonical text. Rebuilding from JSONB alone
+  changes large floats (1e20 becomes an integer), so the canonical text is the byte-exact source (AC-5). JSONB stays
+  for queries.
+- `results.ref_count >= 0` is a CHECK constraint. A refused change (unknown id or negative result) is PermanentError.
+- SQLAlchemy errors are translated in SqlUnitOfWork: connection failures become TransientError, the rest become
+  PermanentError, and the SQL text is never returned to the caller.
+- SqlUnitOfWork takes an AsyncEngine; the composition root builds it (CLAUDE.md).
+- `apply(..., attempt_count=)` writes the claim count in the same statement, so transition()'s limit can be reached.
+- Accepted: result rows are shared across tenants internally (design). S08's API must never return `created`,
+  `result_id` or `ref_count` to a client. Recorded as a requirement for S08.
+- Accepted: apply stays keyed by job id (D-017).
+- S07 correction: the expiry contract test (AC-2) used a one-second policy, which had already expired when the
+  control upload went out. It now uses three seconds and sleeps until past `expires_at`. The change was made in the
+  S05 branch, so it is noted here and in the S07 BUILD_LOG entry.
+Rationale: each item removes a stated invariant violation found by review, or records the design constraint that
+remains for a later slice.
+Reversibility: moderate — the schema changes are in unmerged migration 0002.
+Confidence: high.
+Applied in: S05 fix commit
