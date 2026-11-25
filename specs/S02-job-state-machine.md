@@ -103,10 +103,10 @@ def processing_timeout(duration_ms: int, *, rtf_p95: float, factor: float = 3.0,
 6. `docs(adr): 0006 stage hand-off between queues` (if not already merged)
 
 ## Open questions
-- [ ] Q1 — The design diagram shows `RETRY_SCHEDULED → FAILED (attempts exhausted)`, the table does not.
-  Proposed: decide exhaustion when the error happens (PROCESSING → FAILED) and drop that diagram
+- [x] Q1 — (resolved by: autopilot, 2026-11-25, D-003): The design diagram shows `RETRY_SCHEDULED → FAILED (attempts exhausted)`, the table does not.
+  Accepted: decide exhaustion when the error happens (PROCESSING → FAILED) and drop that diagram
   edge; update the diagram in `docs/design.md` in this branch.
-- [ ] Q2 — Backoff numbers are not in the design doc. Proposed defaults (config): base 30 s, cap 10 min, jitter 0.2.
-- [ ] Q3 — `PROFILING` stage is not in the design's stage list ("المراحل داخل PROCESSING") but section 1.5
+- [x] Q2 — (resolved by: autopilot, 2026-11-25, D-004): Backoff numbers are not in the design doc. Proposed defaults (config): base 30 s, cap 10 min, jitter 0.2.
+- [x] Q3 — (resolved by: autopilot, 2026-11-25, D-005): `PROFILING` stage is not in the design's stage list ("المراحل داخل PROCESSING") but section 1.5
   adds the step. Proposed: add it after NORMALIZING and update the list in the design doc.
-- [ ] Q4 — `PROCESSING → QUEUED` (hand-off from CPU to GPU queue) is not in the design table. See ADR-0006.
+- [x] Q4 — (resolved by: autopilot, 2026-11-25, D-005): `PROCESSING → QUEUED` (hand-off from CPU to GPU queue) is not in the design table. See ADR-0006.
