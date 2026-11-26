@@ -31,7 +31,6 @@ def _engines() -> list[object]:
     return [fake_asr, plumbing, vllm_asr]
 
 
-@pytest.mark.xfail(strict=True, reason="S12")
 def test_capabilities_declared() -> None:
     capabilities_type = _mod("transcribe_engine.application.ports.asr").ASRCapabilities
     for engine in _engines():

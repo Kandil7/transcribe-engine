@@ -14,7 +14,7 @@ class PlumbingASR:
     capabilities = ASRCapabilities(
         native_word_timestamps=False,
         native_segment_timestamps=False,
-        max_chunk_seconds=0.0,
+        max_chunk_seconds=3600.0,  # no model behind it; the limit is the chunk policy
         supports_language_hint=False,
         supports_batching=False,
     )

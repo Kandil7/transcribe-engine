@@ -32,7 +32,6 @@ async def _call(client: object) -> object:
     return await client.transcribe(b"RIFF", language="ar", temperature=0.0)  # type: ignore[attr-defined]
 
 
-@pytest.mark.xfail(strict=True, reason="S12")
 async def test_error_mapping() -> None:
     ok = _client(lambda _r: httpx.Response(200, json={"text": "", "words": []}))
     assert await _call(ok) is not None
