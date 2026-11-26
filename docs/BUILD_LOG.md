@@ -624,3 +624,36 @@ D-039 (Silero contract criterion), D-040 (overlap tiling, VAD parameters from co
 - create_job does not yet write the default VAD parameters into the config; they apply when absent (D-040).
 - Speech check with real Arabic audio (R-001) to confirm Silero's thresholds on Egyptian speech.
 - Streaming the WAV for VAD (whole file is read into a sample array).
+
+## S12 — ASR adapters and hallucination filter (partial)   (2026-11-26 → 2026-11-26)
+Branch: feat/S12-asr-adapters (based on fix/S11-mypy-numpy, PR #29 not yet merged)   Merged: pending   Tag: —
+### What was built
+- `application/ports/asr.py`: `ASRCapabilities`, and `name` / `revision` / `capabilities` on the `ASREngine` Protocol (D-041).
+- `infrastructure/asr/vllm_client.py`: `VllmClient` (OpenAI-compatible transcription route over httpx, error mapping) and `VllmASR` (reads the chunk's padded window with Range GETs, wraps it as WAV, converts word times to samples once at the boundary).
+- `domain/hallucination.py`: `flag_hallucinations` with repetition (within and across adjacent segments), known phrases and fast speech. Flags, never deletes.
+- Plumbing and fake engines declare their capabilities.
+### How it works
+`ProcessJob` calls `ASREngine.transcribe` per chunk, bounded by its semaphore. `VllmASR` reads the header to find the PCM offset, reads `[start - pad_before, end + pad_after)` as a Range GET, and posts it to vLLM at temperature 0 with language `ar`. Transient failures (transport, timeout, 429, 5xx) retry the job; other 4xx and malformed bodies fail that chunk.
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | 2be9249 `test(S12): add ASR contract, hallucination and vLLM error tests (xfail)` | acceptance tests, AC-4 test (passes with the existing semaphore) | — |
+| 2 | (feat) `feat(S12): extend ASR port with capabilities` | port, plumbing and fake | — |
+| 3 | ea36056 `feat(S12): add vLLM client with error mapping` | vLLM client and adapter | AC-3, AC-1 |
+| 4 | ef80409 `feat(S12): add hallucination filter` | domain filter | AC-5 |
+### Verification
+- `make check`: 231 passed, 1 skipped (R-001), 0 xfail.
+- `make itest`: not run in this session.
+- `make demo`: not run. `main.py` still wires `PlumbingASR` (no local model yet).
+### Decisions
+D-041 (port shape), D-042 (filter is domain-only; suspect not yet on the result), D-043 (faster-whisper and deploy config deferred, R-003).
+### Problems and fixes
+- Plumbing `max_chunk_seconds` was 0.0, which failed the capability contract's positive check. Set to 3600.0 with a comment: no model behind it, the chunk policy sets the limit.
+### Review findings
+- Architecture and test reviewers were not run in this session.
+### Follow-ups
+- AC-2 (gpu, CER on three clips) needs a real server and the dev hour (R-001).
+- AC-6 (decoding params persisted in `decoding_params`) not written yet.
+- `suspect` flag on transcript words and the result (S15/S20).
+- faster-whisper local adapter and `deploy/vllm/` (R-003).
+- Wire `VllmASR` in `main.py` behind `TE_ASR_PROFILE` once a model is chosen.

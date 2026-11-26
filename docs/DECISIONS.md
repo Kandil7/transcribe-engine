@@ -684,3 +684,45 @@ rounding loss, as in D-032.
 Reversibility: easy.
 Confidence: medium.
 Applied in: S11 wiring commit.
+
+## D-041 — ASR port shape for S12: identity and capabilities added, call signature kept
+Date: 2026-11-26 · Slice: S12 · Status: decided · Review: none
+Context: The design lists `DecodeOptions` and a `RawSegment` return for the ASR port. The S10 port returns
+`tuple[RawWord, ...]` per chunk and is used by ProcessJob, the fakes and the contract tests.
+Options: A) Replace the signature with DecodeOptions and RawSegment now. B) Add `name`, `revision` and
+`capabilities` to the Protocol and keep `transcribe(audio_key, chunk, *, language)`. C) Do nothing and read
+capabilities from config.
+Decision: B. Decoding options (`language`, `temperature=0`) stay as arguments and fixed values inside the adapter.
+`DecodeOptions` is deferred until a second engine needs a parameter that cannot be fixed.
+Rationale: A changes every caller for no current gain. C leaves provenance and limits unchecked. [D: الـ Ports]
+Reversibility: easy (the signature can be widened when a second engine exists).
+Confidence: medium.
+Applied in: feat(S12) extend ASR port with capabilities.
+
+## D-042 — Hallucination flags are domain functions; propagation to the result is deferred
+Date: 2026-11-26 · Slice: S12 · Status: decided · Review: none
+Context: AC-5 needs the filter. The design says suspect segments are flagged, never deleted, but the transcript
+and result schema do not carry a per-word suspect field yet (S15 and S20 own the result shape).
+Options: A) Add a `suspect` column and result field now. B) Ship the pure domain filter with tests; wire it to
+the result in a later slice. C) Apply the filter inside the vLLM adapter and drop flagged text.
+Decision: B. C is rejected because it deletes text silently. A is deferred because it changes the persisted schema.
+Rationale: [D: 4. فلتر الـ Hallucination]. The filter is testable on its own; the wiring needs the result shape.
+Q1 parameters (6 words/s, 4-gram, 3 repeats) are the spec's proposals and are tuned in S16.
+Reversibility: easy.
+Confidence: medium.
+Applied in: feat(S12) add hallucination filter. Follow-up: `suspect` on the transcript and result (S15/S16).
+
+## D-043 — Local faster-whisper adapter and the S12 deploy config are deferred
+Date: 2026-11-26 · Slice: S12 · Status: decided · Review: requested
+Context: D-001 and ADR-0007 name faster-whisper (CTranslate2, FP16) as the local engine, which needs a new
+dependency and a model download of several GB. The vLLM model choice is unverified (ADR-0007: Audar and Cohere
+not verified on vLLM). The compose service and launch args depend on that model.
+Options: A) Add faster-whisper and pull the model now. B) Build the vLLM client and adapter (done) and defer
+the faster-whisper adapter and deploy config until the model and the dependency are approved. C) Pick a vLLM
+model without verification.
+Decision: B. Adding a dependency and pulling model weights are decisions for the owner (CLAUDE.md, AUTOPILOT §5),
+and C would fix an unverified runtime into the deploy config.
+Rationale: The vLLM adapter already satisfies AC-1 and AC-3 with HTTP mocks. AC-2 (gpu) needs a real server and waits for R-001.
+Reversibility: easy.
+Confidence: high.
+Applied in: none yet. See REVIEW_QUEUE R-003.

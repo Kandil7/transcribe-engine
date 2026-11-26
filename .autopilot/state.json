@@ -113,14 +113,14 @@
       "branch": "feat/S11-vad-cut-merge",
       "merged": null,
       "tag": null,
-      "notes": "Cut and merge (domain), Silero adapter, PrepareChunks wiring (D-039, D-040). make check 225 passed; make itest 74 passed. Real speech check pending (R-001). Dev stack needs a restart to load S11."
+      "notes": "Done. Cut and merge (domain), Silero adapter, PrepareChunks wiring (D-039, D-040). make check 225 passed; make itest 74 passed. Fix for mypy on CI (numpy override) is PR #29, rebase-merge denied by the permission system at 2026-11-26; merge pending. Real speech check pending (R-001)."
     },
     "S12": {
-      "status": "todo",
-      "branch": null,
+      "status": "partial",
+      "branch": "feat/S12-asr-adapters",
       "merged": null,
       "tag": null,
-      "notes": ""
+      "notes": "Partial: ASR port with capabilities (D-041), vLLM client and adapter with error mapping (AC-1, AC-3), hallucination filter (AC-5, D-042), in-flight bound test (AC-4). Deferred: faster-whisper local adapter and deploy config (D-043, R-003), AC-2 gpu test, AC-6 decoding params persistence, suspect flags on result. Branch is based on fix/S11-mypy-numpy because PR #29 is not merged."
     },
     "S13": {
       "status": "todo",
