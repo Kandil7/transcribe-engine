@@ -8,8 +8,13 @@ always fails or always completes cannot pass. Imports happen inside helpers so t
 import asyncio
 import contextlib
 import importlib
+from dataclasses import replace
 from types import ModuleType
 from typing import Any
+
+import pytest
+
+from transcribe_engine.domain.errors import PermanentError
 
 RATE = 1000
 
@@ -207,3 +212,59 @@ async def test_inflight_bounded() -> None:
     result = await _process(make_uow, gauge, concurrency=2)(job)
     assert result.to is _mod("transcribe_engine.domain.jobs").JobState.COMPLETED
     assert gauge.peak == 2
+
+
+@pytest.mark.xfail(strict=True, reason="S17")
+async def test_diarization_failure_is_warning() -> None:
+    """AC-3 (S17): a diarizer that fails leaves the job COMPLETED with `diarization_failed` and a
+    transcript without speakers. Positive control: the same job with a working diarizer gets
+    speakers and no warning."""
+    helpers = _mod("tests.unit.application.test_process_job")
+    jobs = _mod("transcribe_engine.domain.jobs")
+    fakes_asr = _mod("tests.fakes.asr")
+    fakes_dia = _mod("tests.fakes.diarizer")
+    speakers = _mod("transcribe_engine.domain.speakers")
+    base = helpers._job()
+    job = replace(base, config=replace(base.config, diarization_enabled=True))
+    plan = helpers._plan(job)
+    _, make_uow = await helpers._seeded(job, plan)
+    asr = fakes_asr.FakeASR(script=helpers._script(plan))
+
+    failing = fakes_dia.FakeDiarizer(error=PermanentError("model refused"))
+    result = await helpers._process(make_uow, asr, diarizer=failing)(job)
+    assert result.to is jobs.JobState.COMPLETED
+    assert jobs.Warning.DIARIZATION_FAILED.value in result.warnings
+    async with make_uow("tenant-a") as uow:
+        words = (await uow.chunks.transcript("tenant-a", job.id)).words
+    assert all(w.speaker is None for w in words)
+
+    turns = (speakers.SpeakerTurn("SPEAKER_00", 0, 10_000),)
+    working = fakes_dia.FakeDiarizer(turns=turns)
+    ok = await helpers._process(make_uow, asr, diarizer=working)(job)
+    assert jobs.Warning.DIARIZATION_FAILED.value not in ok.warnings
+    async with make_uow("tenant-a") as uow:
+        speaker_words = (await uow.chunks.transcript("tenant-a", job.id)).words
+    assert {w.speaker for w in speaker_words} == {"SPEAKER_00"}
+
+
+@pytest.mark.xfail(strict=True, reason="S17")
+async def test_split_channels_skip_diarization() -> None:
+    """AC-6 (S17): a file split by channel (S13) is not diarized; the channel is the speaker.
+
+    Positive control: the same job without the split is diarized."""
+    helpers = _mod("tests.unit.application.test_process_job")
+    fakes_asr = _mod("tests.fakes.asr")
+    fakes_dia = _mod("tests.fakes.diarizer")
+    base = helpers._job()
+    job = replace(base, config=replace(base.config, diarization_enabled=True))
+    plan = helpers._plan(job)
+    _, make_uow = await helpers._seeded(job, plan)
+    asr = fakes_asr.FakeASR(script=helpers._script(plan))
+
+    split = fakes_dia.FakeDiarizer()
+    await helpers._process(make_uow, asr, diarizer=split, split_channels=True)(job)
+    assert split.calls == []
+
+    whole = fakes_dia.FakeDiarizer()
+    await helpers._process(make_uow, asr, diarizer=whole, split_channels=False)(job)
+    assert len(whole.calls) == 1
