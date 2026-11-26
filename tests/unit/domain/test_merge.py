@@ -45,7 +45,6 @@ def _two_overlapping_chunks() -> tuple[object, object]:
     return first, second
 
 
-@pytest.mark.xfail(strict=True, reason="S10")
 def test_midpoint_rule_dedupes_padding() -> None:
     """AC-3. A word in the overlap (global 900..1100, midpoint 1000) is kept once, by the chunk
     whose core holds its midpoint. The same word reported by the other chunk is dropped."""
@@ -61,7 +60,6 @@ def test_midpoint_rule_dedupes_padding() -> None:
     ]
 
 
-@pytest.mark.xfail(strict=True, reason="S10")
 def test_missing_idx_raises() -> None:
     """AC-4. A merge with a missing chunk result is refused; partial output is never returned."""
     merge = _mod("transcribe_engine.domain.merge")
@@ -70,7 +68,6 @@ def test_missing_idx_raises() -> None:
         merge.merge((first, second), (merge.ChunkResult(0, ()),))
 
 
-@pytest.mark.xfail(strict=True, reason="S10")
 def test_duplicate_result_raises() -> None:
     """A chunk reported twice is a bookkeeping bug. Refuse it, do not guess which copy is right."""
     merge = _mod("transcribe_engine.domain.merge")
@@ -82,7 +79,6 @@ def test_duplicate_result_raises() -> None:
         )
 
 
-@pytest.mark.xfail(strict=True, reason="S10")
 def test_validation_flags_words_beyond_the_duration() -> None:
     """Validation returns warnings, not exceptions: a word ending after the file's duration."""
     merge = _mod("transcribe_engine.domain.merge")
