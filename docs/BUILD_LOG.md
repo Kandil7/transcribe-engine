@@ -683,3 +683,41 @@ D-044 (domain first; singing and wiring deferred; Q1 resolved).
 - Commits 4 and 5: profiler and enhancer adapters. Blocked on licenses and dependencies (R-004, Q2).
 - Commit 6: wire profiling and routing into PrepareChunks (AC-3, no-speech completion without GPU) and ProcessJob (AC-5, feed_asr), and AC-6 channel split. Needs the adapters first.
 - Singing row (AudioSet class): not in AudioProfile.
+## S15 — Canonical transcript and renderers (partial)   (2026-11-26 → 2026-11-26)
+Branch: feat/S15-canonical-transcript-renderers (from main d02504a)   Merged: pending   Tag: —
+### What was built
+- `domain/transcript.py`: canonical dataclasses, `to_json` / `from_json`, derived `raw_text`, `word_offsets`, `search_text`, and `transcript_from_merged` (one segment per chunk).
+- `domain/render/cues.py`: `SubtitleProfile`, the cue builder with the limits, no preposition split, and gap-clamped timing (D-045).
+- `domain/render/{srt,vtt,txt,md,csv_,_lines}.py`: renderers; RLM and BOM rules in `_lines`.
+- `application/use_cases/render_result.py`: `RenderResult` and the three profiles (D-046).
+- `presentation/api/routes_jobs.py`: result formats and `GET /subtitles`. `docs/openapi.json` regenerated.
+- `docs/schemas/transcript-1.0.json`: the JSON Schema.
+### How it works
+Stored merged words become one canonical transcript. Every format renders from it. Subtitles: the builder fills cues up to the profile limits, cutting after sentence punctuation first, then before conjunctions, never after a preposition; each line gets an RLM, and each SRT file a BOM.
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | docs(S15) spec | (already in repo) | — |
+| 2 | 630a3a9 `test(S15): add schema, cue and golden tests (xfail)` | AC-1..AC-7 tests, jsonschema dev dependency | — |
+| 3+4 | 49d44e7 `feat(S15): add canonical transcript schema and JSON serializer` | model, serializer, derived text, schema | AC-1, AC-2 |
+| 5+6 | 14dca29 `feat(S15): add cue builder and SRT and VTT renderers` | cues, SRT, VTT | AC-3..AC-7 |
+| 7 | bb807dc `feat(S15): add TXT, Markdown and CSV renderers` | txt, md, csv_ | plain-format tests |
+| 8a | 93e7d74 `test(S15): add result-rendering use case tests (xfail)` | AC-8 unit form | — |
+| 8b | 63c6b60 `feat(S15): add result formats and subtitle endpoint with profiles` | use case, routes, openapi | AC-8 unit form |
+### Verification
+- `make check`: 245 passed, 1 skipped (R-001), 0 xfail for S15.
+- `make itest`: not run locally, Docker is down. The AC-8 integration test `tests/integration/test_api_results.py` is new and runs in CI.
+- `make demo`: not run. `main.py` still wires `PlumbingASR`, so the demo SRT is empty (D-035).
+### Decisions
+D-044 is S13. For S15: D-045 (gap wins over minimum duration; reading speed on word span), D-046 (format=json keeps the S10 body; profile values; no render cache yet).
+### Problems and fixes
+- The first cue builder let a cut fall after a preposition at the end of the pending words. Fixed by checking every candidate cut, not only the interior ones.
+- The AC-4 fixture ended with a preposition, which is the end of the transcript and not a cut. The test now checks only cut points between cues.
+- Plumbing `max_chunk_seconds` was not affected here; the Write tool turned `\u` escapes into literal bidi characters, which ruff flags (PLE2502). Used `chr()` in source instead.
+### Review findings
+- Reviewers not run in this session.
+### Follow-ups
+- Render cache (D-046). `profile` values for youtube and social_vertical tuned with a viewer test (Q1, R-005).
+- `v0.3.0-local` needs a real ASR (R-003), since the demo transcript is empty until then.
+- Speakers: no diarization yet (S17), so segments have no speaker and VTT carries no voice tags on real output.
+- Singing row and the AudioSet class are not part of this slice.
