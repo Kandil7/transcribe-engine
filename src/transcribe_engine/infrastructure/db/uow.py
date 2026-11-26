@@ -38,7 +38,7 @@ def translate_db_error(exc: SQLAlchemyError) -> Exception:
 
 
 class SqlUnitOfWork:
-    def __init__(self, engine: AsyncEngine, tenant_id: str | None = None) -> None:
+    def __init__(self, engine: AsyncEngine, *, tenant_id: str | None) -> None:
         self._engine = engine
         self._tenant_id = tenant_id  # None means the system scope (workers, tests) (D-024)
         self._conn: AsyncConnection | None = None

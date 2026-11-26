@@ -6,6 +6,7 @@ Messages carry no tenant data, file names, or transcript text (CLAUDE.md logging
 __all__ = [
     "ApplicationError",
     "ForbiddenError",
+    "IdempotencyKeyReusedError",
     "JobAlreadyTerminalError",
     "JobNotFoundError",
     "QuotaExceededError",
@@ -83,6 +84,12 @@ class TooManyActiveJobsError(ApplicationError):
     status = 429
     code = "too_many_active_jobs"
     title = "Too many jobs are active for this tenant"
+
+
+class IdempotencyKeyReusedError(ApplicationError):
+    status = 422
+    code = "idempotency_key_reused"
+    title = "This Idempotency-Key was used with a different request"
 
 
 class QuotaExceededError(ApplicationError):

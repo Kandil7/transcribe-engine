@@ -23,7 +23,9 @@ async def create_transcription(
     principal: Annotated[ApiPrincipal, Depends(require_scope("transcribe:write"))],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key", max_length=255)] = None,
 ) -> JSONResponse:
-    use_case = CreateTranscriptionJob(request.app.state.make_uow, request.app.state.storage)
+    use_case = CreateTranscriptionJob(
+        request.app.state.make_uow, request.app.state.storage, request.app.state.clock
+    )
     result = await use_case(
         CreateJobCommand(
             tenant_id=principal.tenant_id,

@@ -50,6 +50,7 @@ def upgrade() -> None:
         sa.Column("job_id", sa.Text, sa.ForeignKey("jobs.id"), nullable=False),
         sa.Column("status", sa.Integer, nullable=False),
         sa.Column("body", postgresql.JSONB, nullable=False),
+        sa.Column("request_hash", sa.Text, nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("tenant_id", "key", name="pk_idempotency_keys"),
     )

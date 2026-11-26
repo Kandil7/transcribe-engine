@@ -29,6 +29,7 @@ _CLAIM = text(
           AND (state = 'QUEUED' OR (state = 'PENDING_VALIDATION' AND :queue = 'cpu'))
           AND (run_after IS NULL OR run_after <= now())
           AND attempt_count < max_attempts
+          AND deletion_requested_at IS NULL
         ORDER BY priority DESC, seq
         FOR UPDATE SKIP LOCKED
         LIMIT 1

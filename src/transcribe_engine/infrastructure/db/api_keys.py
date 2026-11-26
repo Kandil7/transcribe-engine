@@ -42,6 +42,11 @@ class SqlTenantRepository:
     def __init__(self, conn: AsyncConnection) -> None:
         self._conn = conn
 
+    async def lock(self, tenant_id: str) -> None:
+        await self._conn.execute(
+            text("SELECT id FROM tenants WHERE id = :id FOR UPDATE"), {"id": tenant_id}
+        )
+
     async def limits(self, tenant_id: str) -> TenantLimits | None:
         row = (
             await self._conn.execute(
@@ -83,7 +88,7 @@ class SqlIdempotencyRepository:
         row = (
             await self._conn.execute(
                 text(
-                    "SELECT job_id, status, body, created_at FROM idempotency_keys "
+                    "SELECT job_id, status, body, created_at, request_hash FROM idempotency_keys "
                     "WHERE tenant_id = :t AND key = :k "
                     "AND created_at > now() - interval '24 hours'"
                 ),
@@ -94,13 +99,27 @@ class SqlIdempotencyRepository:
             return None
         body: dict[str, Any] = dict(row.body)
         created: datetime = row.created_at
-        return StoredResponse(job_id=row.job_id, status=row.status, body=body, created_at=created)
+        return StoredResponse(
+            job_id=row.job_id,
+            status=row.status,
+            body=body,
+            created_at=created,
+            request_hash=row.request_hash,
+        )
 
     async def put(self, tenant_id: str, key: str, response: StoredResponse) -> None:
+        # An expired key is released first, so a new request may reuse it (D-025).
         await self._conn.execute(
             text(
-                "INSERT INTO idempotency_keys (tenant_id, key, job_id, status, body) "
-                "VALUES (:t, :k, :job, :status, CAST(:body AS jsonb)) "
+                "DELETE FROM idempotency_keys WHERE tenant_id = :t AND key = :k "
+                "AND created_at <= now() - interval '24 hours'"
+            ),
+            {"t": tenant_id, "k": key},
+        )
+        await self._conn.execute(
+            text(
+                "INSERT INTO idempotency_keys (tenant_id, key, job_id, status, body, request_hash) "
+                "VALUES (:t, :k, :job, :status, CAST(:body AS jsonb), :hash) "
                 "ON CONFLICT (tenant_id, key) DO NOTHING"
             ),
             {
@@ -109,6 +128,7 @@ class SqlIdempotencyRepository:
                 "job": response.job_id,
                 "status": response.status,
                 "body": _json(response.body),
+                "hash": response.request_hash,
             },
         )
 

@@ -12,7 +12,8 @@ OUT = Path(__file__).resolve().parents[1] / "docs" / "openapi.json"
 
 
 def render() -> str:
-    schema = create_app(lambda _tenant: None, None).openapi()
+    # The clock is never called while rendering the schema, so none is needed here.
+    schema = create_app(lambda _tenant: None, None, None).openapi()  # type: ignore[arg-type]
     return json.dumps(schema, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
 
