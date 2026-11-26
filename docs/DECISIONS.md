@@ -754,3 +754,20 @@ case the spec does not describe. [D: الترجمات المرئية]
 Reversibility: easy (the builder and its test change together).
 Confidence: medium. Q1 (17 cps, 42 chars) remains open until a viewer test.
 Applied in: S15 cue builder commit.
+
+## D-046 — S15 outputs: format=json keeps the S10 body; profiles and cache
+Date: 2026-11-26 · Slice: S15 · Status: decided · Review: none
+Context: The result endpoint returns the S10 word-level body for `format=json`, and an existing integration test asserts it.
+The design gives only the broadcast subtitle values. `youtube` and `social_vertical` have no values, and the design
+asks for a render cache that the spec does not size.
+Options: A) Change `format=json` to the canonical body. B) Keep `format=json` as the S10 body and add `format=canonical`
+for the canonical JSON. C) Add a render cache now.
+Decision: B. Profiles: broadcast = design defaults; youtube = broadcast with a 6 s maximum duration; social_vertical = 24
+characters per line and a 4 s maximum duration (both proposals, tuned with a viewer test, S15 Q1). Renders are not cached
+yet; they are pure functions of the stored transcript, and the cache is a follow-up.
+Rationale: A breaks an existing contract test and a client's body shape. The profile values are the smallest change that
+makes the profile observable; the design leaves them open. A cache needs a storage key and invalidation rules that the
+spec does not give.
+Reversibility: easy (the profile table is one dict; the cache is additive).
+Confidence: medium.
+Applied in: S15 result-endpoint commit.

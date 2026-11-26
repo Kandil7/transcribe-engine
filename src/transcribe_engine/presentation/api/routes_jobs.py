@@ -1,6 +1,6 @@
-"""Job endpoints (S08): read, cancel, request deletion, and the result body (json only for now)."""
+"""Job endpoints (S08): read, cancel, request deletion, the result (S10) and subtitles (S15)."""
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse, Response
@@ -9,6 +9,7 @@ from transcribe_engine.application.errors import UnsupportedFeatureError
 from transcribe_engine.application.ports.auth import ApiPrincipal
 from transcribe_engine.application.use_cases.cancel_job import CancelJob
 from transcribe_engine.application.use_cases.job_queries import GetJob, GetResult
+from transcribe_engine.application.use_cases.render_result import RenderResult
 from transcribe_engine.application.use_cases.request_deletion import RequestDeletion
 from transcribe_engine.domain.jobs import Job
 from transcribe_engine.presentation.api.deps import require_scope
@@ -70,7 +71,29 @@ async def get_transcription_result(
     principal: Annotated[ApiPrincipal, Depends(require_scope("transcribe:read"))],
     format: Annotated[str, Query()] = "json",
 ) -> Response:
-    if format != "json":
+    """json is the word-level body of S10; canonical, txt, md, csv, srt and vtt render from the
+    canonical transcript (S15)."""
+    if format == "json":
+        body = await GetResult(request.app.state.make_uow)(principal.tenant_id, job_id)
+        return JSONResponse(status_code=200, content=body)
+    rendered = await RenderResult(request.app.state.make_uow)(
+        principal.tenant_id, job_id, format=format
+    )
+    return Response(content=rendered.content, media_type=rendered.media_type)
+
+
+@router.get("/v1/transcriptions/{job_id}/subtitles", response_model=None)
+async def get_subtitles(
+    request: Request,
+    job_id: str,
+    principal: Annotated[ApiPrincipal, Depends(require_scope("transcribe:read"))],
+    format: Annotated[str, Query()] = "srt",
+    profile: Annotated[str, Query()] = "broadcast",
+    numerals: Annotated[Literal["western", "arabic_indic"], Query()] = "western",
+) -> Response:
+    if format not in ("srt", "vtt"):
         raise UnsupportedFeatureError
-    body = await GetResult(request.app.state.make_uow)(principal.tenant_id, job_id)
-    return JSONResponse(status_code=200, content=body)
+    rendered = await RenderResult(request.app.state.make_uow)(
+        principal.tenant_id, job_id, format=format, profile=profile, numerals=numerals
+    )
+    return Response(content=rendered.content, media_type=rendered.media_type)

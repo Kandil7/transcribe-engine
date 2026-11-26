@@ -352,6 +352,7 @@
     },
     "/v1/transcriptions/{job_id}/result": {
       "get": {
+        "description": "json is the word-level body of S10; canonical, txt, md, csv, srt and vtt render from the\ncanonical transcript (S15).",
         "operationId": "get_transcription_result_v1_transcriptions__job_id__result_get",
         "parameters": [
           {
@@ -395,6 +396,77 @@
           }
         },
         "summary": "Get Transcription Result"
+      }
+    },
+    "/v1/transcriptions/{job_id}/subtitles": {
+      "get": {
+        "operationId": "get_subtitles_v1_transcriptions__job_id__subtitles_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "srt",
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "profile",
+            "required": false,
+            "schema": {
+              "default": "broadcast",
+              "title": "Profile",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "numerals",
+            "required": false,
+            "schema": {
+              "default": "western",
+              "enum": [
+                "western",
+                "arabic_indic"
+              ],
+              "title": "Numerals",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Subtitles"
       }
     },
     "/v1/transcriptions/{job_id}:cancel": {
