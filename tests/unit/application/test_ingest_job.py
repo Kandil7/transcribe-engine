@@ -80,6 +80,17 @@ async def _world(
     fakes_media = _mod("tests.fakes.media")
     media = _mod("transcribe_engine.application.ports.media")
     store = fakes_repo.FakeStore()
+    # The row create_job writes for every upload, before the ingest handler runs.
+    upload_row = _mod("transcribe_engine.domain.jobs").Media(
+        id="upload-a",
+        tenant_id="tenant-a",
+        sha256="upload:upload-a",
+        storage_key="incoming/tenant-a/upload-a",
+        duration_ms=0,
+        format="unknown",
+        size_bytes=len(upload),
+    )
+    store.media_by_tenant_sha[("tenant-a", "upload:upload-a")] = upload_row
     inner = fakes_storage.FakeObjectStorage()
     await inner.put("incoming/tenant-a/upload-a", upload)
     storage = _RecordingStorage(inner)
@@ -125,7 +136,6 @@ async def test_too_long_fails_permanently(tmp_path: Any) -> None:
     assert normalizer.calls == []  # nothing is converted for a refused file
 
 
-@pytest.mark.xfail(strict=True, reason="S09")
 async def test_cache_hit_completes_without_gpu(tmp_path: Any) -> None:
     """AC-4. A stored result for (file sha, config) completes the job and adds one reference."""
     jobs = _mod("transcribe_engine.domain.jobs")
