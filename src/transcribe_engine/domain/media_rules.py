@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from transcribe_engine.domain.jobs import ErrorCode
 
-__all__ = ["ALLOWED_FORMAT_TOKENS", "IngestLimits", "admission_error"]
+__all__ = ["ALLOWED_FORMAT_TOKENS", "IngestLimits", "admission_error", "output_error"]
 
 # ffprobe reports a comma-separated list of demuxer names, e.g. "mov,mp4,m4a,3gp,3g2,mj2".
 # A file is admitted when one of its names is on this list. HLS ("hls,applehttp") and concat
@@ -38,6 +38,18 @@ def admission_error(
     """
     if not set(format_name.split(",")) & ALLOWED_FORMAT_TOKENS:
         return ErrorCode.UNSUPPORTED_FORMAT
+    if duration_ms > limits.max_duration_ms:
+        return ErrorCode.TOO_LONG
+    if size_bytes > limits.max_size_bytes:
+        return ErrorCode.TOO_LARGE
+    return None
+
+
+def output_error(
+    duration_ms: int, size_bytes: int, limits: IngestLimits = IngestLimits()
+) -> ErrorCode | None:
+    """Refuse the normalized output that exceeds the limits. Review fix (S09): the declared
+    duration is not trusted, so the written file is checked."""
     if duration_ms > limits.max_duration_ms:
         return ErrorCode.TOO_LONG
     if size_bytes > limits.max_size_bytes:

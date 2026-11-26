@@ -23,7 +23,7 @@ from transcribe_engine.application.ports.repositories import UnitOfWork
 from transcribe_engine.application.ports.storage import ObjectStorage
 from transcribe_engine.domain.jobs import ErrorCode, Job, JobEvent, JobState, Transition, transition
 from transcribe_engine.domain.keys import result_key
-from transcribe_engine.domain.media_rules import IngestLimits, admission_error
+from transcribe_engine.domain.media_rules import IngestLimits, admission_error, output_error
 from transcribe_engine.domain.storage_keys import incoming_key, work_key
 
 __all__ = ["IngestJob"]
@@ -111,10 +111,9 @@ class IngestJob:
         except UnsupportedMediaError as exc:
             raise _RefusedError(ErrorCode.UNSUPPORTED_FORMAT) from exc
         # The declared duration is not trusted: check what was actually written (review fix).
-        if normalized.duration_ms > self._limits.max_duration_ms:
-            raise _RefusedError(ErrorCode.TOO_LONG)
-        if normalized.size_bytes > self._limits.max_size_bytes:
-            raise _RefusedError(ErrorCode.TOO_LARGE)
+        code = output_error(normalized.duration_ms, normalized.size_bytes, self._limits)
+        if code is not None:
+            raise _RefusedError(code)
 
     async def _finalize_media(self, job: Job, sha256: str, info: MediaInfo, size: int) -> bool:
         """Record the probed content on the upload's media row and look for a stored result.

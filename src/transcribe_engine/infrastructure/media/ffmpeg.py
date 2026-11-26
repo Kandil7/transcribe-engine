@@ -9,6 +9,7 @@ import wave
 from pathlib import Path
 
 from transcribe_engine.application.ports.media import CorruptMediaError, NormalizedAudio
+from transcribe_engine.domain.media_rules import IngestLimits
 from transcribe_engine.infrastructure.media.sandbox import run_tool
 
 __all__ = ["FfmpegNormalizer"]
@@ -21,11 +22,12 @@ class FfmpegNormalizer:
     def __init__(
         self,
         binary: tuple[str, ...] = ("ffmpeg",),
-        max_seconds: float = 3 * 60 * 60,
+        max_duration_ms: int = IngestLimits().max_duration_ms,
     ) -> None:
         self._binary = binary
-        # Output is capped at the admission limit, whatever the container declared (review fix).
-        self._max_seconds = max_seconds
+        # Clip one second past the limit, in whole seconds, so an overlong file is seen and refused
+        # as TOO_LONG by output_error rather than silently truncated to exactly the limit (review).
+        self._clip_s = max_duration_ms // 1000 + 1
 
     async def to_pcm16_mono_16k(self, src: Path, dst: Path, *, timeout_s: float) -> NormalizedAudio:
         argv = [
@@ -39,7 +41,7 @@ class FfmpegNormalizer:
             "-i",
             str(src),
             "-t",
-            str(self._max_seconds),
+            str(self._clip_s),
             "-map",
             "0:a:0",
             "-vn",

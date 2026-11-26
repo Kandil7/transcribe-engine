@@ -4,12 +4,14 @@ Conflicts are resolved in the database (ON CONFLICT), never by a read-then-write
 Result ids are the result key itself, so they are deterministic (CLAUDE.md, D-019).
 """
 
+import contextlib
 import json
 from datetime import datetime
 from typing import Any
 
 from sqlalchemy import Row, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from transcribe_engine.domain.config import PipelineConfig
@@ -113,36 +115,43 @@ class SqlMediaRepository:
         format: str,
         size_bytes: int,
     ) -> Media:
-        """D-029: fill the upload row, or return the tenant's existing row for this sha256."""
+        """D-029: fill the upload row, or return the tenant's existing row for this sha256.
+
+        The update runs in a savepoint. If a concurrent upload with the same bytes inserts first,
+        the unique constraint refuses the update and only the savepoint rolls back.
+        """
         existing = (
             await self._conn.execute(
                 select(media).where(media.c.tenant_id == tenant_id, media.c.sha256 == sha256)
             )
         ).one_or_none()
         if existing is None:
-            await self._conn.execute(
-                update(media)
-                .where(media.c.id == media_id, media.c.tenant_id == tenant_id)
-                .values(
-                    sha256=sha256,
-                    duration_ms=duration_ms,
-                    format=format,
-                    size_bytes=size_bytes,
-                )
-            )
+            with contextlib.suppress(IntegrityError):
+                async with self._conn.begin_nested():
+                    await self._conn.execute(
+                        update(media)
+                        .where(media.c.id == media_id, media.c.tenant_id == tenant_id)
+                        .values(
+                            sha256=sha256,
+                            duration_ms=duration_ms,
+                            format=format,
+                            size_bytes=size_bytes,
+                        )
+                    )
             existing = (
                 await self._conn.execute(
-                    select(media).where(media.c.id == media_id, media.c.tenant_id == tenant_id)
+                    select(media).where(media.c.tenant_id == tenant_id, media.c.sha256 == sha256)
                 )
             ).one()
+        existing_row = existing
         return Media(
-            id=existing.id,
-            tenant_id=existing.tenant_id,
-            sha256=existing.sha256,
-            storage_key=existing.storage_key,
-            duration_ms=existing.duration_ms,
-            format=existing.format,
-            size_bytes=existing.size_bytes,
+            id=existing_row.id,
+            tenant_id=existing_row.tenant_id,
+            sha256=existing_row.sha256,
+            storage_key=existing_row.storage_key,
+            duration_ms=existing_row.duration_ms,
+            format=existing_row.format,
+            size_bytes=existing_row.size_bytes,
         )
 
 

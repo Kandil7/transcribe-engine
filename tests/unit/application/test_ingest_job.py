@@ -172,3 +172,68 @@ async def test_handoff_to_gpu_queue(tmp_path: Any) -> None:
     assert transition.error_code is None
     assert await inner.head("work/tenant-a/job-1/audio.wav") is not None
     assert len(normalizer.calls) == 1
+
+
+async def test_normalized_output_too_long_is_refused(tmp_path: Any) -> None:
+    """Review fix (S09). The declared duration is not trusted: a written WAV over the limit is
+    refused as TOO_LONG. The fake normalizer stands for an output that exceeds the limit."""
+    media = _mod("transcribe_engine.application.ports.media")
+    jobs = _mod("transcribe_engine.domain.jobs")
+    _, _, storage, probe, normalizer, make_uow = await _world(b"RIFF-long")
+    normalizer.output = media.NormalizedAudio(
+        duration_ms=MAX_DURATION_MS + 1, sample_rate=16_000, channels=1, size_bytes=32_000
+    )
+    transition = await _ingest(storage, probe, normalizer, make_uow, tmp_path)(_job())
+    assert transition.to is jobs.JobState.FAILED
+    assert transition.error_code is jobs.ErrorCode.TOO_LONG
+
+
+async def test_normalized_output_too_large_is_refused(tmp_path: Any) -> None:
+    """Review fix (S09). An output over the byte limit is refused as TOO_LARGE."""
+    media = _mod("transcribe_engine.application.ports.media")
+    jobs = _mod("transcribe_engine.domain.jobs")
+    limits = _mod("transcribe_engine.domain.media_rules").IngestLimits()
+    _, _, storage, probe, normalizer, make_uow = await _world(b"RIFF-big")
+    normalizer.output = media.NormalizedAudio(
+        duration_ms=1_000, sample_rate=16_000, channels=1, size_bytes=limits.max_size_bytes + 1
+    )
+    transition = await _ingest(storage, probe, normalizer, make_uow, tmp_path)(_job())
+    assert transition.to is jobs.JobState.FAILED
+    assert transition.error_code is jobs.ErrorCode.TOO_LARGE
+
+
+async def test_corrupt_probe_is_invalid_media(tmp_path: Any) -> None:
+    """Probe errors map to domain codes: a corrupt file is INVALID_MEDIA (permanent)."""
+    media = _mod("transcribe_engine.application.ports.media")
+    jobs = _mod("transcribe_engine.domain.jobs")
+    _, _, storage, probe, normalizer, make_uow = await _world(
+        b"RIFF-bad", probe_error=media.CorruptMediaError("bad")
+    )
+    transition = await _ingest(storage, probe, normalizer, make_uow, tmp_path)(_job())
+    assert transition.to is jobs.JobState.FAILED
+    assert transition.error_code is jobs.ErrorCode.INVALID_MEDIA
+
+
+async def test_unsupported_probe_is_unsupported_format(tmp_path: Any) -> None:
+    """A playlist or container refused by the probe maps to UNSUPPORTED_FORMAT."""
+    media = _mod("transcribe_engine.application.ports.media")
+    jobs = _mod("transcribe_engine.domain.jobs")
+    _, _, storage, probe, normalizer, make_uow = await _world(
+        b"#EXTM3U", probe_error=media.UnsupportedMediaError("playlist")
+    )
+    transition = await _ingest(storage, probe, normalizer, make_uow, tmp_path)(_job())
+    assert transition.to is jobs.JobState.FAILED
+    assert transition.error_code is jobs.ErrorCode.UNSUPPORTED_FORMAT
+
+
+async def test_oversize_upload_is_refused_before_download(tmp_path: Any) -> None:
+    """The head() size check refuses an object over the limit before any bytes are read."""
+    jobs = _mod("transcribe_engine.domain.jobs")
+    limits = _mod("transcribe_engine.domain.media_rules").IngestLimits(max_size_bytes=10)
+    _, _, storage, probe, normalizer, make_uow = await _world(b"x" * 20)
+    transition = await _ingest(storage, probe, normalizer, make_uow, tmp_path, limits=limits)(
+        _job()
+    )
+    assert transition.error_code is jobs.ErrorCode.TOO_LARGE
+    assert storage.stream_args == []
+    assert probe.calls == []
