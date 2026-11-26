@@ -106,6 +106,7 @@ class ErrorCode(StrEnum):
 class Transition:
     to: JobState
     error_code: ErrorCode | None = None
+    warnings: tuple[str, ...] = ()  # recorded on the job when the transition is written (S10)
 
 
 _SIMPLE: dict[tuple[JobState, JobEvent], JobState] = {

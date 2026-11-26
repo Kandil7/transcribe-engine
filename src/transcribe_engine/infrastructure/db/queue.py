@@ -4,6 +4,7 @@ Every time comparison uses the database clock (now()) so workers and the reconci
 The claim is one statement: FOR UPDATE SKIP LOCKED picks a row, the UPDATE takes the lease.
 """
 
+import json
 from datetime import timedelta
 
 from sqlalchemy import text
@@ -67,6 +68,7 @@ _COMPLETE = text(
         error_code = :error_code,
         stage = COALESCE(:stage, stage),
         queue = CASE WHEN :to_state = 'QUEUED' THEN 'gpu' ELSE queue END,
+        warnings = CAST(:warnings AS jsonb),
         lease_owner = NULL,
         lease_until = NULL
     WHERE id = :job_id AND lease_owner = :owner AND attempt_count = :attempt
@@ -148,6 +150,7 @@ class SqlJobQueue:
                         "to_state": t.to.value,
                         "error_code": t.error_code.value if t.error_code else None,
                         "stage": stage.value if stage else None,
+                        "warnings": json.dumps(list(t.warnings)),
                         "job_id": lease.job_id,
                         "owner": lease.owner,
                         "attempt": lease.attempt,

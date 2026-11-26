@@ -88,7 +88,12 @@ class FakeJobQueue:
         ):
             return False
         self._store.jobs[lease.job_id] = replace(
-            job, state=t.to, error_code=t.error_code, stage=stage or job.stage
+            job,
+            state=t.to,
+            error_code=t.error_code,
+            stage=stage or job.stage,
+            warnings=t.warnings,
+            queue="gpu" if t.to is JobState.QUEUED else job.queue,
         )
         del self._store.leases[lease.job_id]
         return True
