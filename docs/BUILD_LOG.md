@@ -462,7 +462,7 @@ webhooks refused, progress), D-026 (key format, hashing, problem+json), D-027 (r
 - Production must use a NOBYPASSRLS role (D-024). S20 adds webhooks; S21 performs deletion.
 
 ## S00 — Model selection spike (partial)   (2026-11-26 → 2026-11-26)
-Branch: spike/S00-model-selection   Merged: pending   Tag: —
+Branch: spike/S00-model-selection   Merged: 6a2aae9 (PR #19, rebase)   Tag: —
 ### What was built
 - AC-1: annotation guidelines (already on main from the spec series), now pinned by a test that checks every required section and canonical example.
 - Manifest format and validator in `evaluation/spike/manifest.py` (stdlib only) and CLI `evaluation/spike/validate_manifest.py`, which prints turns, speakers, minutes and per-condition counts. Coverage gate: ≥ 60 min, ≥ 5 speakers, clean + noisy + code_switch, and silent or music.

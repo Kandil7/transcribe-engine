@@ -34,7 +34,7 @@
     "S00": {
       "status": "partial",
       "branch": "spike/S00-model-selection",
-      "merged": null,
+      "merged": "6a2aae9",
       "tag": null,
       "notes": "Partial: guidelines (AC-1) and manifest validator + coverage gate done; no human reference hour (R-001), no audio in repo, no model runs. ADR-0007 Provisional. Dependents may proceed on partial."
     },
