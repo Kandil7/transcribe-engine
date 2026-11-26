@@ -130,7 +130,10 @@ class IngestJob:
                 job.media_id, job.tenant_id, sha256, info.duration_ms, info.format_name, size
             )
             cached = await uow.results.get_by_key(result_key(sha256, job.config))
-            if cached is not None:
+            # One reference per job (D-037): a retried job adds no second count.
+            if cached is not None and await uow.results.add_reference(
+                job.tenant_id, job.id, cached.id
+            ):
                 await uow.results.incr_ref(cached.id, 1)
             await uow.commit()
         return cached is not None

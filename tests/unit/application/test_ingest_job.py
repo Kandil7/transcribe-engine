@@ -237,3 +237,19 @@ async def test_oversize_upload_is_refused_before_download(tmp_path: Any) -> None
     assert transition.error_code is jobs.ErrorCode.TOO_LARGE
     assert storage.stream_args == []
     assert probe.calls == []
+
+
+async def test_retried_cache_hit_does_not_count_the_reference_twice(tmp_path: Any) -> None:
+    """D-037. Running the same cache-hit job twice leaves one added reference, not two."""
+    jobs = _mod("transcribe_engine.domain.jobs")
+    keys = _mod("transcribe_engine.domain.keys")
+    upload = b"RIFF-retry"
+    store, _, storage, probe, normalizer, make_uow = await _world(upload)
+    key = keys.result_key(hashlib.sha256(upload).hexdigest(), _config())
+    store.results_by_key[key] = jobs.Result(
+        id=key, result_key=key, media_id="old-media", config=_config(), ref_count=2
+    )
+    ingest = _ingest(storage, probe, normalizer, make_uow, tmp_path)
+    assert (await ingest(_job())).to is jobs.JobState.COMPLETED
+    assert (await ingest(_job())).to is jobs.JobState.COMPLETED
+    assert store.results_by_key[key].ref_count == 3
