@@ -13,7 +13,9 @@ from types import ModuleType
 from typing import Any
 
 from tests.fakes.clock import FakeClock
-from tests.fakes.outbox import FakeOutbox, FakeSecrets, FakeSender
+from tests.fakes.outbox import FakeOutbox, FakeResolver, FakeSecrets, FakeSender
+
+OWNER = "publisher-test"
 
 SECRET = b"whsec_current"
 SECRET_NEW = b"whsec_next"
@@ -28,9 +30,7 @@ def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
 
 
-def _resolve(host: str) -> list[str]:
-    table = {PUBLIC_HOST: [PUBLIC_IP], "rebind.public.test": [PUBLIC_IP, PRIVATE_IP]}
-    return table[host]
+RESOLVER_TABLE = {PUBLIC_HOST: [PUBLIC_IP], "rebind.public.test": [PUBLIC_IP, PRIVATE_IP]}
 
 
 def _payload(url: str = URL) -> dict[str, Any]:
@@ -51,7 +51,8 @@ def _publisher(
         secrets or FakeSecrets({TENANT: (SECRET,)}),
         sender,
         clock,
-        _resolve,
+        FakeResolver(RESOLVER_TABLE),
+        OWNER,
     )
 
 
@@ -117,7 +118,7 @@ async def test_signature_header_signs_with_every_active_secret() -> None:
     secrets = FakeSecrets({TENANT: (SECRET, SECRET_NEW)})
     await _publisher(outbox, sender, clock, secrets).run_once()
 
-    sent_at, url, body, headers = sender.calls[0]
+    sent_at, url, body, headers, _ = sender.calls[0]
     assert url == URL
     assert json.loads(body)["job_id"] == "job-1"
     ts = int(sent_at.timestamp())
@@ -140,7 +141,7 @@ async def test_private_destination_is_abandoned_without_sending() -> None:
     sender = FakeSender(clock)
     await _publisher(outbox, sender, clock).run_once()
 
-    assert [url for _, url, _, _ in sender.calls] == [URL]
+    assert [url for _, url, _, _, _ in sender.calls] == [URL]
     assert outbox.rows[1].abandoned_at is not None
     assert outbox.rows[2].published_at is not None
 
@@ -159,3 +160,26 @@ async def test_transient_transport_error_is_retried() -> None:
     assert outbox.rows[1].attempts == 1
     first_retry = created + timedelta(seconds=webhooks.retry_offsets()[0])
     assert outbox.pending_due_times() == [first_retry]
+
+
+async def test_send_goes_to_the_verified_address_not_the_name() -> None:
+    """D-053 (DNS rebinding): the request is sent to the address the check accepted. Positive
+    control: the same destination resolves to the public address, so that is what is pinned."""
+    clock = FakeClock()
+    outbox = FakeOutbox()
+    outbox.add("transcript.completed", _payload(), created_at=clock.now())
+    sender = FakeSender(clock)
+    await _publisher(outbox, sender, clock).run_once()
+    assert [address for *_, address in sender.calls] == [PUBLIC_IP]
+
+
+async def test_rebinding_name_with_a_private_address_is_refused() -> None:
+    """D-053: a name that resolves to any private address is refused, even if one address is public.
+    Positive control: the public-only name is sent (see the SSRF test above)."""
+    clock = FakeClock()
+    outbox = FakeOutbox()
+    outbox.add("transcript.completed", _payload("https://rebind.public.test/hook"), clock.now())
+    sender = FakeSender(clock)
+    await _publisher(outbox, sender, clock).run_once()
+    assert sender.calls == []
+    assert outbox.rows[1].abandoned_at is not None

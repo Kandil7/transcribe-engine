@@ -67,6 +67,11 @@ async def test_no_transcript_text_in_logs() -> None:
     assert logged.count("job_id") > 0
     assert job.id in logged
     assert MARKER not in logged
+    # Every record from the processing use case carries the structured fields (spec: logs).
+    processing = [r for r in _records(buffer) if r["logger"].endswith("process_job")]
+    assert processing
+    for record in processing:
+        assert {"job_id", "tenant_id", "stage", "attempt"} <= record.keys(), record
 
 
 def test_stage_span_logs_start_and_end_with_job_id() -> None:
@@ -110,9 +115,10 @@ def test_required_metrics_registered() -> None:
         "transcribe_segments": "counter",
         "transcribe_suspect_segments": "counter",
         "transcribe_lease_expiries": "counter",
+        "transcribe_queue_oldest_job_seconds": "gauge",
     }
     _mod("transcribe_engine.infrastructure.observability.metrics")
     families = {family.name: family.type for family in registry.collect()}
-    assert len(expected) == 10
+    assert len(expected) == 11
     for name, kind in expected.items():
         assert families.get(name) == kind, name

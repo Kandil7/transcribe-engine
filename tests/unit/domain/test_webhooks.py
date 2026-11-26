@@ -64,3 +64,22 @@ def test_retry_schedule_until_24h() -> None:
     assert offsets[-1] <= 24 * 3600
     gaps = [b - a for a, b in itertools.pairwise(offsets)]
     assert gaps[-1] > gaps[0]
+
+
+def test_range_gaps_and_other_ports_are_refused() -> None:
+    """Review finding (S20 security): CGNAT space, the Alibaba metadata address, IPv4 embedded in
+    NAT64 and IPv6 forms, and any port other than 443 are refused. Positive control: a public
+    https destination on 443 is accepted."""
+    webhooks = _mod("transcribe_engine.domain.webhooks")
+    table = {
+        "cgnat.test": ["100.64.1.1"],
+        "alibaba-meta.test": ["100.100.100.200"],
+        "nat64-meta.test": ["64:ff9b::a9fe:a9fe"],
+        "mapped-private.test": ["::ffff:10.0.0.1"],
+        "public.test": ["93.184.216.34"],
+    }
+    resolve = _resolver(table)
+    for host in ("cgnat.test", "alibaba-meta.test", "nat64-meta.test", "mapped-private.test"):
+        assert webhooks.is_public_destination(f"https://{host}/hook", resolve) is False, host
+    assert webhooks.is_public_destination("https://public.test:8443/hook", resolve) is False
+    assert webhooks.is_public_destination("https://public.test/hook", resolve) is True

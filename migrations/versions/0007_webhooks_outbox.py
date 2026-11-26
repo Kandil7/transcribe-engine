@@ -33,6 +33,8 @@ def upgrade() -> None:
     )
     op.add_column("outbox", sa.Column("next_attempt_at", sa.DateTime(timezone=True), nullable=True))
     op.add_column("outbox", sa.Column("abandoned_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column("outbox", sa.Column("lease_owner", sa.Text, nullable=True))
+    op.add_column("outbox", sa.Column("lease_until", sa.DateTime(timezone=True), nullable=True))
     op.create_table(
         "webhook_secrets",
         sa.Column("tenant_id", sa.Text, sa.ForeignKey("tenants.id"), nullable=False),
@@ -55,6 +57,8 @@ def downgrade() -> None:
     op.execute("ALTER TABLE webhook_secrets NO FORCE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE webhook_secrets DISABLE ROW LEVEL SECURITY")
     op.drop_table("webhook_secrets")
+    op.drop_column("outbox", "lease_until")
+    op.drop_column("outbox", "lease_owner")
     op.drop_column("outbox", "abandoned_at")
     op.drop_column("outbox", "next_attempt_at")
     op.drop_column("outbox", "attempts")

@@ -67,7 +67,8 @@ def main(argv: list[str]) -> int:
     settings = Settings()
     engine = make_engine(settings.database_url)
     if role == "publisher":
-        asyncio.run(serve_publisher(composition.build_publisher(engine), settings))
+        owner = f"publisher-{os.getpid()}-{uuid.uuid4().hex[:8]}"
+        asyncio.run(serve_publisher(composition.build_publisher(engine, owner), settings))
         return 0
     storage = composition.build_storage(settings)
     ingest, process = composition.build_handlers(engine, storage, settings)

@@ -23,7 +23,7 @@ from transcribe_engine.infrastructure.asr.plumbing import PlumbingASR
 from transcribe_engine.infrastructure.clock import SystemClock
 from transcribe_engine.infrastructure.db.outbox import SqlOutboxStore, SqlWebhookSecrets
 from transcribe_engine.infrastructure.db.uow import SqlUnitOfWork
-from transcribe_engine.infrastructure.http.webhook_sender import HttpWebhookSender, resolve_host
+from transcribe_engine.infrastructure.http.webhook_sender import DnsResolver, HttpWebhookSender
 from transcribe_engine.infrastructure.media.ffmpeg import FfmpegNormalizer
 from transcribe_engine.infrastructure.media.ffprobe import FfprobeMediaProbe
 from transcribe_engine.infrastructure.ml.silero_vad import SileroVad
@@ -47,14 +47,16 @@ def build_app(engine: AsyncEngine, storage: ObjectStorage) -> FastAPI:
     return create_app(make_uow, storage, SystemClock())
 
 
-def build_publisher(engine: AsyncEngine) -> OutboxPublisher:
-    """The webhook publisher (S20): outbox rows to signed HTTPS deliveries, with the SSRF check."""
+def build_publisher(engine: AsyncEngine, owner: str) -> OutboxPublisher:
+    """The webhook publisher (S20): outbox rows to signed HTTPS deliveries, with the SSRF check.
+    `owner` names this process in the outbox leases (D-053)."""
     return OutboxPublisher(
         SqlOutboxStore(engine),
         SqlWebhookSecrets(engine),
         HttpWebhookSender(),
         SystemClock(),
-        resolve_host,
+        DnsResolver(),
+        owner,
     )
 
 
