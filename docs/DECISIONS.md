@@ -929,3 +929,16 @@ chapters.
 Reversibility: easy (behind ports).
 Confidence: medium.
 Applied in: docs(S18) resolve Q1 to Q3.
+
+## D-058 — S19 enrichment: no LLM wired; pure analytics and snapping first
+Date: 2026-11-27 · Slice: S19 · Status: decided · Review: requested (R-010)
+Context: S19 Q1 asks which LLM and where it runs. A hosted model would send transcripts outside the cluster, which
+the rules forbid without the owner's decision (AUTOPILOT §5; privacy). A local model needs a download and terms.
+Options: A) Hosted API. B) Local model now. C) Port and fake; pure analytics and snapping now; local model later.
+Decision: C. Enrichment runs on the fake enricher. Speaker analytics, chapter snapping and entity verification are
+pure domain logic and need no model.
+Rationale: transcripts are private data; no hosted call is made without approval. The rules that matter (snapping,
+verification, isolation) do not depend on the model.
+Reversibility: easy (an adapter behind the port).
+Confidence: high.
+Applied in: docs(S19) resolve Q1.
