@@ -40,6 +40,7 @@ dev = [
     "testcontainers[postgres,minio]",
     "boto3-stubs[s3]",
     "pre-commit",
+    "jsonschema>=4.26.0",
 ]
 
 [build-system]
