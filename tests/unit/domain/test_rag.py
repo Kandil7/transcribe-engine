@@ -29,7 +29,6 @@ def _sentence(index: int, tokens: int) -> object:
     )
 
 
-@pytest.mark.xfail(strict=True, reason="S18")
 @settings(max_examples=200, deadline=None)
 @given(
     token_counts=st.lists(st.integers(min_value=1, max_value=120), min_size=1, max_size=40),
@@ -52,7 +51,6 @@ def test_chunks_within_token_bounds(token_counts: list[int], overlap: int) -> No
         assert total <= cfg.max_tokens or end - start == 1, (start, end, total)
 
 
-@pytest.mark.xfail(strict=True, reason="S18")
 def test_no_chunk_crosses_topic_boundary() -> None:
     """AC-2: a similarity drop between sentences 2 and 3 is a topic boundary; no chunk holds both.
     Positive control: without the drop the same sentences share a chunk."""
@@ -68,7 +66,6 @@ def test_no_chunk_crosses_topic_boundary() -> None:
     assert any(start <= 2 and end >= 4 for start, end in no_drop)
 
 
-@pytest.mark.xfail(strict=True, reason="S18")
 def test_metadata_complete() -> None:
     """AC-3: every field the source provides is set on the chunk. Positive control: the confidence
     is the mean of the word confidences, not a constant."""
@@ -120,7 +117,6 @@ def test_metadata_complete() -> None:
     assert c.level == "small"
 
 
-@pytest.mark.xfail(strict=True, reason="S18")
 def test_rrf_known_ranking() -> None:
     """AC-4: reciprocal rank fusion with k=60. `x` is first in two rankings and second in one.
     `y` is
