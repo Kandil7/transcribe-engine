@@ -782,3 +782,17 @@ Rationale: The spec proposes Egyptian forms for Egyptian audio. C would leave di
 Reversibility: easy (the lexicon is one module; alignment text is recomputed).
 Confidence: medium.
 Applied in: feat(S14) verbalize_for_alignment, 8ff4c73.
+
+## D-048 — S20 webhooks: two active secrets per tenant during rotation; HTTPS only
+Date: 2026-11-26 · Slice: S20 · Status: decided · Review: none
+Context: S20 Q1 asks how tenants rotate webhook secrets. The design does not say. Destinations also need a rule for
+the scheme, since the SSRF guard depends on it.
+Options: A) One secret; rotation breaks receivers until they update. B) Two active secrets per tenant; both sign while
+rotating. C) Plain HTTP allowed for local receivers.
+Decision: B for rotation, as the spec proposes. Webhook destinations must be https (C is refused; the guard checks
+the scheme and then every resolved address).
+Rationale: B lets clients switch without downtime. HTTPS-only keeps the SSRF guard simple and avoids sending signed
+bodies in clear text. [D: نقاط النهاية]
+Reversibility: easy (the rotation table and the scheme check are small).
+Confidence: medium. Storage of the second secret is not built yet (outbox slice).
+Applied in: feat(S20) domain webhooks, 749cac1.

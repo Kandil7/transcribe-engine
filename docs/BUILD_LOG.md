@@ -744,3 +744,27 @@ D-047 (Egyptian spoken forms; stored word unchanged). Q1 resolved.
 ### Follow-ups
 - Aligner port, fake and wav2vec2 adapter (commits 4, R-005): needs the model and dependency decision.
 - Fallback and code-switch handling (commit 5), and wiring into ProcessJob before merge (commit 6, AC-5). AC-3 (gpu MAE) waits for the model and the S16 threshold.
+
+## S20 — Outbox, webhooks, observability (partial)   (2026-11-26 → 2026-11-26)
+Branch: feat/S20-outbox-webhooks-observability (from main 0a950f5)   Merged: pending   Tag: —
+### What was built
+- `domain/events.py`: `OutboxEvent` (the public webhook names).
+- `domain/webhooks.py`: `sign` (HMAC-SHA256 over "<ts>.<body>"), `is_public_destination` (https only, every resolved address public, IP literals checked directly), `retry_offsets` (30 s doubling to 1 h, ends at 24 h).
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 2 | 85ed147 `test(S20): add webhook signature, SSRF and retry tests (xfail)` | AC-2, AC-3, AC-4 | — |
+| 3 | 749cac1 `feat(S20): add outbox events, webhook signing, SSRF guard and retry offsets` | domain pieces | AC-2, AC-3, AC-4 |
+### Verification
+- `make check`: 263 passed, 1 skipped (R-001), 0 xfail for S20.
+- `make itest`: not run locally (Docker down).
+### Decisions
+D-048 (two active secrets during rotation; HTTPS only). Spec Q1 resolved.
+### Problems and fixes
+- The first commit attempt for the webhook tests failed the lint hook (RUF007, zip instead of pairwise). Fixed and committed again; the first attempt did not land.
+### Review findings
+- Reviewers not run in this session.
+### Follow-ups
+- Outbox table and writes in the state-change transaction (AC-1, integration, migration needed).
+- The publisher loop with retries and a fake clock (AC-4 in the spec's form), and the webhook HTTP sender.
+- Structured logging without transcript text (AC-5), required metrics (AC-6), tracing spans, and `deploy/observability/alerts.yml` (AC-7, promtool).
