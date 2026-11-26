@@ -57,6 +57,8 @@ class Word:
     end_ms: int
     conf: float | None
     chunk_idx: int
+    speaker: str | None = None  # set by diarization (S17); None when not diarized
+    overlap: bool = False  # True when the word overlaps speech of two speakers (S17)
 
 
 @dataclass(frozen=True)

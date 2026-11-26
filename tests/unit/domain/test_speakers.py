@@ -7,8 +7,6 @@ flag, so an assignment that always returns the same speaker cannot pass.
 import importlib
 from types import ModuleType
 
-import pytest
-
 
 def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
@@ -24,7 +22,6 @@ def _turn(speaker: str, start: int, end: int) -> object:
     return speakers.SpeakerTurn(speaker=speaker, start_ms=start, end_ms=end)
 
 
-@pytest.mark.xfail(strict=True, reason="S17")
 def test_max_overlap_assignment() -> None:
     """AC-1: a word takes the speaker with the largest time overlap. Positive control: a word fully
     inside one turn gets that turn's speaker."""
@@ -38,7 +35,6 @@ def test_max_overlap_assignment() -> None:
     assert [w.speaker for w in out] == ["SPEAKER_00", "SPEAKER_01"]
 
 
-@pytest.mark.xfail(strict=True, reason="S17")
 def test_overlap_flag() -> None:
     """AC-2: a word that overlaps speech of two speakers is flagged; a word inside one turn is not,
     and a word outside every turn has no speaker."""
