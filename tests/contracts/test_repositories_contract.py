@@ -334,3 +334,88 @@ async def test_finalize_fills_the_upload_row_or_returns_the_existing_one(
         again = await uow.media.finalize("up-2", "tenant-a", real, 1500, "mp3", 12)  # type: ignore[attr-defined]
         await uow.commit()  # type: ignore[attr-defined]
     assert again.id == "up-1"
+
+
+@pytest.mark.parametrize("kind", KINDS)
+async def test_chunk_plan_results_and_transcript_round_trip(kind: str, pg_url: str) -> None:
+    """S10. The plan round-trips in index order and repeats idempotently. A result is saved
+    and replaced by id, the transcript round-trips, and another tenant sees nothing."""
+    domain = _mod("transcribe_engine.domain.chunks")
+    merge = _mod("transcribe_engine.domain.merge")
+    jobs_mod = _mod("transcribe_engine.domain.jobs")
+    make, _ = _backend(kind, pg_url)
+    media_row = jobs_mod.Media(
+        id="media-c",
+        tenant_id="tenant-a",
+        sha256="c" * 64,
+        storage_key="incoming/tenant-a/media-c",
+        duration_ms=2000,
+        format="mp3",
+        size_bytes=10,
+    )
+    chunks = tuple(
+        domain.Chunk(
+            chunk_id=f"chk-{idx}",
+            job_id="job-chunks",
+            idx=idx,
+            total=2,
+            start_sample=idx * 1000,
+            end_sample=idx * 1000 + 1000,
+            pad_before=0,
+            pad_after=0,
+            sample_rate=1000,
+            media_sha256="c" * 64,
+            config_hash="d" * 64,
+        )
+        for idx in range(2)
+    )
+    words = (merge.RawWord("عايز", 10, 200, 0.9),)
+    merged = merge.MergedWords(words=(merge.Word("عايز", 10, 200, 0.9, 0),), sample_rate=1000)
+    async with make() as uow:  # type: ignore[attr-defined]
+        stored = await uow.media.upsert(media_row)  # type: ignore[attr-defined]
+        await uow.jobs.add(_job_for_contract("job-chunks", stored.id))  # type: ignore[attr-defined]
+        await uow.chunks.add_plan("tenant-a", "job-chunks", chunks)  # type: ignore[attr-defined]
+        await uow.chunks.add_plan("tenant-a", "job-chunks", chunks)  # type: ignore[attr-defined]
+        save = uow.chunks.save_result  # type: ignore[attr-defined]
+        await save("tenant-a", "job-chunks", "chk-0", words)
+        await save("tenant-a", "job-chunks", "chk-0", words)
+        await uow.chunks.save_transcript("tenant-a", "job-chunks", merged)  # type: ignore[attr-defined]
+        await uow.commit()  # type: ignore[attr-defined]
+    async with make() as uow:  # type: ignore[attr-defined]
+        loaded = await uow.chunks.plan("tenant-a", "job-chunks")  # type: ignore[attr-defined]
+        results = await uow.chunks.results("tenant-a", "job-chunks")  # type: ignore[attr-defined]
+        transcript = await uow.chunks.transcript("tenant-a", "job-chunks")  # type: ignore[attr-defined]
+        other = await uow.chunks.plan("tenant-b", "job-chunks")  # type: ignore[attr-defined]
+    assert [c.chunk_id for c in loaded] == ["chk-0", "chk-1"]
+    assert loaded[0] == chunks[0]
+    assert results == {"chk-0": words}
+    assert transcript == merged
+    assert other == ()
+
+
+def _job_for_contract(job_id: str, media_id: str) -> object:
+    jobs_mod = _mod("transcribe_engine.domain.jobs")
+    config_mod = _mod("transcribe_engine.domain.config")
+    config = config_mod.PipelineConfig(
+        engine="faster-whisper",
+        model_revision="pending-s00",
+        language="ar",
+        decoding_params={"temperature": 0.0},
+        vad_params={},
+        diarization_enabled=False,
+        pipeline_version="1.0.0",
+    )
+    return jobs_mod.Job(
+        id=job_id,
+        tenant_id="tenant-a",
+        media_id=media_id,
+        state=jobs_mod.JobState.QUEUED,
+        stage=None,
+        attempt_count=0,
+        max_attempts=3,
+        queue="gpu",
+        config=config,
+        result_id=None,
+        error_code=None,
+        warnings=(),
+    )

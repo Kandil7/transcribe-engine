@@ -92,23 +92,6 @@ segments = sa.Table(
     sa.UniqueConstraint("version_id", "idx", name="uq_segments_version_idx"),
 )
 
-chunks = sa.Table(
-    "chunks",
-    metadata,
-    sa.Column("chunk_id", sa.Text, primary_key=True),
-    sa.Column("job_id", sa.Text, sa.ForeignKey("jobs.id"), nullable=False),
-    sa.Column("idx", sa.Integer, nullable=False),
-    sa.Column("total", sa.Integer, nullable=False),
-    sa.Column("start_sample", sa.BigInteger, nullable=False),
-    sa.Column("end_sample", sa.BigInteger, nullable=False),
-    sa.Column("pad_before", sa.Integer, nullable=False, server_default="0"),
-    sa.Column("pad_after", sa.Integer, nullable=False, server_default="0"),
-    sa.Column("state", sa.Text, nullable=False),
-    sa.Column("attempt_count", sa.Integer, nullable=False, server_default="0"),
-    sa.Column("result_key_s3", sa.Text, nullable=True),
-    sa.UniqueConstraint("job_id", "idx", name="uq_chunks_job_idx"),
-)
-
 outbox = sa.Table(
     "outbox",
     metadata,
@@ -132,7 +115,7 @@ api_keys = sa.Table(
     "api_keys",
     metadata,
     sa.Column("id", sa.Text, primary_key=True),
-    sa.Column("tenant_id", sa.Text, sa.ForeignKey("tenants.id"), nullable=False),
+    sa.Column("tenant_id", sa.Text, nullable=False),
     sa.Column("key_hash", sa.Text, nullable=False, unique=True),
     sa.Column("scopes", postgresql.ARRAY(sa.Text), nullable=False),
     sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
@@ -142,7 +125,7 @@ api_keys = sa.Table(
 idempotency_keys = sa.Table(
     "idempotency_keys",
     metadata,
-    sa.Column("tenant_id", sa.Text, sa.ForeignKey("tenants.id"), nullable=False),
+    sa.Column("tenant_id", sa.Text, nullable=False),
     sa.Column("key", sa.Text, nullable=False),
     sa.Column("job_id", sa.Text, sa.ForeignKey("jobs.id"), nullable=False),
     sa.Column("status", sa.Integer, nullable=False),
@@ -150,4 +133,42 @@ idempotency_keys = sa.Table(
     sa.Column("request_hash", sa.Text, nullable=False),
     sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     sa.PrimaryKeyConstraint("tenant_id", "key", name="pk_idempotency_keys"),
+)
+
+
+chunk_table = sa.Table(
+    "chunks",
+    metadata,
+    sa.Column("chunk_id", sa.Text, primary_key=True),
+    sa.Column("tenant_id", sa.Text, nullable=False),
+    sa.Column("job_id", sa.Text, sa.ForeignKey("jobs.id"), nullable=False),
+    sa.Column("idx", sa.Integer, nullable=False),
+    sa.Column("total", sa.Integer, nullable=False),
+    sa.Column("start_sample", sa.BigInteger, nullable=False),
+    sa.Column("end_sample", sa.BigInteger, nullable=False),
+    sa.Column("pad_before", sa.BigInteger, nullable=False),
+    sa.Column("pad_after", sa.BigInteger, nullable=False),
+    sa.Column("sample_rate", sa.Integer, nullable=False),
+    sa.Column("media_sha256", sa.Text, nullable=False),
+    sa.Column("config_hash", sa.Text, nullable=False),
+    sa.UniqueConstraint("job_id", "idx", name="uq_chunks_job_idx"),
+    sa.CheckConstraint("end_sample > start_sample", name="ck_chunks_core_positive"),
+)
+
+chunk_result_table = sa.Table(
+    "chunk_results",
+    metadata,
+    sa.Column("chunk_id", sa.Text, sa.ForeignKey("chunks.chunk_id"), primary_key=True),
+    sa.Column("tenant_id", sa.Text, nullable=False),
+    sa.Column("job_id", sa.Text, sa.ForeignKey("jobs.id"), nullable=False),
+    sa.Column("words", postgresql.JSONB, nullable=False),
+)
+
+transcript_table = sa.Table(
+    "transcripts",
+    metadata,
+    sa.Column("job_id", sa.Text, sa.ForeignKey("jobs.id"), primary_key=True),
+    sa.Column("tenant_id", sa.Text, nullable=False),
+    sa.Column("sample_rate", sa.Integer, nullable=False),
+    sa.Column("words", postgresql.JSONB, nullable=False),
 )

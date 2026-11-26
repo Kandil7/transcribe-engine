@@ -6,6 +6,7 @@ Result ids are the result key itself, so they are deterministic (CLAUDE.md, D-01
 
 import contextlib
 import json
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
@@ -14,6 +15,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from transcribe_engine.domain.chunks import Chunk
 from transcribe_engine.domain.config import PipelineConfig
 from transcribe_engine.domain.errors import PermanentError
 from transcribe_engine.domain.jobs import (
@@ -25,7 +27,15 @@ from transcribe_engine.domain.jobs import (
     Result,
     Transition,
 )
-from transcribe_engine.infrastructure.db.models import jobs, media, results
+from transcribe_engine.domain.merge import MergedWords, RawWord, Word
+from transcribe_engine.infrastructure.db.models import (
+    chunk_result_table,
+    chunk_table,
+    jobs,
+    media,
+    results,
+    transcript_table,
+)
 
 __all__ = ["SqlJobRepository", "SqlMediaRepository", "SqlResultRepository"]
 
@@ -283,3 +293,136 @@ class SqlResultRepository:
         if row is None:
             raise PermanentError("result reference change refused")
         return int(row.ref_count)
+
+
+class SqlChunkRepository:
+    """Plan, results and transcript for S10 (migration 0005). Tenant scope comes from RLS and from
+    every query's tenant_id filter."""
+
+    def __init__(self, conn: AsyncConnection) -> None:
+        self._conn = conn
+
+    async def add_plan(self, tenant_id: str, job_id: str, chunks: Sequence[Chunk]) -> None:
+        for chunk in chunks:
+            await self._conn.execute(
+                pg_insert(chunk_table)
+                .values(
+                    chunk_id=chunk.chunk_id,
+                    tenant_id=tenant_id,
+                    job_id=job_id,
+                    idx=chunk.idx,
+                    total=chunk.total,
+                    start_sample=chunk.start_sample,
+                    end_sample=chunk.end_sample,
+                    pad_before=chunk.pad_before,
+                    pad_after=chunk.pad_after,
+                    sample_rate=chunk.sample_rate,
+                    media_sha256=chunk.media_sha256,
+                    config_hash=chunk.config_hash,
+                )
+                .on_conflict_do_nothing(index_elements=["chunk_id"])
+            )
+
+    async def plan(self, tenant_id: str, job_id: str) -> tuple[Chunk, ...]:
+        rows = (
+            await self._conn.execute(
+                select(chunk_table)
+                .where(chunk_table.c.tenant_id == tenant_id, chunk_table.c.job_id == job_id)
+                .order_by(chunk_table.c.idx)
+            )
+        ).all()
+        return tuple(
+            Chunk(
+                chunk_id=row.chunk_id,
+                job_id=row.job_id,
+                idx=row.idx,
+                total=row.total,
+                start_sample=row.start_sample,
+                end_sample=row.end_sample,
+                pad_before=row.pad_before,
+                pad_after=row.pad_after,
+                sample_rate=row.sample_rate,
+                media_sha256=row.media_sha256,
+                config_hash=row.config_hash,
+            )
+            for row in rows
+        )
+
+    async def save_result(
+        self, tenant_id: str, job_id: str, chunk_id: str, words: tuple[RawWord, ...]
+    ) -> None:
+        payload = [
+            {"text": w.text, "local_start": w.local_start, "local_end": w.local_end, "conf": w.conf}
+            for w in words
+        ]
+        await self._conn.execute(
+            pg_insert(chunk_result_table)
+            .values(chunk_id=chunk_id, tenant_id=tenant_id, job_id=job_id, words=payload)
+            .on_conflict_do_update(index_elements=["chunk_id"], set_={"words": payload})
+        )
+
+    async def results(self, tenant_id: str, job_id: str) -> dict[str, tuple[RawWord, ...]]:
+        rows = (
+            await self._conn.execute(
+                select(chunk_result_table.c.chunk_id, chunk_result_table.c.words).where(
+                    chunk_result_table.c.tenant_id == tenant_id,
+                    chunk_result_table.c.job_id == job_id,
+                )
+            )
+        ).all()
+        return {
+            row.chunk_id: tuple(
+                RawWord(w["text"], w["local_start"], w["local_end"], w["conf"]) for w in row.words
+            )
+            for row in rows
+        }
+
+    async def save_transcript(self, tenant_id: str, job_id: str, merged: MergedWords) -> None:
+        payload = [
+            {
+                "text": w.text,
+                "start_ms": w.start_ms,
+                "end_ms": w.end_ms,
+                "conf": w.conf,
+                "chunk_idx": w.chunk_idx,
+            }
+            for w in merged.words
+        ]
+        await self._conn.execute(
+            pg_insert(transcript_table)
+            .values(
+                job_id=job_id,
+                tenant_id=tenant_id,
+                sample_rate=merged.sample_rate,
+                words=payload,
+            )
+            .on_conflict_do_update(
+                index_elements=["job_id"],
+                set_={"sample_rate": merged.sample_rate, "words": payload},
+            )
+        )
+
+    async def transcript(self, tenant_id: str, job_id: str) -> MergedWords | None:
+        row = (
+            await self._conn.execute(
+                select(transcript_table).where(
+                    transcript_table.c.tenant_id == tenant_id,
+                    transcript_table.c.job_id == job_id,
+                )
+            )
+        ).one_or_none()
+        if row is None:
+            return None
+        return MergedWords(
+            words=tuple(
+                Word(
+                    text=w["text"],
+                    start_ms=w["start_ms"],
+                    end_ms=w["end_ms"],
+                    conf=w["conf"],
+                    chunk_idx=w["chunk_idx"],
+                )
+                for w in row.words
+            ),
+            sample_rate=row.sample_rate,
+        )
