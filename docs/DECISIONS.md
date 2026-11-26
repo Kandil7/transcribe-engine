@@ -576,3 +576,20 @@ Without a tenant foreign key, the chunk rows match jobs and media, and RLS holds
 Reversibility: moderate — the downgrade restores the old shape, but only while the table is empty.
 Confidence: high.
 Applied in: S10 persistence commit.
+
+## D-034 — S10 processing: partial-failure setting, transcript before completion, gap warnings
+Date: 2026-11-26 · Slice: S10 · Status: decided · Review: none
+Context: AC-8 needs a per-tenant flag that requires complete text. The schema has no such column, and adding one is a
+separate migration. The worker fences completion, but the transcript write and the completion are separate writes.
+Options: A) Add a tenant column now. B) Pass `require_complete_text` as a use-case setting for now, and add the column
+with its migration later. For ordering: A) one transaction across the worker's completion and the transcript. B) store the
+transcript first, then let the fenced completion run; a crash between the two leaves a stored transcript that the next
+attempt overwrites (save_transcript is an upsert). C) store the transcript after completion.
+Decision: B for the flag (default: partial text allowed, as the design's default); B for ordering. A chunk that fails
+permanently becomes a gap with the warning `chunk_failed:<idx>` on the job. The job's warnings are recorded through
+Transition.warnings (S10 part 2). A failed chunk has no stored result; a later attempt retries it.
+Rationale: the flag is a configuration decision that can wait for the tenancy work; upserting the transcript makes the
+two-step write safe to repeat, and avoids a transaction that spans the worker's fenced completion.
+Reversibility: easy — the setting is a constructor argument; the upsert keeps the transcript correct on retry.
+Confidence: medium.
+Applied in: S10 processing commit.

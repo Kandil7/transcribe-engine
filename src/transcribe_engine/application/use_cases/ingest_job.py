@@ -8,7 +8,7 @@ while its SHA-256 is computed, so the whole object is never held in memory (D-02
 
 import hashlib
 import tempfile
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import AbstractAsyncContextManager
 from pathlib import Path
 
@@ -54,6 +54,7 @@ class IngestJob:
         scratch_root: Path,
         limits: IngestLimits = IngestLimits(),  # noqa: B008 - frozen dataclass default, never mutated
         chunk_bytes: int = DEFAULT_CHUNK_BYTES,
+        prepare: Callable[[Job, str], Awaitable[None]] | None = None,
     ) -> None:
         self._make_uow = make_uow
         self._storage = storage
@@ -62,6 +63,7 @@ class IngestJob:
         self._scratch_root = scratch_root
         self._limits = limits
         self._chunk_bytes = chunk_bytes
+        self._prepare = prepare  # CPU stage after upload: plans the chunks (S10)
 
     async def __call__(self, job: Job) -> Transition:
         key = incoming_key(job.tenant_id, job.media_id)
@@ -92,6 +94,8 @@ class IngestJob:
             await self._storage.put(
                 work_key(job.tenant_id, job.id, WAV_NAME), _file_chunks(wav, self._chunk_bytes)
             )
+        if self._prepare is not None:
+            await self._prepare(job, sha256)
         # Hand-off: the claim keeps the job on cpu until this write; the worker sets queue=gpu.
         return transition(
             JobState.PENDING_VALIDATION,
