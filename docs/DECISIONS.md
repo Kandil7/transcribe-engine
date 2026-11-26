@@ -559,3 +559,20 @@ move. Chunk counts are only a performance concern and can be revisited with a me
 Reversibility: easy — the planner is pure and the ids are derived from the plan.
 Confidence: medium.
 Applied in: S10 chunk commit.
+
+## D-033 — S10 chunk persistence: replace the S05 chunks table, tenant scope without a foreign key
+Date: 2026-11-26 · Slice: S10 · Status: decided · Review: none
+Context: Migration 0002 created `chunks` with the S05 shape (state, attempt_count, result_key_s3, no tenant). No code
+writes to it, so it is empty. S10 needs tenant, media sha, sample rate and config hash on each chunk. Also, `tenant_id`
+on jobs and media has no foreign key to tenants.
+Options: A) ALTER the S05 table. B) Drop and recreate it in migration 0005, guarded so it refuses to run if rows exist.
+C) Keep the S05 table and add a second one. For tenant scope: A) foreign key to tenants. B) no foreign key, as jobs and
+media do; RLS is the tenant boundary.
+Decision: B for both. The migration guard raises if `chunks` has rows, so no data is lost silently. The downgrade
+restores the S05 shape. The migration head pin in tests/integration/test_migrations.py moves to 0005 (as D-024 did for
+0004).
+Rationale: A keeps unused columns and needs a data migration nobody can exercise. C leaves two tables with one name.
+Without a tenant foreign key, the chunk rows match jobs and media, and RLS holds the boundary.
+Reversibility: moderate — the downgrade restores the old shape, but only while the table is empty.
+Confidence: high.
+Applied in: S10 persistence commit.
