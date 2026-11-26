@@ -88,7 +88,6 @@ async def test_retry_schedule_until_24h() -> None:
     assert len(sender.calls) == len(expected)
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_success_on_a_retry_stops_the_schedule() -> None:
     """Positive control for AC-4: a 2xx on the second attempt delivers the event.
 
@@ -107,7 +106,6 @@ async def test_success_on_a_retry_stops_the_schedule() -> None:
     assert len(sender.calls) == 2
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_signature_header_signs_with_every_active_secret() -> None:
     """Each active secret gives one v1 signature over "<ts>.<body>" (D-048); the body is the
     JSON payload. Positive control: the signature recomputed from the body matches."""
@@ -128,7 +126,6 @@ async def test_signature_header_signs_with_every_active_secret() -> None:
     assert signature == f"t={ts}," + ",".join(f"v1={sig}" for sig in expected)
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_private_destination_is_abandoned_without_sending() -> None:
     """AC-3 at send time: a destination that resolves to a private address is never called and
     its row is abandoned. Positive control: the public destination is sent to."""
@@ -148,7 +145,6 @@ async def test_private_destination_is_abandoned_without_sending() -> None:
     assert outbox.rows[2].published_at is not None
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_transient_transport_error_is_retried() -> None:
     """A TransientError from the sender is a failed attempt, not a crash.
 

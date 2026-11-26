@@ -1,4 +1,6 @@
-"""Worker entry point (S10): `python -m transcribe_engine.worker cpu|gpu`.
+"""Worker entry point (S10): `python -m transcribe_engine.worker cpu|gpu|publisher`.
+
+`publisher` runs the webhook outbox loop (S20) instead of claiming jobs.
 
 Each process claims jobs from one queue, runs the handler, and writes the outcome through the fenced
 queue. The reconciler runs between polls, so a crashed worker's lease is reclaimed. Handlers and
@@ -13,6 +15,7 @@ from datetime import timedelta
 
 from transcribe_engine import main as composition
 from transcribe_engine.application.ports.queue import JobQueue
+from transcribe_engine.application.use_cases.publish_outbox import OutboxPublisher
 from transcribe_engine.application.worker_loop import Handler, WorkerSettings, run_once
 from transcribe_engine.infrastructure.db.queue import SqlJobQueue
 from transcribe_engine.infrastructure.db.reconciler import SqlReconciler
@@ -21,7 +24,7 @@ from transcribe_engine.infrastructure.settings import Settings
 
 __all__ = ["main", "serve"]
 
-ROLES = ("cpu", "gpu")
+ROLES = ("cpu", "gpu", "publisher")
 
 
 async def serve(
@@ -46,13 +49,24 @@ async def serve(
             await asyncio.sleep(settings.poll_seconds)
 
 
+async def serve_publisher(publisher: OutboxPublisher, settings: Settings) -> None:
+    """Deliver due webhook events forever (S20). Sleeps when nothing is due."""
+    while True:
+        delivered = await publisher.run_once()
+        if delivered == 0:
+            await asyncio.sleep(settings.poll_seconds)
+
+
 def main(argv: list[str]) -> int:
     if len(argv) != 2 or argv[1] not in ROLES:
-        sys.stderr.write("usage: python -m transcribe_engine.worker cpu|gpu\n")
+        sys.stderr.write("usage: python -m transcribe_engine.worker cpu|gpu|publisher\n")
         return 2
     role = argv[1]
     settings = Settings()
     engine = make_engine(settings.database_url)
+    if role == "publisher":
+        asyncio.run(serve_publisher(composition.build_publisher(engine), settings))
+        return 0
     storage = composition.build_storage(settings)
     ingest, process = composition.build_handlers(engine, storage, settings)
     handler: Handler = ingest if role == "cpu" else process

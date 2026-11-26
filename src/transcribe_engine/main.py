@@ -17,10 +17,13 @@ from transcribe_engine.application.ports.storage import ObjectStorage
 from transcribe_engine.application.use_cases.ingest_job import IngestJob
 from transcribe_engine.application.use_cases.prepare_chunks import PrepareChunks
 from transcribe_engine.application.use_cases.process_job import ProcessJob
+from transcribe_engine.application.use_cases.publish_outbox import OutboxPublisher
 from transcribe_engine.domain.chunks import NORMALIZED_SAMPLE_RATE
 from transcribe_engine.infrastructure.asr.plumbing import PlumbingASR
 from transcribe_engine.infrastructure.clock import SystemClock
+from transcribe_engine.infrastructure.db.outbox import SqlOutboxStore, SqlWebhookSecrets
 from transcribe_engine.infrastructure.db.uow import SqlUnitOfWork
+from transcribe_engine.infrastructure.http.webhook_sender import HttpWebhookSender, resolve_host
 from transcribe_engine.infrastructure.media.ffmpeg import FfmpegNormalizer
 from transcribe_engine.infrastructure.media.ffprobe import FfprobeMediaProbe
 from transcribe_engine.infrastructure.ml.silero_vad import SileroVad
@@ -28,7 +31,7 @@ from transcribe_engine.infrastructure.settings import Settings
 from transcribe_engine.infrastructure.storage.s3 import S3ObjectStorage
 from transcribe_engine.presentation.api.app import create_app
 
-__all__ = ["build_app", "build_handlers", "build_storage"]
+__all__ = ["build_app", "build_handlers", "build_publisher", "build_storage"]
 
 
 def _uow(engine: AsyncEngine, tenant_id: str | None) -> AbstractAsyncContextManager[UnitOfWork]:
@@ -42,6 +45,17 @@ def build_app(engine: AsyncEngine, storage: ObjectStorage) -> FastAPI:
         return _uow(engine, tenant_id)
 
     return create_app(make_uow, storage, SystemClock())
+
+
+def build_publisher(engine: AsyncEngine) -> OutboxPublisher:
+    """The webhook publisher (S20): outbox rows to signed HTTPS deliveries, with the SSRF check."""
+    return OutboxPublisher(
+        SqlOutboxStore(engine),
+        SqlWebhookSecrets(engine),
+        HttpWebhookSender(),
+        SystemClock(),
+        resolve_host,
+    )
 
 
 def build_storage(settings: Settings) -> ObjectStorage:
