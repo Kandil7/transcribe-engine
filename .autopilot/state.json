@@ -4,7 +4,7 @@
   "current": null,
   "remote": true,
   "iterations": 11,
-  "last_run": "2026-11-26",
+  "last_run": "2026-11-27",
   "order": [
     "S01",
     "S00",
@@ -165,11 +165,11 @@
       "notes": "Merged via PR #43. Pure RAG domain: token-bounded chunks never crossing a topic boundary (AC-1, AC-2), chunk metadata (AC-3), RRF (AC-4). Deferred: AC-5 (index use case needs the embedder), AC-6 to AC-8 (pgvector tables, search index, API), embedder and reranker models (R-009, D-057). Parent level and summary left for later."
     },
     "S19": {
-      "status": "todo",
+      "status": "partial",
       "branch": null,
-      "merged": null,
+      "merged": "(see PR #45)",
       "tag": null,
-      "notes": ""
+      "notes": "Merged via PR #45. Speaker analytics (AC-1), chapter snapping (AC-2), entities verified against text (AC-3, domain and use case), transcript unchanged (AC-4), per-artifact failure isolation (AC-5). Deferred: AC-6 (YouTube chapters endpoint) and the artifacts table (need API and persistence). LLM adapter waits for R-010 (D-058)."
     },
     "S20": {
       "status": "partial",

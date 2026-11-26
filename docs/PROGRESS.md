@@ -26,7 +26,7 @@ Kept in sync with `.autopilot/state.json` by the autopilot. Status: `todo` · `i
 | 18 | S17 | Speaker diarization | partial | — | PR #41 | — | assignment, port, wiring; AC-4/AC-5 deferred (R-008) |
 | - | S18 | RAG chunks, embeddings, hybrid search | partial | — | PR #43 | — | chunks, boundaries, RRF (AC-1 to AC-4); index, pgvector, API deferred (R-009) |
 | 20 | S20 | Outbox, webhooks, observability | partial | — | 7b8c5dc (PR #35) | — | delivery, logs, metrics, alerts; spans and metric values not wired (follow-up) |
-| 21 | S19 | Enrichment | todo | | | | |
+| - | S19 | Enrichment | partial | — | PR #45 | — | analytics, snapping, verified entities; API and LLM deferred (R-010) |
 | 22 | S21 | Privacy, retention, deletion | todo | | | | |
 | 23 | S22 | Corrections and training export | todo | | | v0.5.0 | |
 | — | Final acceptance | | todo | | | v1.0.0-local | `docs/FINAL_REPORT.md` |
