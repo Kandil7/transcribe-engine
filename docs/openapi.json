@@ -24,6 +24,7 @@
             "type": "string"
           },
           "upload_id": {
+            "pattern": "^[0-9a-f]{32}$",
             "title": "Upload Id",
             "type": "string"
           },

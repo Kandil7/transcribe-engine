@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
+from dataclasses import replace
 
 from transcribe_engine.application.errors import JobAlreadyTerminalError, JobNotFoundError
 from transcribe_engine.application.ports.repositories import UnitOfWork
@@ -32,8 +33,8 @@ class CancelJob:
             applied = await uow.jobs.apply(job.id, decision, expected=job.state)
             if not applied:  # the job moved between the read and the write
                 raise JobAlreadyTerminalError
+            # Build the answer before commit: after commit the tenant setting is gone, so a re-read
+            # would be hidden by row-level security (D-024).
+            updated = replace(job, state=decision.to, error_code=decision.error_code)
             await uow.commit()
-            updated = await uow.jobs.get(tenant_id, job_id)
-        if updated is None:
-            raise JobNotFoundError
         return updated

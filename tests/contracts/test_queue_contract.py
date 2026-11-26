@@ -57,7 +57,11 @@ def _backend(kind: str, pg_url: str) -> _Backend:
         sql_recon = _mod("transcribe_engine.infrastructure.db.reconciler")
         return sql_recon.SqlReconciler(engine, backoff_base=backoff_base)
 
-    return _Backend(lambda: sql_uow.SqlUnitOfWork(engine), sql_queue.SqlJobQueue(engine), reconcile)
+    return _Backend(
+        lambda: sql_uow.SqlUnitOfWork(engine, tenant_id=None),
+        sql_queue.SqlJobQueue(engine),
+        reconcile,
+    )
 
 
 async def _seed(

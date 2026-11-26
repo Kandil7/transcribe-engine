@@ -49,7 +49,7 @@ def _backend(kind: str, pg_url: str) -> tuple[Callable[[], object], Callable[[st
             )
             return int(result.scalar_one())
 
-    return (lambda: sql_uow.SqlUnitOfWork(engine)), pg_count
+    return (lambda: sql_uow.SqlUnitOfWork(engine, tenant_id=None)), pg_count
 
 
 def _config(vad_threshold: float = 0.5) -> object:

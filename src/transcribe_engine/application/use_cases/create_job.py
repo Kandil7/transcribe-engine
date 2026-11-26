@@ -1,23 +1,28 @@
 """Create a transcription job (S08).
 
-One transaction: media row, job in PENDING_VALIDATION on the cpu queue, and the idempotency record.
-A repeated Idempotency-Key returns the stored response (D-025).
+One transaction: the tenant row is locked, then the idempotency key, the limits, the media row,
+the job (PENDING_VALIDATION on the cpu queue) and the idempotency record are written together.
+A repeated Idempotency-Key returns the stored response; reusing it for another request is refused
+(D-025, D-027).
 """
 
+import hashlib
+import json
 import secrets
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from typing import Any
 
 from transcribe_engine.application.errors import (
+    IdempotencyKeyReusedError,
     QuotaExceededError,
     TooManyActiveJobsError,
     UnsupportedFeatureError,
     UnsupportedLanguageError,
     UploadNotFoundError,
 )
+from transcribe_engine.application.ports.clock import Clock
 from transcribe_engine.application.ports.repositories import UnitOfWork
 from transcribe_engine.application.ports.storage import ObjectStorage
 from transcribe_engine.application.ports.tenancy import StoredResponse, TenantLimits
@@ -57,20 +62,25 @@ MakeUow = Callable[[str | None], AbstractAsyncContextManager[UnitOfWork]]
 
 
 class CreateTranscriptionJob:
-    def __init__(self, make_uow: MakeUow, storage: ObjectStorage) -> None:
+    def __init__(self, make_uow: MakeUow, storage: ObjectStorage, clock: Clock) -> None:
         self._make_uow = make_uow
         self._storage = storage
+        self._clock = clock
 
     async def __call__(self, cmd: CreateJobCommand) -> CreateJobResult:
         _validate(cmd)
         head = await self._storage.head(incoming_key(cmd.tenant_id, cmd.upload_id))
         if head is None:
             raise UploadNotFoundError
+        request_hash = _request_hash(cmd)
 
         async with self._make_uow(cmd.tenant_id) as uow:
+            await uow.tenants.lock(cmd.tenant_id)
             if cmd.idempotency_key is not None:
                 stored = await uow.idempotency.get(cmd.tenant_id, cmd.idempotency_key)
                 if stored is not None:
+                    if stored.request_hash != request_hash:
+                        raise IdempotencyKeyReusedError
                     return CreateJobResult(stored.job_id, stored.status, stored.body, replayed=True)
             await _check_limits(uow, cmd.tenant_id)
 
@@ -105,10 +115,21 @@ class CreateTranscriptionJob:
                 await uow.idempotency.put(
                     cmd.tenant_id,
                     cmd.idempotency_key,
-                    StoredResponse(job.id, 202, body, datetime.now(UTC)),
+                    StoredResponse(job.id, 202, body, self._clock.now(), request_hash),
                 )
             await uow.commit()
         return CreateJobResult(job.id, 202, body, replayed=False)
+
+
+def _request_hash(cmd: CreateJobCommand) -> str:
+    """The fields that define the job. The same Idempotency-Key with other fields is refused."""
+    fields = {
+        "upload_id": cmd.upload_id,
+        "language": cmd.language,
+        "engine": cmd.engine,
+        "diarization": cmd.diarization,
+    }
+    return hashlib.sha256(json.dumps(fields, sort_keys=True).encode()).hexdigest()
 
 
 def _validate(cmd: CreateJobCommand) -> None:

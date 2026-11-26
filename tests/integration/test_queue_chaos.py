@@ -51,7 +51,7 @@ async def _seed(engine: object, job_ids: list[str]) -> None:
         format="wav",
         size_bytes=1_000,
     )
-    async with uow_mod.SqlUnitOfWork(engine) as uow:  # type: ignore[arg-type]
+    async with uow_mod.SqlUnitOfWork(engine, tenant_id=None) as uow:  # type: ignore[arg-type]
         await uow.media.upsert(media)
         for job_id in job_ids:
             await uow.jobs.add(
@@ -108,7 +108,7 @@ async def _all_terminal(engine: object, job_ids: list[str]) -> tuple[bool, list[
     jobs = _mod("transcribe_engine.domain.jobs")
     uow_mod = _mod("transcribe_engine.infrastructure.db.uow")
     states: list[str] = []
-    async with uow_mod.SqlUnitOfWork(engine) as uow:  # type: ignore[arg-type]
+    async with uow_mod.SqlUnitOfWork(engine, tenant_id=None) as uow:  # type: ignore[arg-type]
         for job_id in job_ids:
             job = await uow.jobs.get("tenant-a", job_id)
             assert job is not None

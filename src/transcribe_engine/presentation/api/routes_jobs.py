@@ -56,7 +56,9 @@ async def request_transcription_deletion(
     job_id: str,
     principal: Annotated[ApiPrincipal, Depends(require_scope("transcribe:write"))],
 ) -> JSONResponse:
-    at = await RequestDeletion(request.app.state.make_uow)(principal.tenant_id, job_id)
+    at = await RequestDeletion(request.app.state.make_uow, request.app.state.clock)(
+        principal.tenant_id, job_id
+    )
     body = DeletionOut(id=job_id, deletion_requested_at=at)
     return JSONResponse(status_code=202, content=body.model_dump(mode="json"))
 
@@ -71,4 +73,4 @@ async def get_transcription_result(
     if format != "json":
         raise UnsupportedFeatureError
     await GetResult(request.app.state.make_uow)(principal.tenant_id, job_id)
-    return Response(status_code=204)  # unreachable until S10 writes transcript versions
+    raise AssertionError("GetResult returns no body until S10")  # never reached

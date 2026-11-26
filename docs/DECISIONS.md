@@ -422,3 +422,34 @@ Rationale: hashed keys mean a database read cannot reveal a usable key; fixed ti
 Reversibility: easy — key format and error titles are local.
 Confidence: high.
 Applied in: S08 auth commit
+
+## D-027 — S08 review decisions: race-free creates, request binding, clock port, residual risks
+Date: 2026-11-26 · Slice: S08 · Status: decided · Review: none
+Context: security, architecture and test reviews found a race on idempotency and on the active-job limit, an
+idempotency key that ignored the request body, an expired key that could not be reused, a clock and an auth lookup
+outside their ports, validation errors without problem+json, and weak or missing tests (positive controls, quota,
+cross-tenant RLS, the cancel success path).
+Fixed:
+- Each create takes the tenant row lock (SELECT ... FOR UPDATE), so the idempotency check and the job count run one at a
+  time per tenant. The fake lock is a no-op; the fake runs one request at a time.
+- An Idempotency-Key stores a SHA-256 of the job-defining fields. Reusing it with a different body is 422
+  (idempotency_key_reused). Migration 0004 gained `request_hash`.
+- An expired key is released before a new one is written, so a replay after 24 hours creates a new job, as D-025 says.
+- Time comes from the Clock port (SystemClock in infrastructure); request deletion and creates use it.
+- API key authentication is an application use case (AuthenticateApiKey); presentation only reads the header.
+- Pydantic validation errors are problem+json (422, code invalid_request).
+- upload_id must be 32 lowercase hex characters (server-generated, D-023).
+- Queue claims skip jobs marked for deletion (`deletion_requested_at`).
+- The unit of work requires an explicit tenant or None (system); no default scope.
+- Cancel builds its response before commit. After commit the tenant setting is gone and RLS hides the row (found by the
+  new cancel test).
+- Tests: positive controls for every refusal, a concurrent-limit race, cross-tenant RLS, body binding, cancel success
+  and a second cancel (409), Retry-After as an integer and absent when terminal, quota with used audio.
+Residual, with reasons:
+- Quota stays inert until S09 writes real durations (media rows carry 0 until then). The test sets used audio directly.
+- `apply` is keyed by job id without tenant (D-017). The API never calls it; only cancel does, after a tenant-scoped read.
+- Results are not tenant-scoped yet: the results table has no tenant column and result keys are shared by design
+  (D-019). S10 must add tenant scoping before it writes result bodies.
+- The API role in tests cannot bypass RLS; production must use a NOBYPASSRLS role (D-024).
+- Deletion is a mark only (S21 deletes). The 202 response says the request was recorded, not that data is gone.
+Applied in: S08 review-fix commit

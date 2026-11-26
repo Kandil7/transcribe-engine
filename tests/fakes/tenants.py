@@ -40,6 +40,9 @@ class FakeTenants:
         quota = current.quota_audio_ms if current else None
         self.limits_by_tenant[tenant_id] = TenantLimits(tenant_id, max_active_jobs, quota)
 
+    async def lock(self, tenant_id: str) -> None:
+        return None  # the fake runs one request at a time; the SQL version takes a row lock
+
     async def limits(self, tenant_id: str) -> TenantLimits | None:
         return self.limits_by_tenant.get(tenant_id)
 
@@ -71,7 +74,9 @@ class _IdempotencyView:
         return stored
 
     async def put(self, tenant_id: str, key: str, response: StoredResponse) -> None:
-        self._tenants.idempotency.setdefault((tenant_id, key), response)
+        existing = self._tenants.idempotency.get((tenant_id, key))
+        if existing is None or datetime.now(UTC) - existing.created_at > timedelta(hours=24):
+            self._tenants.idempotency[(tenant_id, key)] = response
 
 
 class FakeApiUnitOfWork(FakeUnitOfWork):

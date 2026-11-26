@@ -20,9 +20,14 @@ class StoredResponse:
     status: int
     body: dict[str, Any]
     created_at: datetime
+    request_hash: str  # binds the key to one request body (D-027)
 
 
 class TenantRepository(Protocol):
+    async def lock(self, tenant_id: str) -> None:
+        """Serialize writes for this tenant until the unit of work ends (D-027)."""
+        ...
+
     async def limits(self, tenant_id: str) -> TenantLimits | None: ...
 
     async def count_active_jobs(self, tenant_id: str) -> int: ...

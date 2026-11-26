@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UploadTicketOut(BaseModel):
@@ -14,7 +14,7 @@ class UploadTicketOut(BaseModel):
 
 
 class CreateTranscriptionIn(BaseModel):
-    upload_id: str
+    upload_id: str = Field(pattern=r"^[0-9a-f]{32}$")  # ids are server-generated (D-023)
     language: str
     engine: str | None = None
     diarization: bool = False
