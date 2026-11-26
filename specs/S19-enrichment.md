@@ -66,4 +66,4 @@ def speaker_analytics(t: CanonicalTranscript) -> SpeakerAnalytics   # pure, no L
 8. `feat(S19): add chapters endpoint`
 
 ## Open questions
-- [ ] Q1 — Which LLM, hosted where (privacy: transcripts leave the cluster?). Needs a decision + ADR.
+- [x] Q1 — (resolved by: autopilot, 2026-11-27, D-058; R-010) Which LLM, hosted where (privacy: transcripts leave the cluster?). No LLM is wired: a hosted model would send transcripts out, which needs the owner's decision. The Enricher port is built with a fake; a local model waits for R-010.
