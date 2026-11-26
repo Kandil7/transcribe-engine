@@ -539,3 +539,29 @@ D-029 (media finalize, hand-off on VALIDATED, Windows sandbox, Q1 deferred), D-0
 - The worker wiring (IngestJob registration in a worker entry point) comes with S10's `make dev`.
 - Channels are logged but not stored (Q2, S13).
 - Lease fencing and tenant-scoped results are S10 work (see the S08 review residuals).
+
+## S10 — Chunk plan, fan-out, merge (Fake ASR, end-to-end)   (2026-11-26 → in progress)
+Branch: feat/S10-chunking-fanout-merge   Merged: pending   Tag: —
+### What was built (so far)
+- Domain chunk planner (`domain/chunks.py`): speech regions cut into cores of at most `max_samples`, padded inside the file, ids from `domain.keys` (D-032).
+- Domain merge (`domain/merge.py`): one result per chunk (MergeError otherwise), midpoint rule, deterministic ordering, integer ms, validation warnings.
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | spec on main before this slice | `specs/S10-chunking-fanout-merge.md` | — |
+| 2 | d41f477 `test(S10): add chunk and merge tests (xfail)` | 12 tests, strict xfail | — |
+| 3 | 037560a `feat(S10): add Chunk and plan_chunks` | planner | 6 chunk tests |
+| 4 | 591ad39 `feat(S10): add merge with midpoint rule and validation` | merge, validation | 4 merge tests, 2 Hypothesis properties (AC-1, AC-2) |
+### Verification
+- `make check`: 211 passed, 1 skipped (dev-hour gate, R-001), no xfail left in S10 tests.
+### Decisions
+D-032 (sample_rate in the planner signature; one chunk per region piece).
+### Not yet done (S10 remains in progress)
+- Ports and fakes for ASR and VAD (commit plan step 5).
+- `PrepareChunks` on the CPU path before hand-off, and persisting the plan in `chunks` (step 6). Needs a migration.
+- `ProcessJob` with a bounded semaphore, resume by chunk id, and per-chunk saves (step 7).
+- Transcript persistence and COMPLETED on merge (step 8). Needs migrations for transcript tables.
+- Acceptance: AC-5 edge cases are covered by the planner tests; AC-6 (upload to COMPLETED), AC-7 (resume without reprocessing) and AC-8 (permanent chunk failure policy) are not started.
+### Follow-ups
+- Partial-failure policy (AC-8) needs the tenant flag for complete text, which is not in the schema yet.
+- The S09 deferrals (fenced ref increment, worker wiring) are still open and belong with ProcessJob and `make dev`.
