@@ -13,9 +13,11 @@ from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlsplit
 
 from transcribe_engine.application.errors import (
     IdempotencyKeyReusedError,
+    InvalidWebhookUrlError,
     QuotaExceededError,
     TooManyActiveJobsError,
     UnsupportedFeatureError,
@@ -108,6 +110,7 @@ class CreateTranscriptionJob:
                 result_id=None,
                 error_code=None,
                 warnings=(),
+                webhook_url=cmd.webhook_url,
             )
             await uow.jobs.add(job)
             body = _body(job)
@@ -128,17 +131,23 @@ def _request_hash(cmd: CreateJobCommand) -> str:
         "language": cmd.language,
         "engine": cmd.engine,
         "diarization": cmd.diarization,
+        "webhook_url": cmd.webhook_url,
     }
     return hashlib.sha256(json.dumps(fields, sort_keys=True).encode()).hexdigest()
 
 
 def _validate(cmd: CreateJobCommand) -> None:
-    if cmd.webhook_url is not None:
-        raise UnsupportedFeatureError  # webhooks arrive with S20 (D-025)
+    if cmd.webhook_url is not None and not _is_https_url(cmd.webhook_url):
+        raise InvalidWebhookUrlError  # D-048: https only; the address is checked at send time
     if cmd.language != SUPPORTED_LANGUAGE:
         raise UnsupportedLanguageError
     if cmd.engine not in (None, DEFAULT_ENGINE):
         raise UnsupportedFeatureError
+
+
+def _is_https_url(url: str) -> bool:
+    parts = urlsplit(url)
+    return parts.scheme == "https" and bool(parts.hostname)
 
 
 async def _check_limits(uow: UnitOfWork, tenant_id: str) -> None:
