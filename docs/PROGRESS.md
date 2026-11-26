@@ -16,7 +16,7 @@ Kept in sync with `.autopilot/state.json` by the autopilot. Status: `todo` · `i
 | 8 | S06 | Postgres job queue, lease, fencing, reconciler | done | — | f216ccd | — | PR #15 merged (rebase) |
 | 9 | S08 | API, auth, job endpoints | done | — | f9eeca3 | — | PR #17 merged (rebase) |
 | 10 | S09 | Ingest: probe, hash, dedupe, normalize | done | feat/S09-ingest-validation | 8e24311 (PRs #21, #23) | — | D-030, D-031: fenced ref increment and worker wiring deferred to S10 |
-| 11 | S10 | Chunk plan, fan-out, merge | todo | | | v0.2.0 | adds `make dev`, `make demo` |
+| 11 | S10 | Chunk plan, fan-out, merge | done | feat/S10-result-refs | pending | v0.2.0 | make dev and make demo on this machine; plumbing ASR/VAD (D-035) |
 | 12 | S11 | VAD with cut and merge | todo | | | | |
 | 13 | S12 | ASR adapters (local profile first) | todo | | | | |
 | 14 | S15 | Canonical transcript and renderers | todo | | | v0.3.0-local | **local demo** |
