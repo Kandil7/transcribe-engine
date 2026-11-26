@@ -740,3 +740,17 @@ are the owner's decision. The wiring for AC-3, AC-5 and AC-6 needs the adapters 
 Reversibility: easy. Thresholds change only through a RoutingPolicy version (bumps pipeline_version).
 Confidence: medium.
 Applied in: test(S13) 9e821d4, feat(S13) 0799aa7. Singing and wiring: follow-up.
+## D-045 — S15 cues: the gap rule wins over the minimum duration; reading speed uses the word span
+Date: 2026-11-26 · Slice: S15 · Status: decided · Review: none
+Context: A cue shorter than 833 ms is extended to that minimum, but it must still keep 80 ms before the next cue.
+When the words are close together those two rules cannot both hold. Reading speed (cps) is also measured on the
+final display time, which can be shorter than the padded time after the gap clamp.
+Options: A) Always extend to the minimum and let cues overlap. B) Gap wins: the cue is shortened to the gap, and
+the minimum duration yields only in that case. C) Merge short cues into their neighbours.
+Decision: B. The cue end is clamped to (next start − min gap) but never below its last word. Cps is checked on the
+word span (last end − first start), which is the shortest possible display time, so the limit holds after the clamp.
+Rationale: Overlap breaks players and the gap rule is the stricter readability rule. C changes cue boundaries for a
+case the spec does not describe. [D: الترجمات المرئية]
+Reversibility: easy (the builder and its test change together).
+Confidence: medium. Q1 (17 cps, 42 chars) remains open until a viewer test.
+Applied in: S15 cue builder commit.

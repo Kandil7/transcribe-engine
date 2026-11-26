@@ -10,8 +10,6 @@ from dataclasses import replace
 from types import ModuleType
 from typing import Any
 
-import pytest
-
 from tests.unit.render.test_cues import _transcript
 
 FIRST = [
@@ -27,8 +25,6 @@ GOLDEN = (
     "1\n00:00:00,000 --> 00:00:01,800\n\u200fمرحبا بيكم في البرنامج.\u200f\n\n"
     "2\n00:00:02,000 --> 00:00:03,500\n\u200fأهلا بيك يا أستاذ\n\n"
 )
-
-pytestmark = pytest.mark.xfail(strict=True, reason="S15")
 
 
 def _mod(name: str) -> ModuleType:

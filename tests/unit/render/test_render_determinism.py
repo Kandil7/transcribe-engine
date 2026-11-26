@@ -5,11 +5,7 @@ happen inside helpers so the module collects before the code exists.
 import importlib
 from types import ModuleType
 
-import pytest
-
 from tests.unit.render.test_srt import two_speaker_transcript
-
-pytestmark = pytest.mark.xfail(strict=True, reason="S15")
 
 
 def _mod(name: str) -> ModuleType:

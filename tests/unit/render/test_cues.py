@@ -7,15 +7,12 @@ import itertools
 from types import ModuleType
 from typing import Any
 
-import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 ARABIC = "ابتثجحخدذرزسشصضطظعغفقكلمنهوي"
 _LABELS = {"S1": "SPEAKER_01", "S2": "SPEAKER_02"}
 PREPOSITIONS = ("في", "على", "من", "عن", "إلى", "مع")
-
-pytestmark = pytest.mark.xfail(strict=True, reason="S15")
 
 
 def _mod(name: str) -> ModuleType:
@@ -74,12 +71,18 @@ def test_profile_limits_hold(spec: list[tuple[str, int, int]]) -> None:
         cursor += duration + gap
     cues = cues_mod.build_cues(_transcript(words), profile)
     assert cues
-    for cue in cues:
+    for index, cue in enumerate(cues):
         assert len(cue.lines) <= profile.max_lines
         for line in cue.lines:
             assert len(line) <= profile.max_chars_per_line
         duration = cue.end_ms - cue.start_ms
-        assert profile.min_duration_ms <= duration <= profile.max_duration_ms
+        assert duration <= profile.max_duration_ms
+        # D-045: the minimum yields to the gap rule, only when the gap is exactly the minimum.
+        if index + 1 < len(cues):
+            gap = cues[index + 1].start_ms - cue.end_ms
+            assert duration >= profile.min_duration_ms or gap == profile.min_gap_ms
+        else:
+            assert duration >= profile.min_duration_ms
         chars = len(" ".join(cue.lines))
         assert cue.word_count == 1 or chars / (duration / 1000) <= profile.max_cps
     for before, after in itertools.pairwise(cues):
@@ -103,6 +106,8 @@ def test_no_preposition_split() -> None:
     cues = cues_mod.build_cues(_transcript(words), profile)
     assert len(cues) >= 2
     prepositions = {normalize(p).search for p in PREPOSITIONS}
-    for cue in cues:
+    # Only cut points between cues are checked. The last cue may end with a preposition when the
+    # transcript itself ends there, since nothing follows it to split from.
+    for cue in cues[:-1]:
         last_word = normalize(cue.lines[-1].rstrip(" ")).search.split()[-1]
         assert last_word not in prepositions
