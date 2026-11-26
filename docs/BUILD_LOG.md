@@ -460,3 +460,37 @@ webhooks refused, progress), D-026 (key format, hashing, problem+json), D-027 (r
 ### Follow-ups
 - S09 sets real media durations, so quota starts to count. S10 adds tenant scoping to results before writing bodies.
 - Production must use a NOBYPASSRLS role (D-024). S20 adds webhooks; S21 performs deletion.
+
+## S00 — Model selection spike (partial)   (2026-11-26 → 2026-11-26)
+Branch: spike/S00-model-selection   Merged: pending   Tag: —
+### What was built
+- AC-1: annotation guidelines (already on main from the spec series), now pinned by a test that checks every required section and canonical example.
+- Manifest format and validator in `evaluation/spike/manifest.py` (stdlib only) and CLI `evaluation/spike/validate_manifest.py`, which prints turns, speakers, minutes and per-condition counts. Coverage gate: ≥ 60 min, ≥ 5 speakers, clean + noisy + code_switch, and silent or music.
+- `evaluation/spike/REPORT.md` and ADR-0007 (Provisional). The report states plainly what is not measured.
+### How it works
+One JSONL line is one speech turn. `parse_line` checks types at the boundary (integer milliseconds; booleans and floats rejected), the closed condition set, and the guideline rules: no punctuation, no diacritics, lowercase Latin, empty text for silent or music-only turns. `summarize` counts turns, distinct speakers, total ms and turns per condition. `coverage_problems` lists each gap against the §11 gate.
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | 7c8573a `docs(S00): add spec` (on main before this slice) | spec | — |
+| 2 | 5765373 `test(S00): add acceptance tests (xfail)` | AC-1 test; validator tests xfail; dev-hour gate skipped | AC-1 (2 tests) |
+| 3 | 16139e2 `spike(S00): add manifest validator and coverage gate` | parser, summary, gate, CLI | 15 validator and CLI tests |
+| 4 | 69948a6 `fix(S00): point the dev-hour skip reason at R-001` | skip reason cited R-003 (wrong id) | — |
+| 5 | fdb8d68 `docs(S00): add report` | `evaluation/spike/REPORT.md` | — |
+| 6 | 68b248a `docs(adr): 0007 default ASR engine` | ADR-0007, index row, D-028, review queue | — |
+### Verification
+- `make check`: 176 passed, 1 skipped (`test_dev_manifest.py`, waiting for R-001), 0 xfailed.
+- `grep -rn 'reason="S00"' tests`: no xfail markers left after step 3.
+- Spike-branch hygiene: `spike/S00-model-selection` had no commits that main lacked, so it was fast-forwarded to main before work started.
+### Decisions
+D-028 (partial S00 path; ADR-0007 provisional)
+### Problems and fixes
+- Ruff PLC0415 flagged imports inside test functions. Fix: `importlib.import_module` in a helper, so the file still collects while the module is missing.
+- Validator wrote CRLF line endings; the repo stores LF. Fix: normalised before commit.
+- The skip reason cited R-003, which does not exist; the human hour is R-001. Fixed in step 4. The step-3 commit message keeps the old id; this entry is the correction.
+### Review findings
+- Reviewer subagents were not run for this slice. S00 adds spike tooling only, no product code. Self-review: the validator rules track guidelines §3 and §7–§11, and each rule has a test.
+### Follow-ups
+- R-001: a person transcribes ≥ 60 min of in-house dev audio per the guidelines. Then run `validate_manifest --require-coverage`, which un-skips the gate.
+- Not done, and cannot be done without R-001 or audio: candidate runner, `run.ipynb`, CER/WER/hallucination, RTF and VRAM per model, Audar-on-vLLM check (AC-3, AC-4).
+- ADR-0007 is revisited when measurements exist, or when Falcon-ASR weights are published.
