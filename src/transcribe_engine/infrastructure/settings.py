@@ -27,3 +27,9 @@ class Settings(BaseSettings):
     s3_bucket: str = "transcribe-local"
     s3_region: str = "us-east-1"
     scratch_dir: str = ".scratch"  # ingest and FFmpeg work files; git-ignored
+    chunk_max_ms: int = 30_000  # longest core of one chunk (S10)
+    chunk_pad_ms: int = 500  # padding either side of a core, inside the file (S10)
+    asr_concurrency: int = 32  # chunks in flight per job (design: initial 32)
+    lease_seconds: int = 120  # design: 2-minute lease
+    heartbeat_seconds: float = 30.0
+    poll_seconds: float = 1.0  # idle wait between claim attempts

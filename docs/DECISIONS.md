@@ -608,3 +608,17 @@ quality is not measured until S12 and S16.
 Reversibility: easy — both are single adapters behind existing ports.
 Confidence: high.
 Applied in: S10 plumbing commit.
+
+## D-036 — Worker composition in the composition root; the SQL unit-of-work cast
+Date: 2026-11-26 · Slice: S10 · Status: decided · Review: none
+Context: The cpu and gpu handlers (S09 ingest with its planner, S10 process) and the storage client must be built in one
+place. `main.py` is the only composition root, so the builders go there. `worker.py` is the entry point: it runs the claim
+loop, calls the reconciler between polls, and passes the handler to the worker loop.
+Decision: `build_storage`, `build_handlers` and the worker runner are in `main.py` and `worker.py`. Settings come only
+from `Settings`. Mypy cannot match `SqlUnitOfWork.__aenter__` (which returns Self) to the `UnitOfWork` protocol's
+`__aenter__`, so the composition root wraps it in a documented `cast`. The protocol is not loosened.
+Rationale: One composition point keeps the layer rules (import-linter) intact. The cast touches one line and keeps the
+port types strict everywhere else.
+Reversibility: easy.
+Confidence: high.
+Applied in: S10 worker commit.
