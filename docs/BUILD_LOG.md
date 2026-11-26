@@ -657,3 +657,29 @@ D-041 (port shape), D-042 (filter is domain-only; suspect not yet on the result)
 - `suspect` flag on transcript words and the result (S15/S20).
 - faster-whisper local adapter and `deploy/vllm/` (R-003).
 - Wire `VllmASR` in `main.py` behind `TE_ASR_PROFILE` once a model is chosen.
+
+## S13 — Audio profiling and routing (partial)   (2026-11-26 → 2026-11-26)
+Branch: feat/S13-audio-profiling-routing (from main d02504a)   Merged: pending   Tag: —
+### What was built
+- `domain/routing.py`: `AudioProfile`, `RoutingPolicy` (versioned thresholds), `Step`, `ProcessingPlan`, and the pure `plan_processing` split into three rule helpers.
+### How it works
+Noise level picks Denoise (medium, for VAD only) or the strict VAD and `low_snr` flag (heavy). Quiet audio adds Loudnorm; music over 30% adds SeparateVocals; stereo adds SplitChannels; reverb, telephony, overlap and clipping only set flags. When speech is under 2% the plan skips ASR and clears its steps, so no GPU work is planned.
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | docs(S13) spec | (already in repo) | — |
+| 2 | 9e821d4 `test(S13): add routing policy tests (xfail)` | AC-1 table, AC-2 | — |
+| 3 | 0799aa7 `feat(S13): add AudioProfile and routing policy` | routing domain | AC-1, AC-2 |
+### Verification
+- `make check`: 244 passed, 1 skipped (R-001), 0 xfail.
+- `make itest`: not run locally (Docker down). Unchanged by this slice.
+### Decisions
+D-044 (domain first; singing and wiring deferred; Q1 resolved).
+### Problems and fixes
+- `plan_processing` was 12 complex (limit 10). Split into three helpers with no behaviour change.
+### Review findings
+- Reviewers not run in this session.
+### Follow-ups
+- Commits 4 and 5: profiler and enhancer adapters. Blocked on licenses and dependencies (R-004, Q2).
+- Commit 6: wire profiling and routing into PrepareChunks (AC-3, no-speech completion without GPU) and ProcessJob (AC-5, feed_asr), and AC-6 channel split. Needs the adapters first.
+- Singing row (AudioSet class): not in AudioProfile.

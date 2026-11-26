@@ -726,3 +726,17 @@ Rationale: The vLLM adapter already satisfies AC-1 and AC-3 with HTTP mocks. AC-
 Reversibility: easy.
 Confidence: high.
 Applied in: none yet. See REVIEW_QUEUE R-003.
+
+## D-044 — S13 routing: domain policy first; singing and the wiring are deferred
+Date: 2026-11-26 · Slice: S13 · Status: decided · Review: none
+Context: S13 needs a pure routing policy (AC-1, AC-2) and, later, adapters and wiring. Q1 asks for a PROFILING
+stage. The stage already exists in `JobStage` (D-005), so Q1 is resolved.
+Options: A) Build the policy, adapters and wiring together. B) Build the pure policy now and defer adapters
+and wiring until the licenses and dependencies are approved (Q2, R-004). C) Add a singing field to AudioProfile now.
+Decision: B. The singing row needs an AudioSet classifier, which the profile does not carry, so it is a follow-up.
+Thresholds not fixed by the spec are proposals and are tuned in S16: C50 reverb 10 dB, overlap 0.15, VAD strict 0.7.
+Rationale: The policy is testable without models. Adapters need new dependencies and their licenses (Q2), which
+are the owner's decision. The wiring for AC-3, AC-5 and AC-6 needs the adapters to be meaningful.
+Reversibility: easy. Thresholds change only through a RoutingPolicy version (bumps pipeline_version).
+Confidence: medium.
+Applied in: test(S13) 9e821d4, feat(S13) 0799aa7. Singing and wiring: follow-up.
