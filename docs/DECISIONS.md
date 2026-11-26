@@ -830,3 +830,17 @@ Rationale: keeps the commit green and keeps the test's refusal check; the change
 Reversibility: easy.
 Confidence: high.
 Applied in: fix(S20) commit following bfe0364.
+
+## D-051 — S20 webhook URL at job creation: https accepted, other URLs get a dedicated error
+Date: 2026-11-26 · Slice: S20 · Status: decided · Review: none
+Context: create_job refused every webhook_url as UnsupportedFeatureError until S20. S20 makes https webhooks
+supported. The refusal for other URLs still needs an error.
+Options: A) Keep UnsupportedFeatureError for http (the message "not available yet" is wrong for a bad value). B) A
+dedicated InvalidWebhookUrlError, 422, code invalid_webhook_url. C) Accept any URL and reject at send time.
+Decision: B. The scheme and host are checked at creation; the address (DNS, private ranges) is checked at send time
+by the publisher (AC-3).
+Rationale: the client gets a precise error for a bad value; C would store URLs that can never be sent. The
+creation check is syntactic, so it needs no DNS call in the request path.
+Reversibility: easy.
+Confidence: high.
+Applied in: feat(S20) accept https webhook URLs at job creation.

@@ -7,6 +7,7 @@ __all__ = [
     "ApplicationError",
     "ForbiddenError",
     "IdempotencyKeyReusedError",
+    "InvalidWebhookUrlError",
     "JobAlreadyTerminalError",
     "JobNotFoundError",
     "QuotaExceededError",
@@ -72,6 +73,14 @@ class UnsupportedLanguageError(ApplicationError):
     status = 422
     code = "unsupported_language"
     title = "Only explicit Arabic (ar) is supported"
+
+
+class InvalidWebhookUrlError(ApplicationError):
+    """Webhooks are https only (D-048). The destination is checked again at send time (S20)."""
+
+    status = 422
+    code = "invalid_webhook_url"
+    title = "The webhook URL must be an https address"
 
 
 class UnsupportedFeatureError(ApplicationError):

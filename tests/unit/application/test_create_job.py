@@ -91,16 +91,30 @@ async def test_unsupported_language_is_refused_before_any_write() -> None:
 
 
 async def test_plain_http_webhook_is_refused() -> None:
-    """Webhooks are https only (D-048). Until S20 every webhook was refused; the premise of this
-    test changed with D-048, so it now uses an http URL, which is still refused."""
+    """Webhooks are https only (D-048). Refused with a dedicated error; no job is stored.
+
+    The expected error changed from UnsupportedFeatureError in this S20 step (D-051)."""
     errors = _mod("transcribe_engine.application.errors")
     make_uow, storage, _, store, clock = await _world()
     await storage.put("incoming/tenant-a/upload-a", b"RIFF")  # type: ignore[attr-defined]
-    with pytest.raises(errors.UnsupportedFeatureError):
+    with pytest.raises(errors.InvalidWebhookUrlError):
         await _create(make_uow, storage, clock)(  # type: ignore[operator]
             _command("upload-a", webhook_url="http://example.invalid/hook")
         )
     assert store.jobs == {}
+
+
+async def test_https_webhook_url_is_stored_on_job() -> None:
+    """S20 (D-048, D-049): an https webhook URL is accepted and kept on the job, so the outbox
+    event written at completion can carry it."""
+    make_uow, storage, _, store, clock = await _world()
+    await storage.put("incoming/tenant-a/upload-a", b"RIFF")  # type: ignore[attr-defined]
+    url = "https://hooks.example.invalid/transcripts"
+    result = await _create(make_uow, storage, clock)(  # type: ignore[operator]
+        _command("upload-a", webhook_url=url)
+    )
+    assert result.status == 202
+    assert store.jobs[result.job_id].webhook_url == url
 
 
 async def test_concurrency_limit_refuses_the_extra_job() -> None:
