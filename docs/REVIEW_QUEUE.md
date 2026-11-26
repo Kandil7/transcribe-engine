@@ -15,7 +15,8 @@ asking the next run to supersede the decision (add a line under "Instructions fo
 
 ## Instructions for the next run
 - S20 merged (PR #35). R-006: run promtool locally or accept the CI `alerts` job as the check. Follow-ups in BUILD_LOG S20: per-stage spans, metric call sites, secret encryption before S21.
-- PR #34 (S16) is open and partial; review it before the next slice touches evaluation.
+- PR #34 (S16) reviewed by the run: CI green, no xfail left, 23 evaluation tests pass. Not merged: it depends on partial S12. Decide the partial-dependency rule (D-054).
+- R-007 (next run): the autopilot is blocked because every remaining slice depends on a partial one (state.blocked_reason). Decide: may dependents proceed on partial dependencies, or do R-003/R-004/R-005 first?
 - R-002 done: S01 pushed and merged. S02 merged 714136b.
 - S00 is partial. R-001 stays open: the dev hour must be transcribed by a person from in-house audio placed in `data/` (outside git). The repo has no audio yet.
 - Next: S09 (ingest). S00 proceeds on `partial`, so dependents may continue.

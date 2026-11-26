@@ -876,3 +876,17 @@ destination. C makes each lease a single attempt. D and E fix the reviewed risks
 Reversibility: easy (code, and migration 0007, which is not on main yet).
 Confidence: medium. Not verified: the httpx SNI extension against a live TLS server (only MockTransport is tested).
 Applied in: fix(S20) delivery hardening.
+
+## D-054 — Autopilot blocked: partial dependencies do not unblock dependents
+Date: 2026-11-26 · Slice: — · Status: decided · Review: requested
+Context: AUTOPILOT 2.1 lets a dependent start only when its dependencies are done, except S00 on partial. Every
+remaining slice now depends on a partial slice (S12, S14, S15, and through them S16 to S22). The missing parts are
+owner decisions (R-003 model and dependency, R-004 licences, R-005 aligner and viewer test).
+Options: A) Let dependents proceed on partial dependencies, recording what is missing. B) Keep the rule and stop
+until R-003/R-004/R-005 are decided. C) Build the dependents on fakes as if the dependency were done.
+Decision: B for now. The run stops with state.status = blocked. Option A is the owner's call, since it changes a
+rule in AUTOPILOT 2.1.
+Rationale: Option C would hide missing behaviour behind fakes. Option A changes the process itself, which the owner sets.
+Reversibility: easy (one state edit).
+Confidence: medium.
+Applied in: docs(autopilot) blocked state commit.
