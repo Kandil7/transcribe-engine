@@ -1,7 +1,7 @@
 {
   "version": 1,
   "status": "running",
-  "current": null,
+  "current": "S10",
   "remote": true,
   "iterations": 10,
   "last_run": "2026-11-26",
@@ -102,11 +102,11 @@
       "notes": "Merged via PR #21 and round-2 fixes PR #23 (rebase). make check 199 passed; make itest 64 passed. Architecture and test reviewers ran; findings fixed or listed in D-031 (fenced ref increment, worker wiring) for S10."
     },
     "S10": {
-      "status": "todo",
-      "branch": null,
+      "status": "in_progress",
+      "branch": "feat/S10-chunking-fanout-merge",
       "merged": null,
       "tag": null,
-      "notes": ""
+      "notes": "Domain core merged in progress: chunk planner (D-032) and merge with midpoint rule. Ports, PrepareChunks, ProcessJob, persistence, end-to-end not started."
     },
     "S11": {
       "status": "todo",
