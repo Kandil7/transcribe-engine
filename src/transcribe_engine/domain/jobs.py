@@ -236,6 +236,7 @@ class Job:
     priority: int = 0  # higher claims first (S06)
     progress: int = 0  # 0-100 (S08 status endpoint)
     run_after: datetime | None = None  # a retry is not claimable before this time (S06)
+    webhook_url: str | None = None  # https destination for outbox events (S20, D-048)
 
 
 @dataclass(frozen=True)

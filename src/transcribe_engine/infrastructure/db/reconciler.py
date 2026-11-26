@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from transcribe_engine.application.ports.queue import ReconcileReport
 from transcribe_engine.domain.jobs import JobEvent, JobState, backoff, transition
+from transcribe_engine.infrastructure.db.outbox import record_terminal_event
 from transcribe_engine.infrastructure.db.session import SYSTEM_SCOPE
 from transcribe_engine.infrastructure.db.uow import translate_db_error
 
@@ -82,6 +83,7 @@ class SqlReconciler:
                         if row.attempt_count >= row.max_attempts:
                             poisoned += 1
                             await conn.execute(_POISON, {"job_id": row.id})
+                            await record_terminal_event(conn, row.id, JobState.FAILED.value)
                         else:
                             await conn.execute(_CLEAR_LEASE, {"job_id": row.id})
                         continue
@@ -94,6 +96,7 @@ class SqlReconciler:
                     if decision.to == JobState.FAILED:
                         poisoned += 1
                         await conn.execute(_POISON, {"job_id": row.id})
+                        await record_terminal_event(conn, row.id, JobState.FAILED.value)
                         continue
                     delay = backoff(
                         row.attempt_count, base=self._base, cap=self._cap, jitter=self._jitter

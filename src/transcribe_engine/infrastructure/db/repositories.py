@@ -37,6 +37,7 @@ from transcribe_engine.infrastructure.db.models import (
     results,
     transcript_table,
 )
+from transcribe_engine.infrastructure.db.outbox import record_terminal_event
 
 __all__ = ["SqlJobRepository", "SqlMediaRepository", "SqlResultRepository"]
 
@@ -188,6 +189,7 @@ class SqlJobRepository:
                 config_canonical=job.config.canonical_json(),
                 priority=job.priority,
                 run_after=job.run_after,
+                webhook_url=job.webhook_url,
             )
         )
 
@@ -228,7 +230,10 @@ class SqlJobRepository:
         result = await self._conn.execute(
             update(jobs).where(jobs.c.id == job_id, jobs.c.state == expected.value).values(**values)
         )
-        return bool(result.rowcount == 1)
+        applied = bool(result.rowcount == 1)
+        if applied:
+            await record_terminal_event(self._conn, job_id, t.to.value)  # S20, AC-1
+        return applied
 
 
 class SqlResultRepository:

@@ -95,7 +95,6 @@ async def _events_for(engine: AsyncEngine, job_id: str) -> list[str]:
         return [row.event for row in rows]
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_event_written_with_state_change(pg_url: str) -> None:
     """AC-1: completing a job writes one transcript.completed row in the same transaction."""
     jobs = _mod("transcribe_engine.domain.jobs")
@@ -120,7 +119,6 @@ async def test_event_written_with_state_change(pg_url: str) -> None:
         await engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_rolled_back_state_change_leaves_no_event(pg_url: str) -> None:
     """AC-1: when the transaction holding the state change rolls back, no event survives and the
     job keeps its state."""

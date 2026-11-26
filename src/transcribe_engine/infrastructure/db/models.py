@@ -63,6 +63,7 @@ jobs = sa.Table(
     sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
     sa.Column("seq", sa.BigInteger, sa.Identity(), nullable=False),
     sa.Column("deletion_requested_at", sa.DateTime(timezone=True), nullable=True),
+    sa.Column("webhook_url", sa.Text, nullable=True),
 )
 
 transcript_versions = sa.Table(
@@ -100,6 +101,20 @@ outbox = sa.Table(
     sa.Column("payload", postgresql.JSONB, nullable=False),
     sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     sa.Column("published_at", sa.DateTime(timezone=True), nullable=True),
+    sa.Column("attempts", sa.Integer, nullable=False, server_default="0"),
+    sa.Column("next_attempt_at", sa.DateTime(timezone=True), nullable=True),
+    sa.Column("abandoned_at", sa.DateTime(timezone=True), nullable=True),
+)
+
+webhook_secrets = sa.Table(
+    "webhook_secrets",
+    metadata,
+    sa.Column("tenant_id", sa.Text, sa.ForeignKey("tenants.id"), nullable=False),
+    sa.Column("secret_id", sa.Text, nullable=False),
+    sa.Column("secret", sa.LargeBinary, nullable=False),
+    sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+    sa.Column("retired_at", sa.DateTime(timezone=True), nullable=True),
+    sa.PrimaryKeyConstraint("tenant_id", "secret_id", name="pk_webhook_secrets"),
 )
 
 tenants = sa.Table(
