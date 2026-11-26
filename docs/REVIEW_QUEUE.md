@@ -14,6 +14,8 @@ asking the next run to supersede the decision (add a line under "Instructions fo
 | R-006 | 2026-11-26 | S20 | Run `promtool test rules deploy/observability/alerts_test.yml` locally, or approve executing the downloaded promtool 2.53.0 binary on this machine | The permission system denied running the downloaded binary, so AC-7 cannot be checked here | CI job `alerts` installs the same pinned release and runs `promtool check rules` and `promtool test rules` on every PR | — |
 
 ## Instructions for the next run
+- S20 merged (PR #35). R-006: run promtool locally or accept the CI `alerts` job as the check. Follow-ups in BUILD_LOG S20: per-stage spans, metric call sites, secret encryption before S21.
+- PR #34 (S16) is open and partial; review it before the next slice touches evaluation.
 - R-002 done: S01 pushed and merged. S02 merged 714136b.
 - S00 is partial. R-001 stays open: the dev hour must be transcribed by a person from in-house audio placed in `data/` (outside git). The repo has no audio yet.
 - Next: S09 (ingest). S00 proceeds on `partial`, so dependents may continue.
