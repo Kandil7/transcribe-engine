@@ -11,8 +11,6 @@ import importlib
 from types import ModuleType
 from typing import Any
 
-import pytest
-
 MAX_DURATION_MS = 3 * 3600 * 1000
 
 
@@ -165,7 +163,6 @@ async def test_hash_streamed(tmp_path: Any) -> None:
     assert sum(storage.chunk_sizes) == len(upload)
 
 
-@pytest.mark.xfail(strict=True, reason="S09")
 async def test_handoff_to_gpu_queue(tmp_path: Any) -> None:
     """AC-7. A valid file ends in QUEUED (the worker sets queue=gpu); the WAV is in work/."""
     jobs = _mod("transcribe_engine.domain.jobs")

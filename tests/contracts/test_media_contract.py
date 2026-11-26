@@ -91,7 +91,6 @@ async def test_extension_ignored_format_from_probe(tmp_path: Path) -> None:
     assert info.channels == 2
 
 
-@pytest.mark.xfail(strict=True, reason="S09")
 async def test_output_is_pcm16_mono_16k(tmp_path: Path) -> None:
     """AC-6. Normalization writes 16 kHz mono 16-bit PCM WAV."""
     _require("ffmpeg")
