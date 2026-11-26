@@ -44,7 +44,6 @@ def _records(buffer: io.StringIO) -> list[dict[str, Any]]:
     return [json.loads(line) for line in buffer.getvalue().splitlines() if line.strip()]
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_no_transcript_text_in_logs() -> None:
     """AC-5: a fake job whose transcript holds a marker word logs nothing containing it. Positive
     control: the marker really reaches the stored transcript, and the logs do name the job."""
@@ -70,7 +69,6 @@ async def test_no_transcript_text_in_logs() -> None:
     assert MARKER not in logged
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 def test_stage_span_logs_start_and_end_with_job_id() -> None:
     """Tracing: one span per stage, linked to the job by job_id, with its duration.
 
@@ -97,7 +95,6 @@ def test_stage_span_logs_start_and_end_with_job_id() -> None:
     assert err_end[0]["status"] == "error"
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 def test_required_metrics_registered() -> None:
     """AC-6: the metrics the design asks for are registered. Positive control: the registry holds
     them, and each one is a family with the expected type."""
