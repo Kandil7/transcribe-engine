@@ -68,8 +68,13 @@ class IngestJob:   # use case, handler for queue "cpu"
 7. `feat(S09): add ffmpeg normalization and hand-off`
 
 ## Open questions
-- [ ] Q1 — "لو وُجدت مهمة جارية، تنتظرها": how does a duplicate wait? Proposed: the job records
+- [x] Q1 — "لو وُجدت مهمة جارية، تنتظرها": how does a duplicate wait? Proposed: the job records
   `awaits_result_key`; when the leader completes, the same transaction moves followers to COMPLETED
   (ref_count += n). If the leader fails, followers re-enter VALIDATED (one becomes the new leader).
-- [ ] Q2 — Mono downmix loses "stereo with one speaker per channel" (S13). Proposed: store
+  **Resolved (deferred to S10; resolved by: autopilot, 2026-11-26, D-029):** S09 does not make a duplicate
+  wait. It completes from a stored result when one exists (CACHE_HIT) and otherwise runs its own GPU stage.
+  An in-flight marker needs a schema change, and S10 owns result persistence and the claim at write time.
+- [x] Q2 — Mono downmix loses "stereo with one speaker per channel" (S13). Proposed: store
   `channels` in `media`; S13 may request per-channel normalization before hand-off.
+  **Resolved (resolved by: autopilot, 2026-11-26, D-029):** `channels` comes from the probe and is logged
+  as a count. It is not persisted in S09. S13 adds the column with its own migration.
