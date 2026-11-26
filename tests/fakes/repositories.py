@@ -5,13 +5,16 @@ which the contract tests do not rely on. Errors follow the Postgres adapter: dup
 reference changes raise PermanentError (D-019).
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from typing import Self
 
 from transcribe_engine.application.ports.queue import Lease
+from transcribe_engine.domain.chunks import Chunk
 from transcribe_engine.domain.config import PipelineConfig
 from transcribe_engine.domain.errors import PermanentError
 from transcribe_engine.domain.jobs import Job, JobStage, JobState, Media, Result, Transition
+from transcribe_engine.domain.merge import MergedWords, RawWord
 
 
 @dataclass
@@ -20,6 +23,9 @@ class FakeStore:
     media_by_tenant_sha: dict[tuple[str, str], Media] = field(default_factory=dict)
     results_by_key: dict[str, Result] = field(default_factory=dict)
     leases: dict[str, Lease] = field(default_factory=dict)  # job id -> current lease (S06)
+    chunk_plans: dict[tuple[str, str], dict[str, object]] = field(default_factory=dict)
+    chunk_results: dict[tuple[str, str, str], tuple[object, ...]] = field(default_factory=dict)
+    transcripts: dict[tuple[str, str], object] = field(default_factory=dict)
 
 
 class FakeJobRepository:
@@ -126,11 +132,46 @@ class FakeResultRepository:
         raise PermanentError("result reference change refused")
 
 
+class FakeChunkRepository:
+    """Chunk plan, results and transcript (S10). Tenant-scoped like the Postgres adapter."""
+
+    def __init__(self, store: FakeStore) -> None:
+        self._store = store
+
+    async def add_plan(self, tenant_id: str, job_id: str, chunks: Sequence[Chunk]) -> None:
+        plan = self._store.chunk_plans.setdefault((tenant_id, job_id), {})
+        for chunk in chunks:
+            plan.setdefault(chunk.chunk_id, chunk)
+
+    async def plan(self, tenant_id: str, job_id: str) -> tuple[Chunk, ...]:
+        stored = self._store.chunk_plans.get((tenant_id, job_id), {})
+        return tuple(sorted(stored.values(), key=lambda chunk: chunk.idx))  # type: ignore[attr-defined]
+
+    async def save_result(
+        self, tenant_id: str, job_id: str, chunk_id: str, words: tuple[RawWord, ...]
+    ) -> None:
+        self._store.chunk_results[(tenant_id, job_id, chunk_id)] = words
+
+    async def results(self, tenant_id: str, job_id: str) -> dict[str, tuple[RawWord, ...]]:
+        return {
+            chunk_id: words
+            for (tid, jid, chunk_id), words in self._store.chunk_results.items()
+            if tid == tenant_id and jid == job_id
+        }  # type: ignore[return-value]
+
+    async def save_transcript(self, tenant_id: str, job_id: str, merged: MergedWords) -> None:
+        self._store.transcripts[(tenant_id, job_id)] = merged
+
+    async def transcript(self, tenant_id: str, job_id: str) -> MergedWords | None:
+        return self._store.transcripts.get((tenant_id, job_id))  # type: ignore[return-value]
+
+
 class FakeUnitOfWork:
     def __init__(self, store: FakeStore) -> None:
         self.jobs = FakeJobRepository(store)
         self.media = FakeMediaRepository(store)
         self.results = FakeResultRepository(store)
+        self.chunks = FakeChunkRepository(store)
 
     async def __aenter__(self) -> Self:
         return self
