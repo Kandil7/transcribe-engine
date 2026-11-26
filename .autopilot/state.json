@@ -95,11 +95,11 @@
       "notes": "Merged via PR #17 (rebase). 158 unit, 57 itest; reviews applied (150ac9b)."
     },
     "S09": {
-      "status": "partial",
+      "status": "done",
       "branch": "feat/S09-ingest-validation",
-      "merged": "a5d306a",
+      "merged": "8e24311",
       "tag": null,
-      "notes": "Merged via PR #21 (rebase). make check 194 passed; make itest 64 passed; security review fixed (D-030). Open: architecture-reviewer and test-reviewer not run; dref confinement needs container (D-030)."
+      "notes": "Merged via PR #21 and round-2 fixes PR #23 (rebase). make check 199 passed; make itest 64 passed. Architecture and test reviewers ran; findings fixed or listed in D-031 (fenced ref increment, worker wiring) for S10."
     },
     "S10": {
       "status": "todo",
