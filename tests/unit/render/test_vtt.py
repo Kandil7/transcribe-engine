@@ -5,8 +5,6 @@ Imports happen inside helpers so the module collects before the code exists.
 import importlib
 from types import ModuleType
 
-import pytest
-
 from tests.unit.render.test_srt import two_speaker_transcript
 
 GOLDEN = (
@@ -14,8 +12,6 @@ GOLDEN = (
     "00:00:00.000 --> 00:00:01.800\n<v SPEAKER_01>\u200fمرحبا بيكم في البرنامج.\u200f\n\n"
     "00:00:02.000 --> 00:00:03.500\n<v SPEAKER_02>\u200fأهلا بيك يا أستاذ\n\n"
 )
-
-pytestmark = pytest.mark.xfail(strict=True, reason="S15")
 
 
 def _mod(name: str) -> ModuleType:
