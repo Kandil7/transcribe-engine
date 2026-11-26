@@ -45,6 +45,21 @@ class MediaRepository(Protocol):
         """Return the stored media for this sha256, inserting it if new."""
         ...
 
+    async def finalize(
+        self,
+        media_id: str,
+        tenant_id: str,
+        sha256: str,
+        duration_ms: int,
+        format: str,
+        size_bytes: int,
+    ) -> Media:
+        """Give an upload's row its real content once it is probed (S09, D-029).
+
+        If the tenant already holds this sha256, return that row and leave the upload row as it is.
+        """
+        ...
+
 
 class ResultRepository(Protocol):
     async def claim_key(

@@ -68,6 +68,33 @@ class FakeMediaRepository:
         key = (media.tenant_id, media.sha256)
         return self._store.media_by_tenant_sha.setdefault(key, media)
 
+    async def finalize(
+        self,
+        media_id: str,
+        tenant_id: str,
+        sha256: str,
+        duration_ms: int,
+        format: str,
+        size_bytes: int,
+    ) -> Media:
+        """D-029: the upload row takes the content, unless the tenant already holds this sha."""
+        existing = self._store.media_by_tenant_sha.get((tenant_id, sha256))
+        if existing is not None:
+            return existing
+        for key, row in list(self._store.media_by_tenant_sha.items()):
+            if row.id == media_id and row.tenant_id == tenant_id:
+                updated = replace(
+                    row,
+                    sha256=sha256,
+                    duration_ms=duration_ms,
+                    format=format,
+                    size_bytes=size_bytes,
+                )
+                del self._store.media_by_tenant_sha[key]
+                self._store.media_by_tenant_sha[(tenant_id, sha256)] = updated
+                return updated
+        raise PermanentError("media row not found")
+
 
 class FakeResultRepository:
     def __init__(self, store: FakeStore) -> None:
