@@ -9,11 +9,12 @@ from datetime import timedelta
 
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from transcribe_engine.application.ports.queue import Lease
 from transcribe_engine.domain.errors import JobCancelledError, LeaseLostError
 from transcribe_engine.domain.jobs import Job, JobStage, Transition
+from transcribe_engine.infrastructure.db.outbox import record_terminal_event
 from transcribe_engine.infrastructure.db.repositories import job_from_row
 from transcribe_engine.infrastructure.db.session import SYSTEM_SCOPE
 from transcribe_engine.infrastructure.db.uow import translate_db_error
@@ -77,6 +78,29 @@ _COMPLETE = text(
 )
 
 _STATE_OF = text("SELECT state FROM jobs WHERE id = :job_id")
+
+
+async def complete_in(
+    conn: AsyncConnection, lease: Lease, t: Transition, *, stage: JobStage | None = None
+) -> bool:
+    """The fenced complete on the caller's connection and transaction (S20, AC-1): the state change
+    and its outbox row commit together, or neither does. The caller sets the system scope."""
+    result = await conn.execute(
+        _COMPLETE,
+        {
+            "to_state": t.to.value,
+            "error_code": t.error_code.value if t.error_code else None,
+            "stage": stage.value if stage else None,
+            "warnings": json.dumps(list(t.warnings)),
+            "job_id": lease.job_id,
+            "owner": lease.owner,
+            "attempt": lease.attempt,
+        },
+    )
+    applied = bool(result.rowcount == 1)
+    if applied:
+        await record_terminal_event(conn, lease.job_id, t.to.value)
+    return applied
 
 
 class SqlJobQueue:
@@ -144,19 +168,7 @@ class SqlJobQueue:
         try:
             async with self._engine.begin() as conn:
                 await conn.execute(SYSTEM_SCOPE)
-                result = await conn.execute(
-                    _COMPLETE,
-                    {
-                        "to_state": t.to.value,
-                        "error_code": t.error_code.value if t.error_code else None,
-                        "stage": stage.value if stage else None,
-                        "warnings": json.dumps(list(t.warnings)),
-                        "job_id": lease.job_id,
-                        "owner": lease.owner,
-                        "attempt": lease.attempt,
-                    },
-                )
-                return bool(result.rowcount == 1)
+                return await complete_in(conn, lease, t, stage=stage)
         except SQLAlchemyError as exc:
             raise translate_db_error(exc) from exc
 
