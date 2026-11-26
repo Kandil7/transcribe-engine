@@ -835,3 +835,36 @@ None new. The metrics follow the spec's definitions; the hallucination run limit
 - `evaluation/run.py`, the report, the dataset manifests and the robustness matrix (AC-5): need the dev set (R-001) and the audio.
 - The nightly GPU workflow (`.github/workflows/nightly-eval.yml`): needs a self-hosted GPU runner.
 - Entity error rate, word timing MAE and DER are in the spec's interface but have no AC yet.
+
+## S17 — Speaker diarization (partial)   (2026-11-26 → 2026-11-26)
+Branch: feat/S17-diarization   Merged: PR #41   Tag: —
+### What was built
+- `domain/speakers.py`: `SpeakerTurn`, pure `assign_speakers` (largest overlap; ties by name; overlap flag when a word overlaps two speakers).
+- `domain/merge.py`: `Word` gains defaulted `speaker` and `overlap` fields (existing callers unchanged).
+- `application/ports/diarizer.py`: `Diarizer` port; `application/use_cases/process_job.py`: optional `Diarization` option (diarizer, split_channels), run once over the whole file before the transcript is saved.
+- `tests/fakes/diarizer.py`: scripted fake.
+### How it works
+After the chunks are merged, the diarizer runs once on the job audio, so ids stay stable across chunks. Each word takes the speaker with the most overlap. A failure keeps the transcript without speakers and adds the warning `diarization_failed`; the job still completes. A channel-split file is not diarized.
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | spec resolve Q1 (D-056) | Q1 resolved: no default diarizer yet | — |
+| 2 | 0c425bd test(S17) assignment (xfail) | AC-1, AC-2 | — |
+| 3 | 25b63f2 feat(S17) assignment | AC-1, AC-2 | AC-1, AC-2 |
+| 4 | e68f5c9 test(S17) pipeline (xfail) | AC-3, AC-6 | — |
+| 5 | 4dd4770 feat(S17) port and wiring | AC-3, AC-6 | AC-3, AC-6 |
+| 6 | docs(S17) R-008 | review item | — |
+### Verification
+- `make check`: 290 passed, 1 skipped (R-001). No S17 xfail left.
+- PR #41 CI: check, commits, integration, alerts all passed.
+### Decisions
+D-056 (no default diarizer yet; port and fake first).
+### Problems and fixes
+- A `git reset` chained after a failed commit moved my branch back one commit. Recovered with a stash and a fast-forward to origin/main; no commit was lost.
+- Lint failures blocked the first commit attempt; fixed in place.
+### Review findings
+- Not run for S17 (small scope, no uploads/SQL/webhooks). Architecture check: the port lives in application, the assignment is pure domain.
+### Follow-ups
+- AC-4: needs a speaker-count source on the job (R-008c).
+- AC-5 and the Diarizer contract test: need an adapter (pyannote or Sortformer, R-008a,b). The GPU fixture needs the human reference (R-001).
+- Diarization is not wired to the stereo channel split of S13 yet; `split_channels` is a caller option.
