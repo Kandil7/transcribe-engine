@@ -69,5 +69,5 @@ def flag_hallucinations(segs: Sequence[RawSegment], rules: HallucinationRules) -
 8. `feat(S12): add second engine adapter` (only if S00 kept a fallback)
 
 ## Open questions
-- [ ] Q1 — Words-per-second limit and n-gram length are not in the design. Proposed: 6 words/s, 4-gram
-  repeated ≥ 3 times; tuned in S16.
+- [x] Q1 — Words-per-second limit and n-gram length are not in the design. Proposed: 6 words/s, 4-gram
+  repeated ≥ 3 times; tuned in S16. (resolved by: autopilot, 2026-11-26, D-042): proposed values used as defaults.

@@ -8,9 +8,12 @@ asking the next run to supersede the decision (add a line under "Instructions fo
 |---|---|---|---|---|---|---|
 | R-001 | — | S00 | ≥ 1 h of Egyptian audio transcribed by a person, per `evaluation/guidelines.ar.md` | an agent cannot be its own ground truth; consent required | ADR-0007 provisional, engine chosen by local profile | — |
 | R-002 (resolved 2026-11-25: force-with-lease to be18a97, PR #1 rebase-merged to 2985206) | 2026-11-25 | S01 | Approve `git push --force-with-lease=feat/S01-foundation:b776f35… origin feat/S01-foundation`, or tell the run where to push. The remote branch carries duplicate bootstrap/S00 commits and a replayed `prompt/AUTOPILOT.md`; the local branch is main + 4 clean S01 commits. Old tip kept at PR #1 head. | The permission classifier denied the force push (destructive on a remote branch another run updated). | Local branch only; no CI for S01 yet | — |
+| R-003 | 2026-11-26 | S12 | (a) approve adding `faster-whisper` (MIT) as the local-gpu engine dependency and the download of its FP16 model weights (several GB, from the public Hugging Face hub); (b) name the vLLM production model to serve (Audar or Cohere, ADR-0007) so the deploy config can be written | Adding a dependency and pulling weights are the owner's decisions; the production model choice is unverified (ADR-0007) | vLLM adapter built and tested with HTTP mocks; no local ASR yet, so the local demo still uses plumbing ASR (D-035) | D-043 |
 
 ## Instructions for the next run
 - R-002 done: S01 pushed and merged. S02 merged 714136b.
 - S00 is partial. R-001 stays open: the dev hour must be transcribed by a person from in-house audio placed in `data/` (outside git). The repo has no audio yet.
 - Next: S09 (ingest). S00 proceeds on `partial`, so dependents may continue.
+- PR #29 (`fix/S11-mypy-numpy`, makes main green) is green on CI but the merge was denied by the permission system on 2026-11-26. Merge it (rebase), then rebase feat/S12-asr-adapters onto main.
+- R-003: see the row above; S12 continues with the vLLM path until approved.
 <!-- Write instructions here, e.g. "R-001 done: data in data/eval/; finish S00 and revisit D-001". -->
