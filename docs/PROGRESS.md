@@ -2,7 +2,7 @@
 
 Kept in sync with `.autopilot/state.json` by the autopilot. Status: `todo` · `in_progress` · `partial` · `blocked` · `done`.
 
-**Autopilot status:** running   **Current slice:** —   **Last update:** 2026-11-26
+**Autopilot status:** running   **Current slice:** —   **Last update:** 2026-11-26 (S20 merged)
 
 | Order | Slice | Title | Status | Branch | Merged (main) | Tag | Notes |
 |---|---|---|---|---|---|---|---|
@@ -25,7 +25,7 @@ Kept in sync with `.autopilot/state.json` by the autopilot. Status: `todo` · `i
 | 17 | S16 | Evaluation harness | todo | | | v0.4.0 | |
 | 18 | S17 | Speaker diarization | todo | | | | |
 | 19 | S18 | RAG indexing and search | todo | | | | |
-| 20 | S20 | Outbox, webhooks, observability | todo | | | | |
+| 20 | S20 | Outbox, webhooks, observability | partial | — | 7b8c5dc (PR #35) | — | delivery, logs, metrics, alerts; spans and metric values not wired (follow-up) |
 | 21 | S19 | Enrichment | todo | | | | |
 | 22 | S21 | Privacy, retention, deletion | todo | | | | |
 | 23 | S22 | Corrections and training export | todo | | | v0.5.0 | |
