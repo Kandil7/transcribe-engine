@@ -27,6 +27,18 @@ jobs:
       - run: uv sync --all-groups --frozen
       - run: make cov
 
+  alerts:
+    # AC-7 (S20): the alert rules are evaluated against their promtool tests. Pinned release.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install promtool 2.53.0
+        run: |
+          curl -sSL https://github.com/prometheus/prometheus/releases/download/v2.53.0/prometheus-2.53.0.linux-amd64.tar.gz | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/prometheus-2.53.0.linux-amd64" >> "$GITHUB_PATH"
+      - run: promtool check rules deploy/observability/alerts.yml
+      - run: promtool test rules deploy/observability/alerts_test.yml
+
   commits:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

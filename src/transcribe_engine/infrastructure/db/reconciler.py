@@ -16,7 +16,10 @@ from transcribe_engine.domain.jobs import JobEvent, JobState, backoff, transitio
 from transcribe_engine.infrastructure.db.outbox import record_terminal_event
 from transcribe_engine.infrastructure.db.session import SYSTEM_SCOPE
 from transcribe_engine.infrastructure.db.uow import translate_db_error
-from transcribe_engine.infrastructure.observability.metrics import LEASE_EXPIRIES
+from transcribe_engine.infrastructure.observability.metrics import (
+    LEASE_EXPIRIES,
+    QUEUE_OLDEST_JOB_SECONDS,
+)
 
 __all__ = ["SqlReconciler"]
 
@@ -43,6 +46,13 @@ _POISON = text(
     UPDATE jobs SET state = 'FAILED', error_code = 'POISON_JOB',
         lease_owner = NULL, lease_until = NULL
     WHERE id = :job_id AND state IN ('PROCESSING', 'PENDING_VALIDATION')
+    """
+)
+
+_OLDEST_QUEUED = text(
+    """
+    SELECT queue, EXTRACT(EPOCH FROM now() - min(created_at)) AS age
+    FROM jobs WHERE state = 'QUEUED' GROUP BY queue
     """
 )
 
@@ -108,6 +118,9 @@ class SqlReconciler:
                     )
                 requeued = len((await conn.execute(_REQUEUE_DUE)).all())
                 LEASE_EXPIRIES.inc(len(expired))
+                oldest = {row.queue: float(row.age) for row in (await conn.execute(_OLDEST_QUEUED))}
+            for queue in ("cpu", "gpu"):
+                QUEUE_OLDEST_JOB_SECONDS.labels(queue=queue).set(oldest.get(queue, 0.0))
         except SQLAlchemyError as exc:
             raise translate_db_error(exc) from exc
         return ReconcileReport(

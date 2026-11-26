@@ -1,0 +1,60 @@
+# promtool unit tests for alerts.yml (S20, AC-7). Each alert has a firing case and a quiet case,
+# so a rule that never fires, or always fires, fails.
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      # Oldest QUEUED cpu job: 2000 s (over 30 min) from the start, gpu queue empty.
+      - series: 'transcribe_queue_oldest_job_seconds{queue="cpu"}'
+        values: '2000x40'
+      - series: 'transcribe_queue_oldest_job_seconds{queue="gpu"}'
+        values: '0x40'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: JobQueuedTooLong
+        exp_alerts:
+          - exp_labels:
+              queue: cpu
+              severity: page
+      - eval_time: 3m
+        alertname: JobQueuedTooLong
+        exp_alerts: []
+
+  - interval: 1m
+    input_series:
+      # Half of the outcomes fail: 10 FAILED and 10 COMPLETED per minute.
+      - series: 'transcribe_job_outcomes_total{outcome="FAILED"}'
+        values: '0+10x70'
+      - series: 'transcribe_job_outcomes_total{outcome="COMPLETED"}'
+        values: '0+10x70'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: JobFailureRateHigh
+        exp_alerts:
+          - exp_labels:
+              severity: page
+      - eval_time: 5m
+        alertname: JobFailureRateHigh
+        exp_alerts: []
+
+  - interval: 1m
+    input_series:
+      # No poison job until minute 10, then one.
+      - series: 'transcribe_job_failures_total{error_code="POISON_JOB"}'
+        values: '0x9 1x30'
+      - series: 'transcribe_job_failures_total{error_code="NONE"}'
+        values: '0x40'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: PoisonJob
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              error_code: POISON_JOB
+      - eval_time: 5m
+        alertname: PoisonJob
+        exp_alerts: []
