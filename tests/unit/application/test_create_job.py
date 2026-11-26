@@ -90,13 +90,15 @@ async def test_unsupported_language_is_refused_before_any_write() -> None:
     assert store.jobs == {}
 
 
-async def test_webhook_is_refused_until_s20() -> None:
+async def test_plain_http_webhook_is_refused() -> None:
+    """Webhooks are https only (D-048). Until S20 every webhook was refused; the premise of this
+    test changed with D-048, so it now uses an http URL, which is still refused."""
     errors = _mod("transcribe_engine.application.errors")
     make_uow, storage, _, store, clock = await _world()
     await storage.put("incoming/tenant-a/upload-a", b"RIFF")  # type: ignore[attr-defined]
     with pytest.raises(errors.UnsupportedFeatureError):
         await _create(make_uow, storage, clock)(  # type: ignore[operator]
-            _command("upload-a", webhook_url="https://example.invalid/hook")
+            _command("upload-a", webhook_url="http://example.invalid/hook")
         )
     assert store.jobs == {}
 
