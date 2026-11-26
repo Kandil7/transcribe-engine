@@ -106,7 +106,7 @@
       "branch": "feat/S10-chunking-fanout-merge",
       "merged": null,
       "tag": null,
-      "notes": "Domain core merged in progress: chunk planner (D-032) and merge with midpoint rule. Ports, PrepareChunks, ProcessJob, persistence, end-to-end not started."
+      "notes": "Part 1 merged (planner, merge). Part 2 on feat/S10-ports-fakes: ports, persistence (D-033), PrepareChunks, ProcessJob (D-034); AC-1..8 covered (AC-7 unit form). Open: worker entry point, make dev/demo, fenced ref increment."
     },
     "S11": {
       "status": "todo",
