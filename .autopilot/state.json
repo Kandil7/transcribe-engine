@@ -144,11 +144,11 @@
       "notes": "Canonical JSON and schema, derived text, cues, SRT and VTT (RTL, BOM, golden), TXT, MD, CSV, result formats and /subtitles with profiles (D-045, D-046). Unit tests pass locally; integration AC-8 test runs in CI (Docker not available here). Pending: render cache (D-046), viewer test for cps (Q1), v0.3.0-local needs a real ASR (R-003)."
     },
     "S16": {
-      "status": "todo",
+      "status": "partial",
       "branch": null,
-      "merged": null,
+      "merged": "09d77ce",
       "tag": null,
-      "notes": "Partial, PR #34 open: metrics, SNR mixing, regression gate. Not merged."
+      "notes": "Merged via PR #39 (replaces #34, rebased without force). Metrics, SNR mixing, regression gate. Partial: needs S12 (partial, D-055) and the dev human reference hour (R-001); absolute accuracy unmeasured."
     },
     "S17": {
       "status": "todo",
