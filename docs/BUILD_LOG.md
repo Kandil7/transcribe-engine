@@ -638,7 +638,7 @@ Branch: feat/S12-asr-adapters (based on fix/S11-mypy-numpy, PR #29 not yet merge
 | # | Commit | What changed | Tests turned green |
 |---|---|---|---|
 | 1 | 2be9249 `test(S12): add ASR contract, hallucination and vLLM error tests (xfail)` | acceptance tests, AC-4 test (passes with the existing semaphore) | — |
-| 2 | (feat) `feat(S12): extend ASR port with capabilities` | port, plumbing and fake | — |
+| 2 | 45818df `feat(S12): extend ASR port with capabilities` | port, plumbing and fake | — |
 | 3 | ea36056 `feat(S12): add vLLM client with error mapping` | vLLM client and adapter | AC-3, AC-1 |
 | 4 | ef80409 `feat(S12): add hallucination filter` | domain filter | AC-5 |
 ### Verification
