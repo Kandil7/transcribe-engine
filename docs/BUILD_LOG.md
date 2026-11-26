@@ -494,3 +494,48 @@ D-028 (partial S00 path; ADR-0007 provisional)
 - R-001: a person transcribes ≥ 60 min of in-house dev audio per the guidelines. Then run `validate_manifest --require-coverage`, which un-skips the gate.
 - Not done, and cannot be done without R-001 or audio: candidate runner, `run.ipynb`, CER/WER/hallucination, RTF and VRAM per model, Audar-on-vLLM check (AC-3, AC-4).
 - ADR-0007 is revisited when measurements exist, or when Falcon-ASR weights are published.
+
+## S09 — Ingest: probe, hash, dedupe, normalize   (2026-11-26 → 2026-11-26)
+Branch: feat/S09-ingest-validation   Merged: pending   Tag: —
+### What was built
+- Admission rules in the domain (`domain/media_rules.py`): format allow-list, 3 h and 4 GB limits, refusal codes.
+- Media ports (`application/ports/media.py`), with CorruptMediaError and UnsupportedMediaError (both permanent).
+- `IngestJob` (`application/use_cases/ingest_job.py`): stream and hash to scratch, probe, admit, finalize the media row, cache check, normalize, upload `work/{tenant}/{job}/audio.wav`, hand off.
+- Infrastructure: sandboxed runner (`media/sandbox.py`), ffprobe adapter (`media/ffprobe.py`), FFmpeg normalizer (`media/ffmpeg.py`).
+- `MediaRepository.finalize` on the port, fake and Postgres.
+### How it works
+A PENDING_VALIDATION job is claimed on cpu. The file is streamed from storage in 8 MiB chunks while its SHA-256 is computed. ffprobe reads the format from content; playlists and concat files are refused by their first bytes before any process starts. Admission checks format, then duration, then size. An admitted file is probed, its media row is finalized, and a stored result for (sha256, config) completes the job with one more reference. Otherwise FFmpeg writes 16 kHz mono PCM WAV, which is checked with the stdlib `wave` reader and the normalized duration and size, then uploaded. The handler returns VALIDATED, and the worker's fenced complete sets queue=gpu.
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | 64f2409 `docs(S09): resolve open questions` | Q1 deferred, Q2 logged; D-029 | — |
+| 2 | 3382326 `test(S09): add ingest and media tests (xfail)` | 22 tests, all xfail | — |
+| 3 | 310b54a `test(S09): add media finalize contract (xfail)` | finalize contract | — |
+| 4 | bbe75b3 `feat(S09): add media ports, fakes and finalize` | ports, fakes, finalize | finalize contract (both backends) |
+| 5 | a81994f `feat(S09): add sandboxed ffprobe adapter with format allow-list` | rules, sandbox, ffprobe | rules (13), playlist, extension, probe timeout |
+| 6 | 66ee179 `feat(S09): add streaming hash and limits` | streamed read, head size, probe, admit | too-long, streamed hash |
+| 7 | 9965103 `feat(S09): add cache-hit and dedupe via result_key` | finalize, cache hit | cache hit |
+| 8 | 4c2c2d9 `feat(S09): add ffmpeg normalization and hand-off` | normalizer, upload, hand-off | hand-off, PCM16 16 kHz output |
+| 9 | f39b8ed `fix(S09): address review findings` | `-t` cap, duration/size recheck, output cap, pipe drain | output cap |
+### Verification
+- `make check`: 194 passed, 1 skipped (dev-hour gate, R-001), 0 xfailed.
+- `make itest`: 64 passed (Postgres and MinIO via Testcontainers, FFmpeg contract tests).
+- `grep -rn 'reason="S09"' tests`: empty.
+### Decisions
+D-029 (media finalize, hand-off on VALIDATED, Windows sandbox, Q1 deferred), D-030 (review fixes and residual risk)
+### Problems and fixes
+- The first `git switch -c` ran in the same compound command as a commit, so the hook blocked it while the branch was still main. Fix: run branch creation in its own command.
+- Lint flagged imports inside test functions and a raise inside `try` (TRY301). Fix: importlib helpers, and direct returns.
+- A wrong refusal line was rewritten by a broad replacement. Fix: restored it and checked with lint.
+- Killing an FFmpeg child with unread stdout hung `wait()` on Windows. Fix: drain the pipe to EOF, then wait, with both bounded.
+- `gh pr create` hung when stdin was attached. Fix: `</dev/null` and `--body-file`.
+### Review findings
+- Security reviewer (subagent): four findings. Fixed: declared duration trusted (`-t` cap and recheck), unbounded tool output (stream cap), commit scope (committed). Residual, D-030: `-protocol_whitelist file` does not confine paths; `dref` read outside scratch is unverified and needs container confinement. Nit, not fixed: magic-byte match is a substring, can false-refuse "ffconcat" text and misses a BOM before `#EXTM3U`.
+- architecture-reviewer and test-reviewer were not run. Note: the DoD requires them, so this is an open gap for this slice.
+### Follow-ups
+- Container confinement for FFmpeg and ffprobe (bind-mount scratch only), with a `dref` test. Needed before production.
+- Q1: duplicate uploads running at the same time both use GPU until S10's claim at write time.
+- `job.media_id` stays the upload id; canonical media linking is S10.
+- The worker wiring (IngestJob registration in a worker entry point) comes with S10's `make dev`.
+- Channels are logged but not stored (Q2, S13).
+- Lease fencing and tenant-scoped results are S10 work (see the S08 review residuals).
