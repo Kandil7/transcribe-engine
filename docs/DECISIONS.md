@@ -890,3 +890,15 @@ Rationale: Option C would hide missing behaviour behind fakes. Option A changes 
 Reversibility: easy (one state edit).
 Confidence: medium.
 Applied in: docs(autopilot) blocked state commit.
+
+## D-055 — Dependents may start on partial dependencies; supersedes D-054
+Date: 2026-11-26 · Slice: — · Status: decided · Review: none
+Context: D-054 blocked the run because every remaining slice depends on a partial one. The owner chose to allow it.
+Options: A) Keep the block (D-054). B) Allow dependents on partial dependencies, recording each missing piece.
+C) Build dependents on fakes that stand in for the missing piece without recording it.
+Decision: B. A dependent may start when its dependency is partial. The dependent's BUILD_LOG entry must list which
+dependency pieces are missing and why the dependent does not need them. Items stay in REVIEW_QUEUE.
+Rationale: the missing pieces are owner decisions (R-003, R-004, R-005); waiting blocks all remaining work.
+Reversibility: easy (one rule change).
+Confidence: medium.
+Applied in: docs(repo) resume commit.
