@@ -565,3 +565,16 @@ D-032 (sample_rate in the planner signature; one chunk per region piece).
 ### Follow-ups
 - Partial-failure policy (AC-8) needs the tenant flag for complete text, which is not in the schema yet.
 - The S09 deferrals (fenced ref increment, worker wiring) are still open and belong with ProcessJob and `make dev`.
+
+### S10 part 2 — ports, persistence, PrepareChunks, ProcessJob
+Branch: feat/S10-ports-fakes   Merged: pending
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 5 | a3e2efc `feat(S10): add minimal ASR and VAD ports with fakes` | ASREngine, VoiceActivity, fakes | — |
+| 6a | bec8060 `feat(S10): record transition warnings on the job` | Transition.warnings applied by fake and SQL complete | — |
+| 6b | d3c6a1c `feat(S10): add chunk repository port and fake` | ChunkRepository on the UoW | chunk plan contract (fake) |
+| 6c | c4fe8de `feat(S10): persist chunk plan, results and transcript` | migration 0005 (D-033), SQL repository, contract on Postgres | chunk plan contract (Postgres) |
+| 7 | fb1faf7 `feat(S10): plan chunks on the CPU path and process them on the GPU queue` | PrepareChunks, ProcessJob, prepare hook in IngestJob | AC-6 (fakes), AC-8 (both settings), resume |
+Verification: `make check` 216 passed, 1 skipped. `make itest` 67 passed before the last test-only change.
+Decisions: D-033 (chunk table replacement, no tenant FK), D-034 (partial-text setting, transcript before completion).
+Still open for S10: the worker entry point and `make dev` / `make demo` ([LOCAL] acceptance), the fenced reference increment deferred from S09, and the kill-mid-job test at integration level (the unit form passes).
