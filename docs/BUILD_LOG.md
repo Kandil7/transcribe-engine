@@ -721,3 +721,26 @@ D-044 is S13. For S15: D-045 (gap wins over minimum duration; reading speed on w
 - `v0.3.0-local` needs a real ASR (R-003), since the demo transcript is empty until then.
 - Speakers: no diarization yet (S17), so segments have no speaker and VTT carries no voice tags on real output.
 - Singing row and the AudioSet class are not part of this slice.
+## S14 — Forced alignment (partial)   (2026-11-26 → 2026-11-26)
+Branch: feat/S14-forced-alignment (from main d02504a)   Merged: pending   Tag: —
+### What was built
+- `domain/alignment_text.py`: `verbalize_for_alignment` (Egyptian spoken numbers 0 to 999, digit-by-digit above) and `TokenMap` (original token, spoken words, lang).
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | docs(S14) spec | (already in repo) | — |
+| 2 | e5d75aa `test(S14): add alignment text tests (xfail)` | AC-1, AC-2 | — |
+| 3 | 8ff4c73 `feat(S14): add verbalize_for_alignment with token map` | verbalizer | AC-1, AC-2 |
+### Verification
+- `make check`: 233 passed, 1 skipped (R-001), 0 xfail for S14.
+### Decisions
+D-047 (Egyptian spoken forms; stored word unchanged). Q1 resolved.
+### Problems and fixes
+- The first verbalizer kept the trailing punctuation as a spoken word ("50،" became "خمسين ،"). Punctuation has no sound, so it is now kept in the stored token only.
+- Compound numbers needed the "و" on the tens word too ("خمسة وعشرين"). Fixed in `_under_hundred`.
+- The S14 test was first created on the S15 branch by mistake. Moved to a branch from main with the untracked file; S15 was not changed.
+### Review findings
+- Reviewers not run in this session.
+### Follow-ups
+- Aligner port, fake and wav2vec2 adapter (commits 4, R-005): needs the model and dependency decision.
+- Fallback and code-switch handling (commit 5), and wiring into ProcessJob before merge (commit 6, AC-5). AC-3 (gpu MAE) waits for the model and the S16 threshold.

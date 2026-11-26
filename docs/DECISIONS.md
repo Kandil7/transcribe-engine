@@ -771,3 +771,14 @@ spec does not give.
 Reversibility: easy (the profile table is one dict; the cache is additive).
 Confidence: medium.
 Applied in: S15 result-endpoint commit.
+## D-047 — S14 digits: Egyptian spoken forms for alignment; the stored word is never changed
+Date: 2026-11-26 · Slice: S14 · Status: decided · Review: none
+Context: Aligners need the words as they are spoken. Digits in the transcript have no spoken form in the text. S14 Q1
+asks whether to verbalize in MSA or Egyptian forms. The audio is Egyptian.
+Options: A) MSA forms (خمسون). B) Egyptian forms (خمسين). C) No verbalization; leave digits to the aligner.
+Decision: B for 0 to 999 (units, teens, tens, hundreds with the "و" joiner). Numbers from 1000 are spelled digit by digit.
+The token map returns every stored token to its spoken words, so the stored text is unchanged.
+Rationale: The spec proposes Egyptian forms for Egyptian audio. C would leave digits unaligned. Measure both in S16.
+Reversibility: easy (the lexicon is one module; alignment text is recomputed).
+Confidence: medium.
+Applied in: feat(S14) verbalize_for_alignment, 8ff4c73.
