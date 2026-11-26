@@ -64,4 +64,4 @@ def is_public_destination(url: str, resolve: Callable[[str], Sequence[IPAddress]
 8. `build(S20): add alert rules`
 
 ## Open questions
-- [ ] Q1 — Per-tenant webhook secret rotation: not in the design. Proposed: two active secrets per tenant.
+- [x] Q1 — Per-tenant webhook secret rotation: not in the design. Proposed: two active secrets per tenant. (resolved by: autopilot, 2026-11-26, D-048)
