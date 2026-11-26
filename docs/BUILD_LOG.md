@@ -896,3 +896,35 @@ D-057 (FTS v1, models deferred, pure domain first).
 - Embedding and reranker models: R-009 (owner approval, licences, download).
 - Parent (2–5 min) and summary levels (S19 provides chapters).
 - Sentences are segments for now; the design asks for sentence splitting and similarity boundaries from real embeddings.
+
+## S19 — Enrichment (partial)   (2026-11-26 → 2026-11-27)
+Branch: feat/S19-enrichment   Merged: PR #45   Tag: —
+### What was built
+- `domain/analytics.py`: `speaker_analytics` (talk time, words per minute, turns, silence).
+- `domain/chapters.py`: `snap_chapters` (times snap to segment boundaries; empty chapters dropped), `verify_entities` (only entities whose text occurs in the transcript are kept; the rest are counted).
+- `application/ports/enricher.py`: `Enricher` port. `application/use_cases/enrich_transcript.py`: `EnrichTranscript`, runs each artifact on its own and never changes the transcript.
+- `tests/fakes/enricher.py`: scripted fake.
+### How it works
+The use case reads the transcript text, asks the enricher for chapters, a summary and entities, and records each failure in `failures`. Chapter times are snapped before they are returned, and entities are checked against the text before they are returned. The transcript object and its canonical bytes are not written to.
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | 9df011a test(S19) xfail tests (with the spec Q1 resolution, D-058) | AC-1 to AC-5 | — |
+| 2 | b9c23ee feat(S19) analytics, snapping, entities, use case | AC-1 to AC-5 | AC-1 to AC-5 |
+| 3 | da689ca fix(S19) import block | — | CI lint |
+### Verification
+- `make check`: 300 passed, 1 skipped (R-001). No S19 xfail left.
+- PR #45 CI: check (after the import fix), commits, integration, alerts all passed.
+### Decisions
+D-058 (no LLM wired; pure analytics and snapping first; port and fake).
+### Problems and fixes
+- A test module imported the fake at module top, so collection failed while the fake imported missing code. Moved the imports inside the tests, as the other test modules do.
+- CI's ruff flagged an import block split by a blank line, which my local run did not. Merged the block (da689ca). Local and CI ruff versions may differ; check CI results rather than assume.
+- A heredoc with mixed quoting was rejected by the shell and wrote nothing. Files were then written with the file tool.
+### Review findings
+- Not run for S19 yet. Review is due with the artifacts table and the API (AC-6).
+### Follow-ups
+- AC-6: `GET /v1/transcriptions/{id}/chapters?format=json|youtube` (starts at 00:00) and the artifacts table; needs the API layer.
+- Questions per RAG chunk and chapters as RAG parent chunks (S18 level 2): not built.
+- LLM adapter: R-010 (owner decision on the model and where it runs).
+- Speaker-name suggestions and translation are out of scope (S19b).
