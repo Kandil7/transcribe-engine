@@ -468,3 +468,33 @@ that has not been measured. [D: مجموعة التقييم]
 Reversibility: easy — the report and ADR are documents. A measured ADR supersedes ADR-0007.
 Confidence: high.
 Applied in: S00 commits 5765373 (tests), 16139e2 (validator), 69948a6 (skip-reason fix), docs commits after them.
+
+## D-029 — S09 ingest: media finalize, hand-off on VALIDATED, sandbox on Windows, deferred waiting
+Date: 2026-11-26 · Slice: S09 · Status: decided · Review: none
+Context: The spec leaves open how ingest writes the media row, how the handler sees its lease, how the sandbox runs
+on the Windows host (no cgroups, no non-root), and Q1/Q2. Constraints: `create_job` writes a placeholder sha, and
+the media primary key is `id`, so a second insert for the same upload would fail.
+Options: A) Insert a second media row (fails on the primary key). B) Add `MediaRepository.finalize`: fill the
+upload's own row with the real sha, duration, format and size; if the tenant already has that sha, return that row.
+C) Rewrite the upload row in the job.
+Decision:
+- B. The job keeps `media_id` = upload id. Canonical linking of duplicate media rows is left to S10.
+- The handler is `IngestJob(job) -> Transition`. The worker fences `complete()` on the lease, so the handler does not
+  need the lease. It returns VALIDATED (→ QUEUED on queue `gpu`), CACHE_HIT (→ COMPLETED) or VALIDATION_FAILED with a
+  code. The claim does not move PENDING_VALIDATION to PROCESSING (ADR-0006, claim SQL), so the cpu stage uses the
+  PENDING_VALIDATION transitions. The resulting state and queue match the spec's STAGE_HANDOFF.
+- Sandbox on this Windows host: argv list with no shell; `-protocol_whitelist file`; minimal environment; ffprobe
+  timeout 30 s; ffmpeg timeout 60 s plus half the duration. Playlists (`#EXTM3U`) and concat files (`ffconcat`) are
+  refused by magic bytes before any FFmpeg process starts, and the format allow-list refuses HLS and concat after the
+  probe. cgroups and the non-root user are not available here: the production CPU worker runs in a Linux container
+  that provides them. The gap is recorded here, not silently skipped.
+- Q1 (wait for an in-flight duplicate) deferred to S10. S09 completes duplicates from a stored result and otherwise
+  runs the GPU stage. Cost: duplicated compute for simultaneous identical uploads. Correctness holds because results
+  are keyed; S10's claim at write time decides the winner.
+- Q2: channels from the probe are logged as a count, not stored (no column until S13 adds it with a migration).
+- Streaming: storage chunks go to the scratch file while the hash updates; `head()` refuses oversize objects before
+  download; the streamed total is checked again.
+Rationale: [D: دورة الطلب 6–7]، [D: فحص الملفات وعزل FFmpeg]، [D: حدود التشغيل المبدئية]، ADR-0006, ADR-0002.
+Reversibility: moderate — `finalize` and the handler contract are used by S10.
+Confidence: medium.
+Applied in: S09 spec commit (resolved questions), S09 feature commits (see BUILD_LOG).
