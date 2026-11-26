@@ -12,7 +12,10 @@ from dataclasses import dataclass
 
 from transcribe_engine.domain.keys import chunk_id
 
-__all__ = ["Chunk", "SpeechRegion", "plan_chunks"]
+__all__ = ["NORMALIZED_SAMPLE_RATE", "Chunk", "SpeechRegion", "plan_chunks"]
+
+# The normalized audio is 16 kHz mono PCM (S09, ADR-0003).
+NORMALIZED_SAMPLE_RATE = 16_000
 
 
 @dataclass(frozen=True)
