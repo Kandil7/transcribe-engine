@@ -524,3 +524,23 @@ Rationale: [D: فحص الملفات وعزل FFmpeg]; the fixes follow the desi
 Reversibility: easy — constants and the stop path. The residual needs the container.
 Confidence: medium.
 Applied in: S09 review-fix commit (see BUILD_LOG).
+
+## D-031 — S09 round-2 review: fixed now, deferred to S10
+Date: 2026-11-26 · Slice: S09 · Status: decided · Review: none
+Context: The architecture and test reviewers reported "changes needed" on main at 4a08e23.
+Fixed now: `-t` clipped output to exactly the limit, so the TOO_LONG check could never fire; the clip is now limit + 1 s
+in whole seconds, and the output checks moved to `domain.media_rules.output_error`. `finalize` now runs its update in a
+savepoint and re-selects by (tenant, sha256), so a concurrent identical upload no longer raises an untranslated
+IntegrityError. Tests added: post-normalize TOO_LONG and TOO_LARGE, probe-error mapping (INVALID_MEDIA,
+UNSUPPORTED_FORMAT), and the head() size refusal before download.
+Deferred to S10, with the reason:
+- The cache-hit `incr_ref` commits before the worker's fenced `complete()`. A lease that expires between the two can
+  double-count. The fix is to tie the increment to the fenced completion, or to a per-job reference row. That belongs with
+  the lease work, so S10 owns it.
+- `IngestJob`, `FfprobeMediaProbe` and `FfmpegNormalizer` are not wired in `main.py`. S10's `make dev` adds the worker
+  entry point and its composition root, so the cpu handler is unreachable until then.
+- The queue=gpu hand-off is covered by the SQL complete path, not by an S09 test. S10 adds a worker-level assertion.
+Rationale: the fixes are local and reversible; the deferred items need the lease and worker changes that S10 makes.
+Reversibility: easy for fixes; moderate for the deferred items.
+Confidence: medium.
+Applied in: S09 round-2 fix commit.
