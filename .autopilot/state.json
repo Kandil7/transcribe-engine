@@ -3,8 +3,8 @@
   "status": "running",
   "current": null,
   "remote": true,
-  "iterations": 9,
-  "last_run": "2026-11-25",
+  "iterations": 10,
+  "last_run": "2026-11-26",
   "order": [
     "S01",
     "S00",
@@ -32,11 +32,11 @@
   ],
   "slices": {
     "S00": {
-      "status": "todo",
-      "branch": null,
+      "status": "partial",
+      "branch": "spike/S00-model-selection",
       "merged": null,
       "tag": null,
-      "notes": "Not started. Depends on local profile D-001; needs human reference (R-001)."
+      "notes": "Partial: guidelines (AC-1) and manifest validator + coverage gate done; no human reference hour (R-001), no audio in repo, no model runs. ADR-0007 Provisional. Dependents may proceed on partial."
     },
     "S01": {
       "status": "done",
