@@ -10,7 +10,6 @@ import random
 from types import ModuleType
 from typing import Any
 
-import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -77,7 +76,6 @@ def _results_for(chunks: tuple[Any, ...], words: list[tuple[int, int]]) -> list[
     return results
 
 
-@pytest.mark.xfail(strict=True, reason="S10")
 @settings(max_examples=100, deadline=None)
 @given(layout=layouts(), seed=st.integers(0, 2**32))
 def test_completion_order_irrelevant(layout: tuple[Any, ...], seed: int) -> None:
@@ -92,7 +90,6 @@ def test_completion_order_irrelevant(layout: tuple[Any, ...], seed: int) -> None
     assert merge.merge(chunks, shuffled) == baseline
 
 
-@pytest.mark.xfail(strict=True, reason="S10")
 @settings(max_examples=100, deadline=None)
 @given(layout=layouts())
 def test_split_merge_preserves_times(layout: tuple[Any, ...]) -> None:
