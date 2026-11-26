@@ -297,3 +297,41 @@ async def test_refused_writes_are_permanent_errors(kind: str, pg_url: str) -> No
     with pytest.raises(domain_errors.PermanentError):
         async with make() as uow:  # type: ignore[attr-defined]
             await uow.jobs.add(_job("job-dup", "tenant-a", "media-6"))  # type: ignore[attr-defined]
+
+
+@pytest.mark.xfail(strict=True, reason="S09")
+@pytest.mark.parametrize("kind", KINDS)
+async def test_finalize_fills_the_upload_row_or_returns_the_existing_one(
+    kind: str, pg_url: str
+) -> None:
+    """S09 (D-029). An upload row with a placeholder sha takes the real content. A sha the tenant
+    already has returns that row, and the upload row keeps its placeholder."""
+    media_cls = _mod("transcribe_engine.domain.jobs").Media
+    real = hashlib.sha256(b"same-content").hexdigest()
+    make, _ = _backend(kind, pg_url)
+
+    def upload(media_id: str) -> object:
+        return media_cls(
+            id=media_id,
+            tenant_id="tenant-a",
+            sha256=f"upload:{media_id}",
+            storage_key=f"incoming/tenant-a/{media_id}",
+            duration_ms=0,
+            format="unknown",
+            size_bytes=12,
+        )
+
+    async with make() as uow:  # type: ignore[attr-defined]
+        await uow.media.upsert(upload("up-1"))  # type: ignore[attr-defined]
+        first = await uow.media.finalize("up-1", "tenant-a", real, 1500, "mp3", 12)  # type: ignore[attr-defined]
+        await uow.commit()  # type: ignore[attr-defined]
+    assert first.id == "up-1"
+    assert first.sha256 == real
+    assert first.duration_ms == 1500
+    assert first.format == "mp3"
+
+    async with make() as uow:  # type: ignore[attr-defined]
+        await uow.media.upsert(upload("up-2"))  # type: ignore[attr-defined]
+        again = await uow.media.finalize("up-2", "tenant-a", real, 1500, "mp3", 12)  # type: ignore[attr-defined]
+        await uow.commit()  # type: ignore[attr-defined]
+    assert again.id == "up-1"
