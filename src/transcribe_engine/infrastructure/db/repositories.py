@@ -104,6 +104,47 @@ class SqlMediaRepository:
             size_bytes=row.size_bytes,
         )
 
+    async def finalize(
+        self,
+        media_id: str,
+        tenant_id: str,
+        sha256: str,
+        duration_ms: int,
+        format: str,
+        size_bytes: int,
+    ) -> Media:
+        """D-029: fill the upload row, or return the tenant's existing row for this sha256."""
+        existing = (
+            await self._conn.execute(
+                select(media).where(media.c.tenant_id == tenant_id, media.c.sha256 == sha256)
+            )
+        ).one_or_none()
+        if existing is None:
+            await self._conn.execute(
+                update(media)
+                .where(media.c.id == media_id, media.c.tenant_id == tenant_id)
+                .values(
+                    sha256=sha256,
+                    duration_ms=duration_ms,
+                    format=format,
+                    size_bytes=size_bytes,
+                )
+            )
+            existing = (
+                await self._conn.execute(
+                    select(media).where(media.c.id == media_id, media.c.tenant_id == tenant_id)
+                )
+            ).one()
+        return Media(
+            id=existing.id,
+            tenant_id=existing.tenant_id,
+            sha256=existing.sha256,
+            storage_key=existing.storage_key,
+            duration_ms=existing.duration_ms,
+            format=existing.format,
+            size_bytes=existing.size_bytes,
+        )
+
 
 class SqlJobRepository:
     def __init__(self, conn: AsyncConnection) -> None:

@@ -299,7 +299,6 @@ async def test_refused_writes_are_permanent_errors(kind: str, pg_url: str) -> No
             await uow.jobs.add(_job("job-dup", "tenant-a", "media-6"))  # type: ignore[attr-defined]
 
 
-@pytest.mark.xfail(strict=True, reason="S09")
 @pytest.mark.parametrize("kind", KINDS)
 async def test_finalize_fills_the_upload_row_or_returns_the_existing_one(
     kind: str, pg_url: str
