@@ -117,3 +117,88 @@ async def test_upload_to_completed(tmp_path: Path) -> None:
     async with make_uow("tenant-a") as uow:
         transcript = await uow.chunks.transcript("tenant-a", job.id)
     assert [w.text for w in transcript.words] == ["w0", "w1"]
+
+
+async def test_kill_mid_job_resumes_without_reprocessing() -> None:
+    """AC-7. A worker killed after some chunks have stored results loses only the chunks in flight.
+    After the restart, each stored chunk id has been sent to the ASR exactly once."""
+    fakes_repo = _mod("tests.fakes.repositories")
+    fakes_asr = _mod("tests.fakes.asr")
+    merge = _mod("transcribe_engine.domain.merge")
+    chunks_mod = _mod("transcribe_engine.domain.chunks")
+    jobs_mod = _mod("transcribe_engine.domain.jobs")
+    config_mod = _mod("transcribe_engine.domain.config")
+    process_mod = _mod("transcribe_engine.application.use_cases.process_job")
+    config = config_mod.PipelineConfig(
+        engine="faster-whisper",
+        model_revision="pending-s00",
+        language="ar",
+        decoding_params={},
+        vad_params={},
+        diarization_enabled=False,
+        pipeline_version="1.0.0",
+    )
+    job: Any = jobs_mod.Job(
+        id="job-kill",
+        tenant_id="tenant-a",
+        media_id="media-kill",
+        state=jobs_mod.JobState.PROCESSING,
+        stage=None,
+        attempt_count=1,
+        max_attempts=3,
+        queue="gpu",
+        config=config,
+        result_id=None,
+        error_code=None,
+        warnings=(),
+    )
+    regions = tuple(chunks_mod.SpeechRegion(i * RATE, i * RATE + RATE) for i in range(4))
+    planned = chunks_mod.plan_chunks(
+        list(regions),
+        max_samples=RATE,
+        pad=0,
+        total_samples=4 * RATE,
+        sample_rate=RATE,
+        media_sha256="e" * 64,
+        config_hash=config.config_hash(),
+        job_id=job.id,
+    )
+    store = fakes_repo.FakeStore()
+
+    def make_uow(tenant_id: str | None = None) -> Any:
+        return fakes_repo.FakeUnitOfWork(store)
+
+    async with make_uow("tenant-a") as uow:
+        await uow.chunks.add_plan("tenant-a", job.id, planned)
+        await uow.commit()
+    script = {c.chunk_id: (merge.RawWord(f"w{c.idx}", 100, 500, None),) for c in planned}
+    inner = fakes_asr.FakeASR(script=script)
+
+    class _KilledError(Exception):
+        pass
+
+    class _KillAfterTwo:
+        def __init__(self) -> None:
+            self.done = 0
+
+        async def transcribe(self, audio_key: str, chunk: Any, *, language: str) -> Any:
+            if self.done == 2:
+                raise _KilledError
+            self.done += 1
+            return await inner.transcribe(audio_key, chunk, language=language)
+
+    process = process_mod.ProcessJob(make_uow, _KillAfterTwo(), concurrency=1)
+    with pytest.raises(ExceptionGroup):  # the kill surfaces through the task group
+        await process(job)
+    stored_after_kill = len([c for c in planned if c.chunk_id in await _stored(make_uow, job.id)])
+    assert stored_after_kill == 2
+
+    result = await process_mod.ProcessJob(make_uow, inner)(job)
+    assert result.to is jobs_mod.JobState.COMPLETED
+    assert all(inner.calls[c.chunk_id] == 1 for c in planned[:2])
+    assert all(inner.calls[c.chunk_id] == 1 for c in planned[2:])
+
+
+async def _stored(make_uow: Any, job_id: str) -> dict[str, Any]:
+    async with make_uow("tenant-a") as uow:
+        return await uow.chunks.results("tenant-a", job_id)
