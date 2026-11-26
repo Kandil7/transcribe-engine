@@ -104,6 +104,8 @@ outbox = sa.Table(
     sa.Column("attempts", sa.Integer, nullable=False, server_default="0"),
     sa.Column("next_attempt_at", sa.DateTime(timezone=True), nullable=True),
     sa.Column("abandoned_at", sa.DateTime(timezone=True), nullable=True),
+    sa.Column("lease_owner", sa.Text, nullable=True),
+    sa.Column("lease_until", sa.DateTime(timezone=True), nullable=True),
 )
 
 webhook_secrets = sa.Table(

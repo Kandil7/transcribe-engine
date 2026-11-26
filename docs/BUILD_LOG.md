@@ -748,23 +748,65 @@ D-047 (Egyptian spoken forms; stored word unchanged). Q1 resolved.
 ## S20 — Outbox, webhooks, observability (partial)   (2026-11-26 → 2026-11-26)
 Branch: feat/S20-outbox-webhooks-observability (from main 0a950f5)   Merged: pending   Tag: —
 ### What was built
-- `domain/events.py`: `OutboxEvent` (the public webhook names).
-- `domain/webhooks.py`: `sign` (HMAC-SHA256 over "<ts>.<body>"), `is_public_destination` (https only, every resolved address public, IP literals checked directly), `retry_offsets` (30 s doubling to 1 h, ends at 24 h).
+- Outbox rows written in every terminal-state transaction (apply, fenced worker complete, reconciler poison).
+  `domain/events.py` maps states to events. Jobs without a webhook get no row (AC-1, integration).
+- Webhook destination on the job (https, port 443) at creation. Tenant secrets table with RLS. Migration 0007.
+- Signed delivery: HMAC-SHA256 `t=…,v1=…` per active secret. Sent to the verified address, redirects off.
+  Retried on `retry_offsets()` until 24 h. Rows are leased and fenced by owner (D-053).
+- SSRF guard: https, port 443, every address global, IPv4-embedded forms checked (AC-3, unit and send time).
+- Structured JSON logs (job_id, tenant_id, stage, attempt, counts). No transcript text (AC-5). httpx URL logs off.
+- Prometheus metrics registered (AC-6). Failures, lease expiries, outcomes and oldest-queued age are written.
+- Alert rules, promtool tests, and a CI job that runs promtool 2.53.0 (AC-7).
+### How it works
+A job reaches COMPLETED or FAILED in the same transaction that writes its outbox row. The publisher role
+leases due rows, resolves the destination once, checks it, and sends to the verified IP with the original
+host as Host and SNI. A 2xx marks the row delivered. Anything else reschedules it; after the last offset the
+row is abandoned.
 ### Steps and commits
 | # | Commit | What changed | Tests turned green |
 |---|---|---|---|
-| 2 | 85ed147 `test(S20): add webhook signature, SSRF and retry tests (xfail)` | AC-2, AC-3, AC-4 | — |
-| 3 | 749cac1 `feat(S20): add outbox events, webhook signing, SSRF guard and retry offsets` | domain pieces | AC-2, AC-3, AC-4 |
+| 2 | 194b24f test(S20) xfail tests | AC-1, AC-4, AC-5, AC-6, span shape | — |
+| 3 | 898add2 feat(S20) outbox writes, migration 0007 | AC-1 | AC-1 (integration) |
+| 4 | bfe0364 fix(S20) migration round-trip head | — | round trip |
+| 5 | 4a85faf fix(S20) refusal test uses an http URL (D-050) | — | — |
+| 6 | 6b64c52 feat(S20) https webhook URLs at creation (D-051) | acceptance | — |
+| 7 | 214402b feat(S20) signed sender with SSRF guard | sender | sender tests |
+| 8 | 5faf03d feat(S20) outbox publisher | AC-3 at send time, signature | 4 publisher tests |
+| 9 | 74aa863 fix(S20) AC-4 schedule loop | — | AC-4 |
+| 10 | b5f7562 feat(S20) JSON logs, metrics, stage spans | AC-5, AC-6 | 3 observability tests |
+| 11 | b7d7131 build(S20) alert rules and promtool CI job | AC-7 (CI) | — |
+| 12 | fix(S20) delivery hardening (D-053) | review findings | contract, range/port, log tests |
 ### Verification
-- `make check`: 263 passed, 1 skipped (R-001), 0 xfail for S20.
-- `make itest`: not run locally (Docker down).
+- `make check`: 281 passed, 1 skipped (R-001). No S20 xfail markers left.
+- `make itest`: 82 passed (AC-1 integration, migration round trip, queue contracts, outbox contract).
+- `uv run lint-imports`: 4 contracts kept.
+- promtool was not run on this machine (R-006). The CI job `alerts` runs `promtool check rules` and
+  `promtool test rules`. The YAML parses locally; the rule expressions are verified only when CI runs.
 ### Decisions
-D-048 (two active secrets during rotation; HTTPS only). Spec Q1 resolved.
+D-048 (two secrets, https), D-049 (storage, outbox in transaction), D-050 and D-051 (test and error),
+D-052 (stdlib logs, spans as log records), D-053 (delivery hardening).
 ### Problems and fixes
-- The first commit attempt for the webhook tests failed the lint hook (RUF007, zip instead of pairwise). Fixed and committed again; the first attempt did not land.
+- The round-trip test pins the head. Moved to 0007 in its own fix commit, as for D-037.
+- An existing refusal test encoded the pre-S20 premise. Corrected to http (D-050), then the error type changed.
+  The error-type edit (6b64c52) landed in the feature commit rather than a separate fix commit. Disclosed here.
+- An AC-4 test harness iterated a snapshot of due times and never reached 24 h. Fixed in its own commit.
+- promtool: running the downloaded binary was denied by the permission system, so it was not run locally.
+- Reviews (architecture, security, test) found DNS rebinding, unfenced claims, CGNAT and NAT64 gaps, httpx
+  logging the webhook URL, a missing port rule, missing contract tests, and weak AC-5, AC-6 and AC-7 checks.
+  Fixed in commit 12, except the deferred items below.
 ### Review findings
-- Reviewers not run in this session.
+- Fixed: DNS rebinding (pinned address), duplicate sends (leases), range gaps, httpx URL logging, port 443 only,
+  contract tests for outbox store, sender and resolver, the AC-5 field check, the AC-6 list, below-threshold alerts.
+- Deferred, with reason:
+  - Per-stage spans are not wired into the pipeline. The application layer cannot import the span helper under
+    the layering rules. Needs a span port or wiring at the infrastructure seam. Follow-up.
+  - Metric values (queue wait, stage RTF, cache and segment counters) are registered but not written at their
+    call sites. AC-6 asks for registration. Values need the pipeline call sites. Follow-up.
+  - AC-6 test checks registration only, not that counters move after a run. Follow-up test.
+  - `HttpWebhookSender.aclose` is not called on shutdown. The worker loops have no clean stop yet. Follow-up.
+  - Secrets are plaintext at rest (D-049). Encrypt before S21.
+  - The promtool tarball in CI has no checksum. Pin sha256 in the next CI change.
+  - Receiver guidance (constant-time compare, 5-minute timestamp window) is not written yet. Docs follow-up.
 ### Follow-ups
-- Outbox table and writes in the state-change transaction (AC-1, integration, migration needed).
-- The publisher loop with retries and a fake clock (AC-4 in the spec's form), and the webhook HTTP sender.
-- Structured logging without transcript text (AC-5), required metrics (AC-6), tracing spans, and `deploy/observability/alerts.yml` (AC-7, promtool).
+- Spans per stage, metric call sites, metric value tests, secret encryption (S21), HTTP client shutdown.
+- R-006: run promtool locally, or accept the CI result.

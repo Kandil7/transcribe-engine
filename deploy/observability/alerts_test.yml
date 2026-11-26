@@ -58,3 +58,25 @@ tests:
       - eval_time: 5m
         alertname: PoisonJob
         exp_alerts: []
+
+  # Below-threshold cases: the same rules stay quiet when the values are under the limits.
+  - interval: 1m
+    input_series:
+      - series: 'transcribe_queue_oldest_job_seconds{queue="cpu"}'
+        values: '600x40'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: JobQueuedTooLong
+        exp_alerts: []
+
+  - interval: 1m
+    input_series:
+      # One failure in a hundred outcomes: 1 % is under the 5 % limit.
+      - series: 'transcribe_job_outcomes_total{outcome="FAILED"}'
+        values: '0+1x70'
+      - series: 'transcribe_job_outcomes_total{outcome="COMPLETED"}'
+        values: '0+99x70'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: JobFailureRateHigh
+        exp_alerts: []

@@ -859,3 +859,20 @@ deployment; the log-based span keeps the call shape so an exporter can replace t
 Reversibility: easy — the formatter and the span helper are small and local.
 Confidence: medium. Spans are not yet wired into the pipeline stages (follow-up); the helper is tested.
 Applied in: feat(S20) JSON logs, metrics and stage spans.
+
+## D-053 — S20 delivery: pinned addresses, global-only ranges, leased outbox rows, httpx logs quiet
+Date: 2026-11-26 · Slice: S20 · Status: decided · Review: none
+Context: the architecture and security reviews found that the SSRF check and the connect could resolve the name
+differently (DNS rebinding). The range check missed CGNAT, the Alibaba metadata address and NAT64-embedded IPv4.
+Two publishers could both send the same row, because SKIP LOCKED ends at commit. httpx logs each request URL at
+INFO, which can carry a token in the webhook query.
+Options: A) Re-check the peer address after connect (complex with pooled connections). B) Pin the verified address
+and send Host and SNI for the original name. C) Lease the outbox row with owner-fenced writes. D) Allow only
+is_global addresses, check embedded IPv4, and allow port 443 only. E) Quiet httpx and httpcore to WARNING.
+Decision: B, C, D, E. The publisher resolves once through a Resolver port, checks, and sends to the first verified
+address. Rows are leased (lease_owner, lease_until), and every write names the owner.
+Rationale: B closes the rebinding window without pooled-connection tricks; the TLS name check still uses the
+destination. C makes each lease a single attempt. D and E fix the reviewed risks directly.
+Reversibility: easy (code, and migration 0007, which is not on main yet).
+Confidence: medium. Not verified: the httpx SNI extension against a live TLS server (only MockTransport is tested).
+Applied in: fix(S20) delivery hardening.

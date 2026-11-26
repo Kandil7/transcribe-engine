@@ -12,7 +12,7 @@ import sys
 import time
 from typing import Any, TextIO
 
-__all__ = ["JsonFormatter", "configure_logging", "json_handler"]
+__all__ = ["JsonFormatter", "configure_logging", "json_handler", "quiet_transport_loggers"]
 
 # Attributes every LogRecord has. Anything else on a record came from `extra=` and is logged.
 _STANDARD_ATTRIBUTES = frozenset(
@@ -43,6 +43,16 @@ def json_handler(stream: TextIO) -> logging.Handler:
     return handler
 
 
+# httpx logs every request URL at INFO. A webhook URL can carry a token in its query, so the
+# transport loggers stay at WARNING (S20, D-053).
+_QUIET_LOGGERS = ("httpx", "httpcore")
+
+
+def quiet_transport_loggers() -> None:
+    for name in _QUIET_LOGGERS:
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+
 def configure_logging(level: int = logging.INFO) -> None:
     """Replace the root handlers with one JSON handler on stderr. Called by the entry points."""
     root = logging.getLogger()
@@ -50,3 +60,4 @@ def configure_logging(level: int = logging.INFO) -> None:
         root.removeHandler(existing)
     root.addHandler(json_handler(sys.stderr))
     root.setLevel(level)
+    quiet_transport_loggers()
