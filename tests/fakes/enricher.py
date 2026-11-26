@@ -5,7 +5,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from transcribe_engine.domain.chapters import Chapter, TimedEntity
-
 from transcribe_engine.domain.errors import DomainError
 
 
