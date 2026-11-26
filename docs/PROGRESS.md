@@ -22,7 +22,7 @@ Kept in sync with `.autopilot/state.json` by the autopilot. Status: `todo` · `i
 | 14 | S15 | Canonical transcript and renderers | todo | | | v0.3.0-local | **local demo** |
 | 15 | S13 | Audio profiling and routing | todo | | | | |
 | 16 | S14 | Forced alignment | todo | | | | |
-| 17 | S16 | Evaluation harness | todo | | | v0.4.0 | |
+| 17 | S16 | Evaluation harness | partial | — | 09d77ce (PR #39) | v0.4.0 pending | metrics, SNR mix, gate; accuracy unmeasured (R-001) |
 | 18 | S17 | Speaker diarization | todo | | | | |
 | 19 | S18 | RAG indexing and search | todo | | | | |
 | 20 | S20 | Outbox, webhooks, observability | partial | — | 7b8c5dc (PR #35) | — | delivery, logs, metrics, alerts; spans and metric values not wired (follow-up) |
