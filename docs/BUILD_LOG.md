@@ -405,3 +405,58 @@ D-022 (review decisions and accepted residual risks).
 ### Follow-ups
 - Pass the from-state into complete (D-022 residual).
 - Log stale writes (S20). Between-stage cancellation checkpoint (S10).
+
+## S08 — API, auth, job endpoints   (2026-11-26 → 2026-11-26)
+Branch: feat/S08-api-auth-jobs   Merged: (pending)   Tag: —
+### What was built
+- Endpoints: `POST /v1/uploads`, `POST /v1/transcriptions` (Idempotency-Key), `GET /v1/transcriptions/{id}`,
+  `POST /v1/transcriptions/{id}:cancel`, `DELETE /v1/transcriptions/{id}` (202, marks only),
+  `GET /v1/transcriptions/{id}/result?format=json` (409 until completed, 404 after: no body until S10).
+- Application: create upload ticket, create job, get job, get result, cancel, request deletion, authenticate API key.
+- Infrastructure: API key, tenant limit and idempotency repositories; SystemClock; migration 0004 (tenants, api_keys,
+  idempotency_keys with request_hash, jobs.deletion_requested_at, RLS on jobs).
+- Presentation: FastAPI app factory, bearer and scope dependencies, problem+json for application and validation errors.
+- `make seed` (local tenant and key, printed once, saved to git-ignored `.env.local`); `make openapi` and the drift test.
+### How it works
+A bearer key is hashed and looked up in the system scope; the key's tenant then scopes every query. Each unit of work
+sets `app.tenant_id` (or `app.system` for workers) for its transaction; RLS hides other tenants' jobs even from raw SQL
+run as the API role. Job creation locks the tenant row, checks idempotency and limits, then writes media, job and
+idempotency record together and returns 202 with Location.
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | bc268bc docs(S08): resolve open question and record API decisions | Q1; D-023..D-025 | — |
+| 2 | 7d8aba0 test(S08): add API and use-case tests (xfail) | integration, unit | — |
+| 3 | 04381a3 build(S08): add tenants, api_keys, idempotency tables and RLS | migration 0004, system scope in queue | queue and repository suites still green |
+| 4 | 529bb4d feat(S08): add API key auth, scopes and problem+json errors | auth, errors, make seed | — |
+| 5 | b3cc416 feat(S08): add upload ticket endpoint | upload route | auth tests |
+| 6 | 4783d84 feat(S08): add create job with idempotency key and concurrency limit | create route, non-superuser API database | create, idempotency, limit, RLS |
+| 7 | 2199357 feat(S08): add get, cancel, delete request and result endpoints | job routes | read, cancel, delete, other-tenant |
+| 8 | 910cbee docs(S08): generate OpenAPI snapshot | docs/openapi.json, drift test | — |
+| 9 | 150ac9b fix(S08): address review findings | D-027 | hardening suite (7) |
+### Verification
+- `make check`: 158 passed. `make itest`: 57 passed (API, RLS, idempotency, queue, chaos, storage, repositories, migrations).
+- No S08 xfail markers remain.
+### Decisions
+D-023 (upload placeholder media), D-024 (RLS policy, system scope, role split), D-025 (quota, concurrency, idempotency,
+webhooks refused, progress), D-026 (key format, hashing, problem+json), D-027 (review decisions and residuals).
+### Problems and fixes
+- Superusers bypass RLS, so the API tests run as a non-superuser role on their own database.
+- Queue tests shared a database with API jobs, which made the queue see extra work; the API suite now has its own database.
+- Cancel re-read the job after commit and got 404 because row-level security had lost the tenant setting. Found by the
+  new cancel test; fixed by building the answer before commit.
+- The first other-tenant test passed for the wrong reason: routes did not exist yet, so 404 matched. A positive control
+  was added.
+- Duplicate-key race and idempotency reuse were found by review; fixed with a tenant row lock and a request hash.
+### Review findings
+- security-reviewer: 9 findings. Fixed: idempotency race; body binding; expired key reuse; fail-open scope; deletion marker
+  skipped by workers; upload id validation; system lookup narrowed to the auth use case. Residual: results not
+  tenant-scoped (S10 requirement), apply keyed by job id (D-017), quota inert until S09.
+- architecture-reviewer: 10 findings. Fixed: clock port used; auth moved to the application layer; problem+json for
+  validation; dead result branch removed; idempotency race and expired keys. Residual: none blocking.
+- test-reviewer: 12 findings. Fixed: positive controls; concurrent-limit race; cancel success; body binding; quota;
+  cross-tenant RLS; Retry-After integer and absent when terminal. Residual: AC-4 checks job count by id, not per tenant.
+- Note: reviewers ran on the pre-fix head. Findings were checked and fixed; they were not re-reviewed.
+### Follow-ups
+- S09 sets real media durations, so quota starts to count. S10 adds tenant scoping to results before writing bodies.
+- Production must use a NOBYPASSRLS role (D-024). S20 adds webhooks; S21 performs deletion.
