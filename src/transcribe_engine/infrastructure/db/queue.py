@@ -13,11 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from transcribe_engine.application.ports.queue import Lease
 from transcribe_engine.domain.errors import JobCancelledError, LeaseLostError
-from transcribe_engine.domain.jobs import Job, JobStage, Transition
+from transcribe_engine.domain.jobs import Job, JobStage, JobState, Transition
 from transcribe_engine.infrastructure.db.outbox import record_terminal_event
 from transcribe_engine.infrastructure.db.repositories import job_from_row
 from transcribe_engine.infrastructure.db.session import SYSTEM_SCOPE
 from transcribe_engine.infrastructure.db.uow import translate_db_error
+from transcribe_engine.infrastructure.observability.metrics import JOB_FAILURES
 
 __all__ = ["SqlJobQueue"]
 
@@ -100,6 +101,8 @@ async def complete_in(
     applied = bool(result.rowcount == 1)
     if applied:
         await record_terminal_event(conn, lease.job_id, t.to.value)
+        if t.to is JobState.FAILED:
+            JOB_FAILURES.labels(error_code=t.error_code.value if t.error_code else "NONE").inc()
     return applied
 
 

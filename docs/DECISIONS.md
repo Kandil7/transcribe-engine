@@ -844,3 +844,18 @@ creation check is syntactic, so it needs no DNS call in the request path.
 Reversibility: easy.
 Confidence: high.
 Applied in: feat(S20) accept https webhook URLs at job creation.
+
+## D-052 — S20 observability: stdlib JSON logs, prometheus_client metrics, spans as log records
+Date: 2026-11-26 · Slice: S20 · Status: decided · Review: none
+Context: the spec asks for JSON logs, metrics, and one trace span per stage linked by job_id. structlog and
+prometheus-client are already runtime dependencies (pyproject). OpenTelemetry is not a dependency yet.
+Options: A) structlog everywhere. B) Stdlib logging with a JSON formatter; prometheus_client for metrics; spans
+emitted as span.start/span.end log records. C) Add opentelemetry-api/sdk now and export spans.
+Decision: B. Application code uses logging.getLogger; the JSON formatter lives in infrastructure and is installed by
+the entry point. Spans are a context manager that logs start and end with job_id, stage, status, duration_ms.
+Rationale: no new dependency, and the application layer keeps no logging-library import beyond stdlib. Exporting
+spans needs an OpenTelemetry decision (licence Apache-2.0, a collector in deployment), which the design leaves to
+deployment; the log-based span keeps the call shape so an exporter can replace the sink later.
+Reversibility: easy — the formatter and the span helper are small and local.
+Confidence: medium. Spans are not yet wired into the pipeline stages (follow-up); the helper is tested.
+Applied in: feat(S20) JSON logs, metrics and stage spans.

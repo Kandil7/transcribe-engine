@@ -11,6 +11,7 @@
 """
 
 import asyncio
+import logging
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from dataclasses import replace
@@ -23,6 +24,7 @@ from transcribe_engine.domain.jobs import (
     ErrorCode,
     Job,
     JobEvent,
+    JobStage,
     JobState,
     Transition,
     chunk_failed_warning,
@@ -32,6 +34,8 @@ from transcribe_engine.domain.merge import ChunkResult, merge, validate_merge
 from transcribe_engine.domain.storage_keys import work_key
 
 __all__ = ["ProcessJob"]
+
+_log = logging.getLogger(__name__)
 
 MakeUow = Callable[[str | None], AbstractAsyncContextManager[UnitOfWork]]
 WAV = "audio.wav"
@@ -78,10 +82,14 @@ class ProcessJob:
                 words = await self._asr.transcribe(audio_key, chunk, language=self._language)
             except PermanentError:
                 failed.add(chunk.idx)
+                _log.warning("chunk failed", extra=_fields(job, chunk.idx))
                 return
             async with self._make_uow(job.tenant_id) as uow:
                 await uow.chunks.save_result(job.tenant_id, job.id, chunk.chunk_id, words)
                 await uow.commit()
+            _log.info(
+                "chunk transcribed", extra={**_fields(job, chunk.idx), "word_count": len(words)}
+            )
 
     async def _finish(self, job: Job, plan: tuple[Chunk, ...], failed: set[int]) -> Transition:
         if failed and self._require_complete_text:
@@ -108,6 +116,17 @@ class ProcessJob:
             max_attempts=job.max_attempts,
         )
         return replace(done, warnings=tuple(warnings))
+
+
+def _fields(job: Job, chunk_idx: int) -> dict[str, object]:
+    """Log fields for a chunk: ids and numbers only, never transcript text (S20, AC-5)."""
+    return {
+        "job_id": job.id,
+        "tenant_id": job.tenant_id,
+        "stage": JobStage.ASR.value,
+        "attempt": job.attempt_count,
+        "chunk_idx": chunk_idx,
+    }
 
 
 def _duration_bound(plan: tuple[Chunk, ...]) -> int:

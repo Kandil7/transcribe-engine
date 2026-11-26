@@ -16,6 +16,7 @@ from transcribe_engine.domain.jobs import JobEvent, JobState, backoff, transitio
 from transcribe_engine.infrastructure.db.outbox import record_terminal_event
 from transcribe_engine.infrastructure.db.session import SYSTEM_SCOPE
 from transcribe_engine.infrastructure.db.uow import translate_db_error
+from transcribe_engine.infrastructure.observability.metrics import LEASE_EXPIRIES
 
 __all__ = ["SqlReconciler"]
 
@@ -106,6 +107,7 @@ class SqlReconciler:
                         {"job_id": row.id, "delay_seconds": delay.total_seconds()},
                     )
                 requeued = len((await conn.execute(_REQUEUE_DUE)).all())
+                LEASE_EXPIRIES.inc(len(expired))
         except SQLAlchemyError as exc:
             raise translate_db_error(exc) from exc
         return ReconcileReport(

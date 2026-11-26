@@ -20,6 +20,7 @@ from transcribe_engine.application.worker_loop import Handler, WorkerSettings, r
 from transcribe_engine.infrastructure.db.queue import SqlJobQueue
 from transcribe_engine.infrastructure.db.reconciler import SqlReconciler
 from transcribe_engine.infrastructure.db.session import make_engine
+from transcribe_engine.infrastructure.observability.logging import configure_logging
 from transcribe_engine.infrastructure.settings import Settings
 
 __all__ = ["main", "serve"]
@@ -62,6 +63,7 @@ def main(argv: list[str]) -> int:
         sys.stderr.write("usage: python -m transcribe_engine.worker cpu|gpu|publisher\n")
         return 2
     role = argv[1]
+    configure_logging()
     settings = Settings()
     engine = make_engine(settings.database_url)
     if role == "publisher":
