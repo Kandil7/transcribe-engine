@@ -817,3 +817,16 @@ a key-management decision that the design does not make; it is recorded as a fol
 Reversibility: moderate — the outbox columns and the table are small, but rows already written keep their payload.
 Confidence: medium. Encryption of secrets at rest is open (see follow-ups in the S20 build log).
 Applied in: 898add2 (outbox write, migration 0007).
+
+## D-050 — S20 test correction: the webhook refusal test uses an http URL
+Date: 2026-11-26 · Slice: S20 · Status: decided · Review: none
+Context: `test_webhook_is_refused_until_s20` created a job with an https webhook URL and expected a refusal
+because webhooks arrived with S20. Under D-048 https webhooks are the supported case, so that premise is wrong.
+Options: A) Delete the test. B) Keep the same expectation for a URL that stays refused (http). C) Change the
+expectation to "accepted" before the feature exists, which would fail.
+Decision: B. The URL becomes http://; the refusal stays. The https acceptance and the http error class follow in
+the next feat commit, which also updates this test's expected error.
+Rationale: keeps the commit green and keeps the test's refusal check; the change is limited to the URL.
+Reversibility: easy.
+Confidence: high.
+Applied in: fix(S20) commit following bfe0364.
