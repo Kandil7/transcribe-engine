@@ -8,7 +8,6 @@ import importlib
 from types import ModuleType
 from typing import Any
 
-import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -48,7 +47,6 @@ def _cut(
     )
 
 
-@pytest.mark.xfail(strict=True, reason="S11")
 def test_cut_at_longest_silence() -> None:
     """AC-3. A 30 s speech region with two internal silences, longest (10 to 11.5 s) first, is cut
     at the midpoint of the longest silence, then at the next silence that keeps pieces
@@ -61,7 +59,6 @@ def test_cut_at_longest_silence() -> None:
     ]
 
 
-@pytest.mark.xfail(strict=True, reason="S11")
 def test_fixed_window_only_without_silence() -> None:
     """AC-4. With no silence inside a 30 s region, windows of 12 s step by 10.5 s (1.5 s overlap)
     and each later window records its overlap with the previous one."""
@@ -74,14 +71,12 @@ def test_fixed_window_only_without_silence() -> None:
     assert [s.overlap_with_prev for s in spans] == [0, _s(1.5), _s(1.5)]
 
 
-@pytest.mark.xfail(strict=True, reason="S11")
 def test_adjacent_regions_merge_up_to_the_target() -> None:
     """Regions close together merge into one span up to the target. Beyond it, the gap cuts."""
     spans = _cut(_regions([(0, 3), (4, 6), (20, 22)]), [], target=10, maximum=12)
     assert [(s.start_sample, s.end_sample) for s in spans] == [(0, _s(6)), (_s(20), _s(22))]
 
 
-@pytest.mark.xfail(strict=True, reason="S11")
 @settings(max_examples=200, deadline=None)
 @given(
     data=st.data(),
