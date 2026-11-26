@@ -137,11 +137,11 @@
       "notes": ""
     },
     "S15": {
-      "status": "todo",
-      "branch": null,
+      "status": "partial",
+      "branch": "feat/S15-canonical-transcript-renderers",
       "merged": null,
       "tag": null,
-      "notes": ""
+      "notes": "Canonical JSON and schema, derived text, cues, SRT and VTT (RTL, BOM, golden), TXT, MD, CSV, result formats and /subtitles with profiles (D-045, D-046). Unit tests pass locally; integration AC-8 test runs in CI (Docker not available here). Pending: render cache (D-046), viewer test for cps (Q1), v0.3.0-local needs a real ASR (R-003)."
     },
     "S16": {
       "status": "todo",
