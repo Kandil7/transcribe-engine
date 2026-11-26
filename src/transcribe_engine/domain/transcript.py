@@ -11,6 +11,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from transcribe_engine.domain.merge import MergedWords
+from transcribe_engine.domain.merge import Word as MergedWord
 from transcribe_engine.domain.text import NormalizedText, normalize
 
 __all__ = [
@@ -23,6 +25,7 @@ __all__ = [
     "Word",
     "from_json",
     "to_json",
+    "transcript_from_merged",
 ]
 
 SCHEMA_VERSION = "1.0"
@@ -173,6 +176,54 @@ def from_json(data: bytes) -> CanonicalTranscript:
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError("not a canonical transcript") from exc
+
+
+def transcript_from_merged(
+    merged: MergedWords,
+    *,
+    transcript_id: str,
+    media_id: str,
+    language: str,
+    provenance: Provenance,
+    warnings: tuple[str, ...] = (),
+) -> CanonicalTranscript:
+    """Build the canonical transcript of a completed job from its merged words.
+
+    One segment per chunk, in chunk order. Speakers and events are empty until diarization (S17)
+    and enrichment (S19) exist. Times are already integer milliseconds.
+    """
+    groups: list[list[MergedWord]] = []
+    for word in merged.words:
+        if groups and groups[-1][-1].chunk_idx == word.chunk_idx:
+            groups[-1].append(word)
+        else:
+            groups.append([word])
+    segments = tuple(
+        Segment(
+            id=f"seg-{index}",
+            start_ms=group[0].start_ms,
+            end_ms=group[-1].end_ms,
+            speaker=None,
+            words=tuple(
+                Word(text=w.text, start_ms=w.start_ms, end_ms=w.end_ms, lang=language, conf=w.conf)
+                for w in group
+            ),
+        )
+        for index, group in enumerate(groups)
+    )
+    duration = max((w.end_ms for w in merged.words), default=0)
+    return CanonicalTranscript(
+        schema_version=SCHEMA_VERSION,
+        transcript_id=transcript_id,
+        version=1,
+        source="asr",
+        media=MediaMeta(media_id=media_id, duration_ms=duration, language=language),
+        provenance=provenance,
+        speakers=(),
+        segments=segments,
+        events=(),
+        warnings=warnings,
+    )
 
 
 def _segment(raw: Mapping[str, Any]) -> Segment:

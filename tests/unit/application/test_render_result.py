@@ -18,9 +18,6 @@ def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
 
 
-pytestmark = pytest.mark.xfail(strict=True, reason="S15")
-
-
 def _config() -> Any:
     return _mod("transcribe_engine.domain.config").PipelineConfig(
         engine="faster-whisper",
