@@ -12,8 +12,6 @@ from datetime import timedelta
 from types import ModuleType
 from typing import Any
 
-import pytest
-
 from tests.fakes.clock import FakeClock
 from tests.fakes.outbox import FakeOutbox, FakeSecrets, FakeSender
 
@@ -57,7 +55,6 @@ def _publisher(
     )
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_retry_schedule_until_24h() -> None:
     """AC-4: attempts happen at creation and at each offset from `retry_offsets()`, the last one
     within 24 hours; after the last failed attempt the row is abandoned and never sent again.
@@ -75,7 +72,10 @@ async def test_retry_schedule_until_24h() -> None:
     assert expected[-1] - created <= timedelta(hours=24)
 
     await publisher.run_once()
-    for due in outbox.pending_due_times():
+    steps = 0
+    while (due := outbox.next_due_time()) is not None:
+        steps += 1
+        assert steps < 1000, "the publisher keeps a row due forever"
         clock.current = due
         await publisher.run_once()
 

@@ -60,6 +60,10 @@ class FakeOutbox:
     async def abandon(self, row_id: int, now: datetime) -> None:
         self.rows[row_id] = replace(self.rows[row_id], abandoned_at=now)
 
+    def next_due_time(self) -> datetime | None:
+        due = self.pending_due_times()
+        return due[0] if due else None
+
     def pending_due_times(self) -> list[datetime]:
         return sorted(
             row.next_attempt_at
