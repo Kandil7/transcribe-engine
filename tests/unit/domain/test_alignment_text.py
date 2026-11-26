@@ -7,10 +7,6 @@ code exists.
 import importlib
 from types import ModuleType
 
-import pytest
-
-pytestmark = pytest.mark.xfail(strict=True, reason="S14")
-
 
 def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
