@@ -3,7 +3,7 @@
   "status": "running",
   "current": null,
   "remote": true,
-  "iterations": 10,
+  "iterations": 11,
   "last_run": "2026-11-26",
   "order": [
     "S01",
@@ -130,11 +130,11 @@
       "notes": "Routing domain done (AC-1, AC-2, D-044). Profiler and enhancer adapters blocked on licenses (R-004, Q2). Wiring (AC-3, AC-5, AC-6) not started."
     },
     "S14": {
-      "status": "todo",
+      "status": "partial",
       "branch": null,
       "merged": null,
       "tag": null,
-      "notes": ""
+      "notes": "Merged via PR #33 (partial): verbalizer and D-047. Aligner port, adapter and wiring not started (R-005)."
     },
     "S15": {
       "status": "partial",
@@ -148,7 +148,7 @@
       "branch": null,
       "merged": null,
       "tag": null,
-      "notes": ""
+      "notes": "Partial, PR #34 open: metrics, SNR mixing, regression gate. Not merged."
     },
     "S17": {
       "status": "todo",
@@ -172,11 +172,11 @@
       "notes": ""
     },
     "S20": {
-      "status": "todo",
+      "status": "partial",
       "branch": null,
-      "merged": null,
+      "merged": "7b8c5dc",
       "tag": null,
-      "notes": ""
+      "notes": "Merged via PR #35 (rebase). Outbox in terminal transactions (AC-1 integration), signed pinned delivery with SSRF guard and leases (D-053), retries to 24 h (AC-4), JSON logs (AC-5), metrics registered (AC-6), alert rules with promtool CI job (AC-7; promtool not run locally, R-006). Partial: per-stage spans not wired; metric values not written at call sites; secrets plaintext at rest (D-049); HTTP client not closed on shutdown."
     },
     "S21": {
       "status": "todo",
