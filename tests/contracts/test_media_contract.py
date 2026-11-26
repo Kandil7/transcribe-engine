@@ -62,7 +62,6 @@ def _normalizer() -> Any:
     return _mod("transcribe_engine.infrastructure.media.ffmpeg").FfmpegNormalizer()
 
 
-@pytest.mark.xfail(strict=True, reason="S09")
 async def test_playlist_rejected(tmp_path: Path) -> None:
     """AC-1. An .mp3 that is really an HLS playlist pointing at file:///etc/passwd is refused.
 
@@ -79,7 +78,6 @@ async def test_playlist_rejected(tmp_path: Path) -> None:
         await _probe(tmp_path).probe(playlist)
 
 
-@pytest.mark.xfail(strict=True, reason="S09")
 async def test_extension_ignored_format_from_probe(tmp_path: Path) -> None:
     """AC-2. The format comes from ffprobe, not the file name: a WAV named .mp3 probes as wav."""
     _require("ffprobe")
@@ -109,7 +107,6 @@ async def test_output_is_pcm16_mono_16k(tmp_path: Path) -> None:
     assert result.duration_ms == pytest.approx(1000, abs=50)
 
 
-@pytest.mark.xfail(strict=True, reason="S09")
 async def test_probe_timeout_is_transient(tmp_path: Path) -> None:
     """AC-8. A stalled probe binary is a transient failure (the job may retry), not a bad file."""
     domain_errors = _mod("transcribe_engine.domain.errors")

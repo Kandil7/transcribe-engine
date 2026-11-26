@@ -18,7 +18,6 @@ def _limits_3h() -> object:
     return _rules().IngestLimits()
 
 
-@pytest.mark.xfail(strict=True, reason="S09")
 @pytest.mark.parametrize(
     "format_name",
     ["mp3", "wav", "flac", "aac", "ogg", "mov,mp4,m4a,3gp,3g2,mj2", "matroska,webm"],
@@ -28,7 +27,6 @@ def test_allowed_formats_are_admitted(format_name: str) -> None:
     assert rules.admission_error(format_name, 1_000, 1_000, _limits_3h()) is None
 
 
-@pytest.mark.xfail(strict=True, reason="S09")
 @pytest.mark.parametrize("format_name", ["hls,applehttp", "concat", "image2", "sox"])
 def test_playlists_and_other_formats_are_unsupported(format_name: str) -> None:
     rules = _rules()
@@ -36,7 +34,6 @@ def test_playlists_and_other_formats_are_unsupported(format_name: str) -> None:
     assert code is rules.ErrorCode.UNSUPPORTED_FORMAT
 
 
-@pytest.mark.xfail(strict=True, reason="S09")
 def test_duration_at_the_limit_is_admitted_and_above_it_is_too_long() -> None:
     rules = _rules()
     limit = rules.IngestLimits().max_duration_ms
@@ -44,7 +41,6 @@ def test_duration_at_the_limit_is_admitted_and_above_it_is_too_long() -> None:
     assert rules.admission_error("mp3", limit + 1, 1, _limits_3h()) is rules.ErrorCode.TOO_LONG
 
 
-@pytest.mark.xfail(strict=True, reason="S09")
 def test_size_above_the_limit_is_too_large() -> None:
     rules = _rules()
     limit = rules.IngestLimits().max_size_bytes
@@ -52,7 +48,6 @@ def test_size_above_the_limit_is_too_large() -> None:
     assert rules.admission_error("mp3", 1_000, limit + 1, _limits_3h()) is rules.ErrorCode.TOO_LARGE
 
 
-@pytest.mark.xfail(strict=True, reason="S09")
 def test_format_is_checked_before_duration() -> None:
     rules = _rules()
     too_long = rules.IngestLimits().max_duration_ms + 1
