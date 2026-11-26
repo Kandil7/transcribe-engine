@@ -593,3 +593,18 @@ two-step write safe to repeat, and avoids a transaction that spans the worker's 
 Reversibility: easy — the setting is a constructor argument; the upsert keeps the transcript correct on retry.
 Confidence: medium.
 Applied in: S10 processing commit.
+
+## D-035 — Plumbing adapters for the local pipeline before S11 and S12
+Date: 2026-11-26 · Slice: S10 · Status: decided · Review: none
+Context: `make dev` must run the pipeline end to end on this machine, but speech detection (S11) and a real ASR adapter
+(S12) do not exist yet.
+Options: A) Wait for S11 and S12. B) Ship plumbing adapters that are labelled as such and make no recognition claim.
+C) Ship a fake that invents text. C is rejected: a fabricated transcript could be mistaken for output.
+Decision: B. `WholeFileVad` reports one speech region covering the normalized file. It reads only the WAV header through
+storage. `PlumbingASR` returns no words. The adapters live under `infrastructure/` and are selected by configuration, not
+by a branch in the pipeline. Their transcripts are empty by design, and the demo prints that fact.
+Rationale: The plumbing (upload, ingest, chunk plan, fan-out, merge, persist, result) can be proven now. Recognition
+quality is not measured until S12 and S16.
+Reversibility: easy — both are single adapters behind existing ports.
+Confidence: high.
+Applied in: S10 plumbing commit.
