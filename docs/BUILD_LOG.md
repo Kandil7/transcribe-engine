@@ -578,3 +578,18 @@ Branch: feat/S10-ports-fakes   Merged: pending
 Verification: `make check` 216 passed, 1 skipped. `make itest` 67 passed before the last test-only change.
 Decisions: D-033 (chunk table replacement, no tenant FK), D-034 (partial-text setting, transcript before completion).
 Still open for S10: the worker entry point and `make dev` / `make demo` ([LOCAL] acceptance), the fenced reference increment deferred from S09, and the kill-mid-job test at integration level (the unit form passes).
+
+### S10 part 3 — worker runtime, result endpoint, local dev and demo
+Branch: feat/S10-result-refs   Merged: pending
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 8 | 9326681 settings for S3 and scratch | Settings | — |
+| 9 | 3fcc354 plumbing VAD and ASR | WholeFileVad (header only), PlumbingASR (D-035) | 3 VAD header tests |
+| 10 | ffef3b5 worker composition | `main.build_handlers`, `worker.py` runner, reconciler between polls (D-036) | — |
+| 11 | 1a1bc4a result endpoint | stored words and warnings; 404 without a transcript | 2 integration tests |
+| 12 | eb455c5 idempotent cache-hit reference | migration 0006, `add_reference` (D-037) | retry test, reference contract |
+| 13 | 8c4f925 make dev and make demo | scripts, ASGI factory, compose KMS key, AC-7 at integration level (D-038) | kill-and-resume integration |
+Verification: `make check` 220 passed, 1 skipped (R-001). `make itest` 72 passed.
+Local run on this machine: `make dev` (migrations 0001→0006 applied to the dev database), then `make demo` on a 3 s tone: job created, PENDING_VALIDATION → COMPLETED, JSON saved to out/. Words are empty by design (D-035); the worker logs show no errors.
+Decisions: D-035 (plumbing adapters), D-036 (worker composition and cast), D-037 (per-job references), D-038 (local runtime).
+S10 status: done. Plumbing ASR and VAD are replaced by S12 and S11 behind the same ports. SRT and VTT are S15. The S09 deferrals are closed: the worker is wired, and the increment is idempotent.
