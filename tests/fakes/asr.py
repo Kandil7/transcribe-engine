@@ -8,6 +8,7 @@ the resume test asserts (AC-7).
 from collections import Counter
 from dataclasses import dataclass, field
 
+from transcribe_engine.application.ports.asr import ASRCapabilities
 from transcribe_engine.domain.chunks import Chunk
 from transcribe_engine.domain.errors import PermanentError
 from transcribe_engine.domain.merge import RawWord
@@ -18,6 +19,17 @@ class FakeASR:
     script: dict[str, tuple[RawWord, ...]] = field(default_factory=dict)
     fail_permanent: set[str] = field(default_factory=set)
     calls: Counter[str] = field(default_factory=Counter)
+    name: str = "fake"
+    revision: str = "fake-1"
+    capabilities: ASRCapabilities = field(
+        default_factory=lambda: ASRCapabilities(
+            native_word_timestamps=True,
+            native_segment_timestamps=False,
+            max_chunk_seconds=3600.0,
+            supports_language_hint=True,
+            supports_batching=True,
+        )
+    )
 
     async def transcribe(
         self, audio_key: str, chunk: Chunk, *, language: str
