@@ -10,14 +10,11 @@ from types import ModuleType
 from typing import Any
 
 import jsonschema
-import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 SCHEMA = Path(__file__).resolve().parents[3] / "docs" / "schemas" / "transcript-1.0.json"
 ARABIC = "ابتثجحخدذرزسشصضطظعغفقكلمنهوي"
-
-pytestmark = pytest.mark.xfail(strict=True, reason="S15")
 
 
 def _mod(name: str) -> ModuleType:
