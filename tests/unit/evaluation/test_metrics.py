@@ -8,8 +8,6 @@ from types import ModuleType
 
 import pytest
 
-pytestmark = pytest.mark.xfail(strict=True, reason="S16")
-
 
 def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
