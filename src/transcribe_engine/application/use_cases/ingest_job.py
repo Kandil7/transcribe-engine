@@ -22,6 +22,7 @@ from transcribe_engine.application.ports.media import (
 from transcribe_engine.application.ports.repositories import UnitOfWork
 from transcribe_engine.application.ports.storage import ObjectStorage
 from transcribe_engine.domain.jobs import ErrorCode, Job, JobEvent, JobState, Transition, transition
+from transcribe_engine.domain.keys import result_key
 from transcribe_engine.domain.media_rules import IngestLimits, admission_error
 from transcribe_engine.domain.storage_keys import incoming_key
 
@@ -68,20 +69,44 @@ class IngestJob:
         with tempfile.TemporaryDirectory(dir=self._scratch_root) as scratch:
             source = Path(scratch) / "upload"
             try:
-                _, size = await self._stream_to(key, source)
+                sha256, size = await self._stream_to(key, source)
                 info = await self._probe_file(source)
             except _RefusedError as refused:
                 return _refuse(job, refused.code)
             code = admission_error(info.format_name, info.duration_ms, size, self._limits)
             if code is not None:
                 return _refuse(job, code)
-            # Stage 1 stops here. Dedupe (sha256) and normalization follow in later steps.
+            cached = await self._finalize_media(job, sha256, info, size)
+            if cached:
+                return transition(
+                    JobState.PENDING_VALIDATION,
+                    JobEvent.CACHE_HIT,
+                    attempt_count=job.attempt_count,
+                    max_attempts=job.max_attempts,
+                )
+            # Normalization and hand-off follow in the next step.
             return transition(
                 JobState.PENDING_VALIDATION,
                 JobEvent.VALIDATED,
                 attempt_count=job.attempt_count,
                 max_attempts=job.max_attempts,
             )
+
+    async def _finalize_media(self, job: Job, sha256: str, info: MediaInfo, size: int) -> bool:
+        """Record the probed content on the upload's media row and look for a stored result.
+
+        Returns True when a result with this key exists. That result gains one reference, and the
+        job completes without the GPU stage (AC-4).
+        """
+        async with self._make_uow(job.tenant_id) as uow:
+            await uow.media.finalize(
+                job.media_id, job.tenant_id, sha256, info.duration_ms, info.format_name, size
+            )
+            cached = await uow.results.get_by_key(result_key(sha256, job.config))
+            if cached is not None:
+                await uow.results.incr_ref(cached.id, 1)
+            await uow.commit()
+        return cached is not None
 
     async def _stream_to(self, key: str, target: Path) -> tuple[str, int]:
         """Copy the object to `target` in chunks, hashing as it goes. Returns (sha256, bytes)."""
