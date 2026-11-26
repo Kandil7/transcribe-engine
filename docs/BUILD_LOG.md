@@ -626,7 +626,7 @@ D-039 (Silero contract criterion), D-040 (overlap tiling, VAD parameters from co
 - Streaming the WAV for VAD (whole file is read into a sample array).
 
 ## S12 — ASR adapters and hallucination filter (partial)   (2026-11-26 → 2026-11-26)
-Branch: feat/S12-asr-adapters (based on fix/S11-mypy-numpy, PR #29 not yet merged)   Merged: pending   Tag: —
+Branch: feat/S12-asr-adapters (rebased on main a8ad150, after PR #29)   Merged: pending   Tag: —
 ### What was built
 - `application/ports/asr.py`: `ASRCapabilities`, and `name` / `revision` / `capabilities` on the `ASREngine` Protocol (D-041).
 - `infrastructure/asr/vllm_client.py`: `VllmClient` (OpenAI-compatible transcription route over httpx, error mapping) and `VllmASR` (reads the chunk's padded window with Range GETs, wraps it as WAV, converts word times to samples once at the boundary).
@@ -637,13 +637,13 @@ Branch: feat/S12-asr-adapters (based on fix/S11-mypy-numpy, PR #29 not yet merge
 ### Steps and commits
 | # | Commit | What changed | Tests turned green |
 |---|---|---|---|
-| 1 | 2be9249 `test(S12): add ASR contract, hallucination and vLLM error tests (xfail)` | acceptance tests, AC-4 test (passes with the existing semaphore) | — |
-| 2 | 45818df `feat(S12): extend ASR port with capabilities` | port, plumbing and fake | — |
-| 3 | ea36056 `feat(S12): add vLLM client with error mapping` | vLLM client and adapter | AC-3, AC-1 |
-| 4 | ef80409 `feat(S12): add hallucination filter` | domain filter | AC-5 |
+| 1 | 9a6b797 `test(S12): add ASR contract, hallucination and vLLM error tests (xfail)` | acceptance tests, AC-4 test (passes with the existing semaphore) | — |
+| 2 | c340aa5 `feat(S12): extend ASR port with capabilities` | port, plumbing and fake | — |
+| 3 | d32202f `feat(S12): add vLLM client with error mapping` | vLLM client and adapter | AC-3, AC-1 |
+| 4 | 3a9601f `feat(S12): add hallucination filter` | domain filter | AC-5 |
 ### Verification
-- `make check`: 231 passed, 1 skipped (R-001), 0 xfail.
-- `make itest`: not run in this session.
+- `make check`: 231 passed, 1 skipped (R-001), 0 xfail, also after the rebase onto main.
+- `make itest`: could not run. Docker Engine is not running on this machine, so Testcontainers errors (64 errors, 1 failed, 10 passed). Not a code failure; needs `make up` with Docker running.
 - `make demo`: not run. `main.py` still wires `PlumbingASR` (no local model yet).
 ### Decisions
 D-041 (port shape), D-042 (filter is domain-only; suspect not yet on the result), D-043 (faster-whisper and deploy config deferred, R-003).
