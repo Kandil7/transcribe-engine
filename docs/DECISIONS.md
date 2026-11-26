@@ -902,3 +902,17 @@ Rationale: the missing pieces are owner decisions (R-003, R-004, R-005); waiting
 Reversibility: easy (one rule change).
 Confidence: medium.
 Applied in: docs(repo) resume commit.
+
+## D-056 — S17 default diarizer: none wired yet; port and fake first
+Date: 2026-11-26 · Slice: S17 · Status: decided · Review: requested (R-008)
+Context: S17 Q1 asks whether pyannote or Sortformer is the default. The DER comparison needs the S16 dev set, which
+does not exist (R-001). Both models need terms accepted on their hosts (pyannote gated, Sortformer under NVIDIA NeMo).
+Options: A) Install pyannote now with a token (not allowed without owner approval). B) Install Sortformer via NeMo
+(a large new dependency, licence check open). C) Build the port, the pure assignment and a fake; wire the job to
+the port; leave the default unset until the owner approves a model.
+Decision: C. The default is unset. No adapter is added in this run.
+Rationale: AUTOPILOT §5 bars accepting terms and entering tokens. The DER comparison cannot run without human
+reference data. The port and wiring are reversible and let S17's behaviour be tested now.
+Reversibility: easy (adapters are added behind the port later).
+Confidence: high for not installing; medium for the port shape.
+Applied in: docs(S17) resolve Q1.

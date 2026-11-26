@@ -54,4 +54,4 @@ def assign_speakers(words: Sequence[Word], turns: Sequence[SpeakerTurn]) -> Sequ
 6. `feat(S17): wire optional diarization with warning on failure`
 
 ## Open questions
-- [ ] Q1 — Default engine: pyannote or Sortformer? Decide by DER in S16 on our audio.
+- [x] Q1 — Default engine: pyannote or Sortformer? Decide by DER in S16 on our audio. (resolved by: autopilot, 2026-11-26, D-056): neither is wired in this run. Both need gated or NVIDIA-hosted model terms, so the default stays unset; the port and fake carry the contract, and the real adapter waits for an owner decision (R-008).
