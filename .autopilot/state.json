@@ -109,11 +109,11 @@
       "notes": "Parts 1-3 done. Planner, merge, ports, persistence (0005, 0006), PrepareChunks, ProcessJob, worker runtime, result endpoint, make dev and demo verified on this machine (demo output empty by design: plumbing ASR and VAD, D-035). Tags: v0.2.0 is due after S10 per the autopilot table."
     },
     "S11": {
-      "status": "todo",
-      "branch": null,
+      "status": "done",
+      "branch": "feat/S11-vad-cut-merge",
       "merged": null,
       "tag": null,
-      "notes": ""
+      "notes": "Cut and merge (domain), Silero adapter, PrepareChunks wiring (D-039, D-040). make check 225 passed; make itest 74 passed. Real speech check pending (R-001). Dev stack needs a restart to load S11."
     },
     "S12": {
       "status": "todo",
