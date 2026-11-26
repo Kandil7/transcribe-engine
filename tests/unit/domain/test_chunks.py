@@ -37,14 +37,12 @@ def _plan(
     )
 
 
-@pytest.mark.xfail(strict=True, reason="S10")
 def test_silent_file_has_no_chunks() -> None:
     """AC-5. No speech regions, no chunks. Positive control: one region gives one chunk."""
     assert _plan([]) == ()
     assert len(_plan([(1_000, 5_000)])) == 1
 
 
-@pytest.mark.xfail(strict=True, reason="S10")
 def test_single_chunk_is_padded_inside_the_file() -> None:
     """AC-5. A short region in the middle of the file gets padding on both sides."""
     (chunk,) = _plan([(100_000, 120_000)], total=400_000)
@@ -53,14 +51,12 @@ def test_single_chunk_is_padded_inside_the_file() -> None:
     assert (chunk.pad_before, chunk.pad_after) == (8_000, 8_000)
 
 
-@pytest.mark.xfail(strict=True, reason="S10")
 def test_padding_is_clipped_at_file_edges() -> None:
     """AC-5. A region at the very start has no room before it, and at the end none after it."""
     (chunk,) = _plan([(0, 5_000)], total=5_000)
     assert (chunk.pad_before, chunk.pad_after) == (0, 0)
 
 
-@pytest.mark.xfail(strict=True, reason="S10")
 def test_region_longer_than_max_is_split_into_cores() -> None:
     """AC-5. A region longer than max_samples is cut into consecutive cores of at most max."""
     chunks = _plan([(0, 400_000)], max_samples=160_000)
@@ -73,7 +69,6 @@ def test_region_longer_than_max_is_split_into_cores() -> None:
     assert all(c.total == 3 for c in chunks)
 
 
-@pytest.mark.xfail(strict=True, reason="S10")
 def test_plan_invariants_hold_for_many_regions() -> None:
     """Cores are sorted, disjoint and cover all speech. Ids are unique and deterministic."""
     regions = [(1_000, 50_000), (60_000, 61_000), (200_000, 420_000)]
@@ -89,7 +84,6 @@ def test_plan_invariants_hold_for_many_regions() -> None:
     assert [c.chunk_id for c in again] == [c.chunk_id for c in chunks]
 
 
-@pytest.mark.xfail(strict=True, reason="S10")
 def test_invalid_inputs_are_refused() -> None:
     """Overlapping regions and non-positive limits are programming errors, not silent output."""
     with pytest.raises(ValueError, match="overlap"):
