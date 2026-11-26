@@ -5,6 +5,7 @@ Each refusal is paired with a positive control (no failure, full transcript), so
 always fails or always completes cannot pass. Imports happen inside helpers so the module collects.
 """
 
+import asyncio
 import contextlib
 import importlib
 from types import ModuleType
@@ -175,3 +176,34 @@ async def test_resume_after_a_crash_does_not_reprocess_stored_chunks() -> None:
     async with make_uow("tenant-a") as uow:
         transcript = await uow.chunks.transcript("tenant-a", job.id)
     assert [w.text for w in transcript.words] == ["alpha", "beta", "gamma"]
+
+
+class _GaugeASR:
+    """Counts in-flight ASR calls. Each call yields to the loop so overlap is observable."""
+
+    def __init__(self, inner: Any) -> None:
+        self._inner = inner
+        self.active = 0
+        self.peak = 0
+
+    async def transcribe(self, audio_key: str, chunk: Any, *, language: str) -> Any:
+        self.active += 1
+        self.peak = max(self.peak, self.active)
+        try:
+            await asyncio.sleep(0.01)
+            return await self._inner.transcribe(audio_key, chunk, language=language)
+        finally:
+            self.active -= 1
+
+
+async def test_inflight_bounded() -> None:
+    """S12 AC-4: never more than `concurrency` ASR calls in flight. Positive control: the bound is
+    reached (peak == 2), so a use case that serialises everything cannot pass."""
+    job = _job()
+    plan = _plan(job)
+    assert len(plan) > 2
+    _, make_uow = await _seeded(job, plan)
+    gauge = _GaugeASR(_mod("tests.fakes.asr").FakeASR(script=_script(plan)))
+    result = await _process(make_uow, gauge, concurrency=2)(job)
+    assert result.to is _mod("transcribe_engine.domain.jobs").JobState.COMPLETED
+    assert gauge.peak == 2
