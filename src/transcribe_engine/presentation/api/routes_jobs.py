@@ -72,5 +72,5 @@ async def get_transcription_result(
 ) -> Response:
     if format != "json":
         raise UnsupportedFeatureError
-    await GetResult(request.app.state.make_uow)(principal.tenant_id, job_id)
-    raise AssertionError("GetResult returns no body until S10")  # never reached
+    body = await GetResult(request.app.state.make_uow)(principal.tenant_id, job_id)
+    return JSONResponse(status_code=200, content=body)
