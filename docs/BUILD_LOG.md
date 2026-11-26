@@ -496,7 +496,7 @@ D-028 (partial S00 path; ADR-0007 provisional)
 - ADR-0007 is revisited when measurements exist, or when Falcon-ASR weights are published.
 
 ## S09 — Ingest: probe, hash, dedupe, normalize   (2026-11-26 → 2026-11-26)
-Branch: feat/S09-ingest-validation   Merged: pending   Tag: —
+Branch: feat/S09-ingest-validation   Merged: a5d306a (PR #21, rebase)   Tag: —
 ### What was built
 - Admission rules in the domain (`domain/media_rules.py`): format allow-list, 3 h and 4 GB limits, refusal codes.
 - Media ports (`application/ports/media.py`), with CorruptMediaError and UnsupportedMediaError (both permanent).
