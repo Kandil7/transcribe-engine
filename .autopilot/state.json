@@ -111,23 +111,23 @@
     "S11": {
       "status": "done",
       "branch": "feat/S11-vad-cut-merge",
-      "merged": null,
+      "merged": "a8ad150",
       "tag": null,
-      "notes": "Done. Cut and merge (domain), Silero adapter, PrepareChunks wiring (D-039, D-040). make check 225 passed; make itest 74 passed. Fix for mypy on CI (numpy override) is PR #29, rebase-merge denied by the permission system at 2026-11-26; merge pending. Real speech check pending (R-001)."
+      "notes": "Done and merged (PR #29 for the mypy fix). Cut and merge, Silero adapter, PrepareChunks wiring (D-039, D-040). Real speech check pending (R-001)."
     },
     "S12": {
       "status": "partial",
       "branch": "feat/S12-asr-adapters",
-      "merged": null,
+      "merged": "d02504a",
       "tag": null,
-      "notes": "Partial: ASR port with capabilities (D-041), vLLM client and adapter with error mapping (AC-1, AC-3), hallucination filter (AC-5, D-042), in-flight bound test (AC-4). Deferred: faster-whisper local adapter and deploy config (D-043, R-003), AC-2 gpu test, AC-6 decoding params persistence, suspect flags on result. Branch is based on fix/S11-mypy-numpy because PR #29 is not merged."
+      "notes": "Merged to main via PR #30 (partial). vLLM adapter, capabilities, hallucination filter. Deferred: faster-whisper adapter and deploy config (D-043, R-003), AC-2 gpu, AC-6, suspect flags on result. Integration tests passed in CI."
     },
     "S13": {
-      "status": "todo",
-      "branch": null,
+      "status": "partial",
+      "branch": "feat/S13-audio-profiling-routing",
       "merged": null,
       "tag": null,
-      "notes": ""
+      "notes": "Routing domain done (AC-1, AC-2, D-044). Profiler and enhancer adapters blocked on licenses (R-004, Q2). Wiring (AC-3, AC-5, AC-6) not started."
     },
     "S14": {
       "status": "todo",

@@ -73,5 +73,5 @@ class Enhancer(Protocol):
 6. `feat(S13): wire profiling and routing into PrepareChunks and ProcessJob`
 
 ## Open questions
-- [ ] Q1 — Add `PROFILING` stage (S02 Q3). Must be resolved first.
+- [x] Q1 — Add `PROFILING` stage (S02 Q3). Must be resolved first. (resolved by: autopilot, 2026-11-26, D-044): the stage already exists in `JobStage` (D-005).
 - [ ] Q2 — Licenses of Brouhaha, DNSMOS, DeepFilterNet, Demucs for commercial use: check before merge.
