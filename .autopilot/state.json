@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "status": "blocked",
+  "status": "running",
   "current": null,
   "remote": true,
   "iterations": 11,
@@ -194,5 +194,5 @@
     }
   },
   "statuses_help": "todo | in_progress | partial | blocked | done",
-  "blocked_reason": "No eligible slice under AUTOPILOT 2.1. Remaining todo slices depend on partial slices, and only S00 may proceed on partial: S16 needs S12 (partial: R-003), S17 needs S14 (partial: R-005), S18 needs S15 (partial: R-005, R-003), S19 needs S18, S21 needs S18, S22 needs S14 and S15. Owner decisions in REVIEW_QUEUE R-003, R-004, R-005 unblock the partial slices. PR #34 (S16) is open, reviewed (CI green, xfail removed, 23 tests pass), and waits on the same partial-dependency question. Decide whether partial dependencies may unblock dependents (D-054)."
+  "blocked_reason": null
 }
