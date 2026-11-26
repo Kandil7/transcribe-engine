@@ -14,7 +14,7 @@ Kept in sync with `.autopilot/state.json` by the autopilot. Status: `todo` · `i
 | 6 | S07 | Object storage and presigned uploads | done | — | a29dd33 | — | PR #11 merged (rebase) |
 | 7 | S05 | Schema, repositories, unit of work | done | — | 2af874b | — | PR #13 merged (rebase) |
 | 8 | S06 | Postgres job queue, lease, fencing, reconciler | done | — | f216ccd | — | PR #15 merged (rebase) |
-| 9 | S08 | API, auth, job endpoints | partial | feat/S08-api-auth-jobs | — | — | PR open; CI pending |
+| 9 | S08 | API, auth, job endpoints | done | — | f9eeca3 | — | PR #17 merged (rebase) |
 | 10 | S09 | Ingest: probe, hash, dedupe, normalize | todo | | | | |
 | 11 | S10 | Chunk plan, fan-out, merge | todo | | | v0.2.0 | adds `make dev`, `make demo` |
 | 12 | S11 | VAD with cut and merge | todo | | | | |

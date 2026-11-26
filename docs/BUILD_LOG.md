@@ -407,7 +407,7 @@ D-022 (review decisions and accepted residual risks).
 - Log stale writes (S20). Between-stage cancellation checkpoint (S10).
 
 ## S08 — API, auth, job endpoints   (2026-11-26 → 2026-11-26)
-Branch: feat/S08-api-auth-jobs   Merged: (pending)   Tag: —
+Branch: feat/S08-api-auth-jobs   Merged: f9eeca3 (PR #17)   Tag: —
 ### What was built
 - Endpoints: `POST /v1/uploads`, `POST /v1/transcriptions` (Idempotency-Key), `GET /v1/transcriptions/{id}`,
   `POST /v1/transcriptions/{id}:cancel`, `DELETE /v1/transcriptions/{id}` (202, marks only),
