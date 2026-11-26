@@ -916,3 +916,16 @@ reference data. The port and wiring are reversible and let S17's behaviour be te
 Reversibility: easy (adapters are added behind the port later).
 Confidence: high for not installing; medium for the port shape.
 Applied in: docs(S17) resolve Q1.
+
+## D-057 — S18 scope: pure RAG domain first; FTS v1; models deferred (R-009)
+Date: 2026-11-26 · Slice: S18 · Status: decided · Review: requested (R-009)
+Context: S18 Q1 (BM25 in Postgres), Q2 (embedding and reranker models) and Q3 (parent level before chapters).
+Options: Q1: A) built-in FTS (proposed), B) extension, C) OpenSearch. Q2: A) pick a model now, B) defer the model, the
+adapter waits. Q3: A) fixed windows on speaker turns (proposed), B) wait for S19.
+Decision: Q1 A (FTS behind SearchIndex, recall compared in S16 later). Q2 B: the Embedder and reranker ports are built
+with a fake; the model choice and its download need owner approval (R-009). Q3 A, parent level in a later step.
+Rationale: FTS needs no new dependency. A model download and its terms are owner decisions. Fixed windows need no
+chapters.
+Reversibility: easy (behind ports).
+Confidence: medium.
+Applied in: docs(S18) resolve Q1 to Q3.
