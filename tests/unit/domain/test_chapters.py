@@ -8,14 +8,11 @@ end is not after its start is dropped, and an entity that does appear is kept.
 import importlib
 from types import ModuleType
 
-import pytest
-
 
 def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
 
 
-@pytest.mark.xfail(strict=True, reason="S19")
 def test_times_snap_to_segments() -> None:
     """AC-2: off-grid chapter times snap to the nearest segment start (starts) or end (ends)."""
     chapters = _mod("transcribe_engine.domain.chapters")
@@ -37,7 +34,6 @@ def test_times_snap_to_segments() -> None:
     assert (out[1].start_ms, out[1].end_ms) == (2000, 5900)
 
 
-@pytest.mark.xfail(strict=True, reason="S19")
 def test_entities_must_appear_in_text() -> None:
     """AC-3 (domain part): an entity whose text is not a substring of the transcript is dropped and
     counted. Positive control: an entity that does appear is kept."""

@@ -42,7 +42,6 @@ def _transcript() -> object:
     )
 
 
-@pytest.mark.xfail(strict=True, reason="S19")
 def test_talk_time_and_rate() -> None:
     """AC-1: talk time is the sum of a speaker's segment durations; the rate is words per minute of
     talk time; silence is the time with no speech.

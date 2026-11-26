@@ -8,8 +8,6 @@ reported as failed, the other artifacts are present).
 import importlib
 from types import ModuleType
 
-import pytest
-
 
 def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
@@ -47,7 +45,6 @@ def _transcript() -> object:
     )
 
 
-@pytest.mark.xfail(strict=True, reason="S19")
 async def test_entities_verified_against_text() -> None:
     """AC-3: an entity that is not in the transcript is dropped and counted. Positive control: the
     entity that is in the transcript is returned."""
@@ -64,7 +61,6 @@ async def test_entities_verified_against_text() -> None:
     assert result.dropped_entities == 1
 
 
-@pytest.mark.xfail(strict=True, reason="S19")
 async def test_transcript_unchanged() -> None:
     """AC-4: enrichment never changes the transcript; its canonical bytes are unchanged.
 
@@ -79,7 +75,6 @@ async def test_transcript_unchanged() -> None:
     assert fake.calls
 
 
-@pytest.mark.xfail(strict=True, reason="S19")
 async def test_one_failure_does_not_block_others() -> None:
     """AC-5: a failing chapters step is reported; the summary and entities still come back.
     Positive control: without the failure, nothing is reported as failed."""
