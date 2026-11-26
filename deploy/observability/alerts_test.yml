@@ -20,6 +20,8 @@ tests:
           - exp_labels:
               queue: cpu
               severity: page
+            exp_annotations:
+              summary: "A job has been QUEUED for more than 30 minutes on the cpu queue"
       - eval_time: 3m
         alertname: JobQueuedTooLong
         exp_alerts: []
@@ -37,6 +39,8 @@ tests:
         exp_alerts:
           - exp_labels:
               severity: page
+            exp_annotations:
+              summary: "More than 5 % of jobs failed in the last hour"
       - eval_time: 5m
         alertname: JobFailureRateHigh
         exp_alerts: []
@@ -55,6 +59,8 @@ tests:
           - exp_labels:
               severity: page
               error_code: POISON_JOB
+            exp_annotations:
+              summary: "A job was marked POISON_JOB: its lease expired at the attempt limit"
       - eval_time: 5m
         alertname: PoisonJob
         exp_alerts: []
