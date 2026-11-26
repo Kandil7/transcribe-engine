@@ -54,5 +54,5 @@ def verbalize_for_alignment(text: str) -> tuple[str, Sequence[TokenMap]]   # dig
 6. `feat(S14): wire alignment into ProcessJob before merge`
 
 ## Open questions
-- [ ] Q1 — Verbalize digits in MSA or Egyptian forms (خمسين / خمسون)? The audio is Egyptian.
+- [x] Q1 — (resolved by: autopilot, 2026-11-26, D-047) Verbalize digits in MSA or Egyptian forms (خمسين / خمسون)? The audio is Egyptian.
   Proposed: Egyptian spoken forms; measure both in S16.
