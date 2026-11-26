@@ -42,7 +42,6 @@ def _steps(plan: Any) -> set[str]:
     return {str(step) for step in plan.steps}
 
 
-@pytest.mark.xfail(strict=True, reason="S13")
 def test_clean_audio_has_no_steps() -> None:
     """AC-2: clean audio gets no steps, no flags, original audio for ASR, nothing skipped."""
     plan = _plan(_clean())
@@ -52,7 +51,6 @@ def test_clean_audio_has_no_steps() -> None:
     assert plan.skip_asr is False
 
 
-@pytest.mark.xfail(strict=True, reason="S13")
 @pytest.mark.parametrize(
     ("row", "changes", "expected_steps", "expected_flags", "feed_asr", "skip_asr"),
     [
