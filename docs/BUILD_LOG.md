@@ -496,7 +496,7 @@ D-028 (partial S00 path; ADR-0007 provisional)
 - ADR-0007 is revisited when measurements exist, or when Falcon-ASR weights are published.
 
 ## S09 — Ingest: probe, hash, dedupe, normalize   (2026-11-26 → 2026-11-26)
-Branch: feat/S09-ingest-validation   Merged: a5d306a (PR #21, rebase)   Tag: —
+Branch: feat/S09-ingest-validation   Merged: 8e24311 (PRs #21 and #23, rebase)   Tag: —
 ### What was built
 - Admission rules in the domain (`domain/media_rules.py`): format allow-list, 3 h and 4 GB limits, refusal codes.
 - Media ports (`application/ports/media.py`), with CorruptMediaError and UnsupportedMediaError (both permanent).
@@ -531,7 +531,7 @@ D-029 (media finalize, hand-off on VALIDATED, Windows sandbox, Q1 deferred), D-0
 - `gh pr create` hung when stdin was attached. Fix: `</dev/null` and `--body-file`.
 ### Review findings
 - Security reviewer (subagent): four findings. Fixed: declared duration trusted (`-t` cap and recheck), unbounded tool output (stream cap), commit scope (committed). Residual, D-030: `-protocol_whitelist file` does not confine paths; `dref` read outside scratch is unverified and needs container confinement. Nit, not fixed: magic-byte match is a substring, can false-refuse "ffconcat" text and misses a BOM before `#EXTM3U`.
-- architecture-reviewer and test-reviewer were not run. Note: the DoD requires them, so this is an open gap for this slice.
+- architecture-reviewer and test-reviewer ran after merge (round 2). Fixed: FFmpeg clip hid TOO_LONG, finalize race, missing post-normalize, probe-error and head-size tests (PR #23). Listed in D-031 for S10: the cache-hit ref increment is not fenced to completion, and the cpu handler is not wired in main.py.
 ### Follow-ups
 - Container confinement for FFmpeg and ffprobe (bind-mount scratch only), with a `dref` test. Needed before production.
 - Q1: duplicate uploads running at the same time both use GPU until S10's claim at write time.
