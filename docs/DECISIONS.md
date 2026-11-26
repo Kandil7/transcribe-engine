@@ -544,3 +544,18 @@ Rationale: the fixes are local and reversible; the deferred items need the lease
 Reversibility: easy for fixes; moderate for the deferred items.
 Confidence: medium.
 Applied in: S09 round-2 fix commit.
+
+## D-032 — S10 chunk plan: sample_rate in the signature, one chunk per region piece
+Date: 2026-11-26 · Slice: S10 · Status: decided · Review: none
+Context: The spec's `plan_chunks` signature omits the sample rate, but `Chunk` carries one, and merge needs it to turn
+samples into milliseconds at the boundary (ADR-0003).
+Options: A) Read the rate from the media row inside the planner. B) Pass `sample_rate` as a keyword argument. C) Store the
+rate in a global. Also: A) pack short regions together across gaps into one chunk. B) one chunk per region piece, cut at
+`max_samples`.
+Decision: B for the rate (explicit, pure). One chunk per region piece: a region longer than `max_samples` is cut into
+consecutive cores, and each short region gets its own chunk.
+Rationale: Keeps the planner pure and testable. Packing would hide gaps from the padding rule and change ids when gaps
+move. Chunk counts are only a performance concern and can be revisited with a measurement.
+Reversibility: easy — the planner is pure and the ids are derived from the plan.
+Confidence: medium.
+Applied in: S10 chunk commit.
