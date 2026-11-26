@@ -12,7 +12,7 @@ from testcontainers.community.postgres import PostgresContainer
 pytestmark = pytest.mark.integration
 
 ROOT = Path(__file__).resolve().parents[2]
-HEAD = "0006_result_refs"  # D-037: moved from 0005 when S10 added result references
+HEAD = "0007_webhooks_outbox"  # D-049: moved from 0006 when S20 added webhook columns
 
 
 def _alembic_config() -> Config:

@@ -796,3 +796,24 @@ bodies in clear text. [D: نقاط النهاية]
 Reversibility: easy (the rotation table and the scheme check are small).
 Confidence: medium. Storage of the second secret is not built yet (outbox slice).
 Applied in: feat(S20) domain webhooks, 749cac1.
+
+## D-049 — S20 storage: outbox rows in the state-change transaction; secrets in a tenant table
+Date: 2026-11-26 · Slice: S20 · Status: decided · Review: none
+Context: AC-1 needs an outbox row that exists if and only if the job's state change commits. The design says
+webhooks are sent from the outbox but not where the destination and the signing secrets live. D-048 fixed the
+rotation rule (two active secrets) and noted that their storage was not built yet.
+Options: A) Write the event from the application after the commit (can lose events). B) Write it in the same
+transaction from every writer of a terminal state (apply, the fenced worker complete, the reconciler's poison
+update). C) A trigger on jobs. Destination: D1) a column on jobs, from the create request (design: webhook_url) or
+D2) a tenant setting. Secrets: E1) a table per tenant, plaintext, RLS as on other tenant tables, or E2) encrypted at
+rest with a key from the environment.
+Decision: B for the events. The destination is a nullable jobs.webhook_url copied into the outbox payload when the
+event is written, so the publisher never reads jobs. Secrets are E1 (plaintext HMAC keys in webhook_secrets,
+tenant RLS, the publisher reads at most two active rows).
+Rationale: B is the only option where the event and the state change share one transaction, which AC-1 requires.
+C would hide the rule in SQL the tests cannot see. The copy of the destination freezes it at completion, which is
+what the client asked for. E1 is the smallest change that matches D-048. An HMAC key cannot be hashed, and E2 needs
+a key-management decision that the design does not make; it is recorded as a follow-up for S21 (secrets at rest).
+Reversibility: moderate — the outbox columns and the table are small, but rows already written keep their payload.
+Confidence: medium. Encryption of secrets at rest is open (see follow-ups in the S20 build log).
+Applied in: 898add2 (outbox write, migration 0007).
