@@ -1,0 +1,30 @@
+# Alert rules for the Transcribe Engine (S20, design: المراقبة). Checked by promtool in CI
+# (`promtool test rules deploy/observability/alerts_test.yml`).
+groups:
+  - name: transcribe-engine
+    rules:
+      - alert: JobQueuedTooLong
+        expr: max by (queue) (transcribe_queue_oldest_job_seconds) > 1800
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "A job has been QUEUED for more than 30 minutes on the {{ $labels.queue }} queue"
+
+      - alert: JobFailureRateHigh
+        expr: |
+          sum(increase(transcribe_job_outcomes_total{outcome="FAILED"}[1h]))
+            / clamp_min(sum(increase(transcribe_job_outcomes_total[1h])), 1)
+          > 0.05
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: "More than 5 % of jobs failed in the last hour"
+
+      - alert: PoisonJob
+        expr: increase(transcribe_job_failures_total{error_code="POISON_JOB"}[5m]) > 0
+        labels:
+          severity: page
+        annotations:
+          summary: "A job was marked POISON_JOB: its lease expired at the attempt limit"

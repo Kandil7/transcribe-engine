@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from transcribe_engine.application.ports.outbox import OutboxRow
 from transcribe_engine.domain.events import OutboxEvent
 from transcribe_engine.infrastructure.db.session import SYSTEM_SCOPE
+from transcribe_engine.infrastructure.observability.metrics import JOB_OUTCOMES
 
 __all__ = ["SqlOutboxStore", "SqlWebhookSecrets", "record_terminal_event"]
 
@@ -49,6 +50,8 @@ async def record_terminal_event(conn: AsyncConnection, job_id: str, to_state: st
     if event is None:
         return
     await conn.execute(_INSERT_EVENT, {"event": event.value, "job_id": job_id})
+    # Counted on the write, before commit: a rolled-back outcome is over-counted by a little.
+    JOB_OUTCOMES.labels(outcome=to_state).inc()
 
 
 _CLAIM_DUE = text(
