@@ -637,3 +637,20 @@ makes a retry a no-op. C would let a shared result be deleted while in use.
 Reversibility: moderate — the table can be dropped only when no job holds a reference.
 Confidence: high.
 Applied in: S10 result-references commit. Test pin moved to 0006 in tests/integration/test_migrations.py.
+
+## D-038 — Local runtime: compose for Postgres and MinIO, workers as local processes, SSE needs a local KMS key
+Date: 2026-11-26 · Slice: S10 · Status: decided · Review: none
+Context: `make dev` and `make demo` must run on this Windows machine. The FFmpeg tools and the GPU are on the host. Presigned
+POST asks for SSE-S3 (design: server-side encryption), which MinIO refuses without a KMS key. The demo must not read the
+API key from .env.local (D-026).
+Options: A) Run the workers in containers. B) Run the API and workers as local processes; compose runs only Postgres and
+MinIO. For SSE: A) turn encryption off locally. B) set a throwaway local KMS key in compose, as the tests already do.
+For the key: A) demo reads .env.local. B) demo reads TE_API_KEY from the environment; the user supplies it from `make seed`.
+Decision: B for all three: local processes (so FFmpeg and the GPU are on the host, and the image build waits for the real
+ASR), the throwaway KMS key in docker-compose.yml, and TE_API_KEY for the demo. `make dev` runs compose, migrations, the
+bucket, the API and both workers, with prefixed logs. `make demo FILE=...` writes out/<job>.json.
+Rationale: The pipeline runs on the same machine it will be measured on. SSE stays on, as the design requires, and the
+local key is not a secret. The demo never reads what D-026 says the system must not read back.
+Reversibility: easy — scripts and one compose variable.
+Confidence: medium. Containerised workers (A) remain the production path (ADR-0005); a Linux worker image is a later task.
+Applied in: S10 local-runtime commit.

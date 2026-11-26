@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 UV := uv run
 
-.PHONY: help setup fmt lint typecheck imports test check itest cov eval up down migrate seed openapi ci autopilot
+.PHONY: help setup fmt lint typecheck imports test check itest cov eval up down migrate seed openapi ci autopilot dev demo
 
 help: ## Show targets
 	@grep -E '^[a-z]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -58,3 +58,9 @@ seed: ## Create the local tenant and API key (printed once, saved to .env.local)
 
 openapi: ## Regenerate docs/openapi.json from the code
 	uv run python scripts/export_openapi.py
+
+dev: ## Run the local stack: compose, migrations, API, cpu and gpu workers (Ctrl-C stops)
+	uv run python scripts/dev.py
+
+demo: ## Upload FILE, wait for the job, save out/<job>.json (needs make dev and TE_API_KEY)
+	uv run python scripts/demo.py "$(FILE)"
