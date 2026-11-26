@@ -113,7 +113,6 @@ def _ingest(
     )
 
 
-@pytest.mark.xfail(strict=True, reason="S09")
 async def test_too_long_fails_permanently(tmp_path: Any) -> None:
     """AC-3. Positive control: a 1 s file in the same setup reaches QUEUED (hand-off test)."""
     media = _mod("transcribe_engine.application.ports.media")
@@ -144,7 +143,6 @@ async def test_cache_hit_completes_without_gpu(tmp_path: Any) -> None:
     assert await inner.head("work/tenant-a/job-1/audio.wav") is None
 
 
-@pytest.mark.xfail(strict=True, reason="S09")
 async def test_hash_streamed(tmp_path: Any) -> None:
     """AC-5. The file is read in stream chunks; no single read is larger than the chunk size."""
     upload = b"a" * 5_000
