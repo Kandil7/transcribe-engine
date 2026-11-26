@@ -810,3 +810,28 @@ D-052 (stdlib logs, spans as log records), D-053 (delivery hardening).
 ### Follow-ups
 - Spans per stage, metric call sites, metric value tests, secret encryption (S21), HTTP client shutdown.
 - R-006: run promtool locally, or accept the CI result.
+
+## S16 — Evaluation harness (partial)   (2026-11-26 → 2026-11-26)
+Branch: feat/S16-evaluation-harness (from main 0a950f5)   Merged: pending   Tag: —
+### What was built
+- `evaluation/metrics.py`: `cer`, `wer` (normalized on both sides), `max_insertion_run` (word alignment backtrace), `hallucination_rate` with `ItemResult`.
+- `evaluation/augment.py`: `scale_noise`, `mix`, `snr_db`. The noise is scaled so the measured SNR equals the target.
+- `evaluation/gate.py`: `gate_passes`. Fails when CER rises more than 0.5 points (fractions, with a small float tolerance).
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 2 | 6789ac4 `test(S16): add metric, augmentation and gate tests (xfail)` | AC-1, AC-2, AC-3, AC-4, AC-6 | — |
+| 3 | 915eea0 `feat(S16): add metrics, SNR mixing and the regression gate` | three modules | AC-1, AC-2, AC-3, AC-4, AC-6 |
+### Verification
+- `make check`: 265 passed, 1 skipped (R-001), 0 xfail for S16.
+- AC-5 (`evaluation/run.py --split dev`) not run: no dev set (R-001).
+### Decisions
+None new. The metrics follow the spec's definitions; the hallucination run limit of 5 is the spec's.
+### Problems and fixes
+- Generic helpers in `metrics.py` used `TypeVar`; ruff's UP047 asked for PEP 695 type parameters. Changed.
+### Review findings
+- Reviewers not run in this session.
+### Follow-ups
+- `evaluation/run.py`, the report, the dataset manifests and the robustness matrix (AC-5): need the dev set (R-001) and the audio.
+- The nightly GPU workflow (`.github/workflows/nightly-eval.yml`): needs a self-hosted GPU runner.
+- Entity error rate, word timing MAE and DER are in the spec's interface but have no AC yet.
