@@ -453,3 +453,18 @@ Residual, with reasons:
 - The API role in tests cannot bypass RLS; production must use a NOBYPASSRLS role (D-024).
 - Deletion is a mark only (S21 deletes). The 202 response says the request was recorded, not that data is gone.
 Applied in: S08 review-fix commit
+
+## D-028 — S00 partial: build what needs no human data; ADR-0007 provisional
+Date: 2026-11-26 · Slice: S00 · Status: decided · Review: requested (R-001)
+Context: S00 needs at least 60 min of human-transcribed dev audio (AC-2) and measured CER, WER, RTF and VRAM (AC-3).
+The repository has no audio, and an agent cannot be its own ground truth (prompt §5). Dependents such as S12 and S14
+still need an engine choice.
+Options: A) Block S00 until a person transcribes the hour. B) Build the parts that need no human data (guidelines check,
+manifest validator, coverage gate), write ADR-0007 as Provisional on the local profile, mark S00 partial, and continue
+with other slices. C) Build a "dev hour" from public audio with machine transcripts (rejected: not ground truth).
+Decision: B.
+Rationale: prompt §6.2 names this path for S00 on partial data. It keeps the critical path moving and claims no metric
+that has not been measured. [D: مجموعة التقييم]
+Reversibility: easy — the report and ADR are documents. A measured ADR supersedes ADR-0007.
+Confidence: high.
+Applied in: S00 commits 5765373 (tests), 16139e2 (validator), 69948a6 (skip-reason fix), docs commits after them.
