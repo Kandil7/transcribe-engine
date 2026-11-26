@@ -6,7 +6,7 @@ Imports happen inside helpers so the module collects before the adapter exists.
 
 import importlib
 import io
-import random
+import math
 import wave
 from pathlib import Path
 from types import ModuleType
@@ -48,18 +48,34 @@ async def _detect(tmp_path: Path, samples: list[int]) -> tuple[object, ...]:
     return tuple(await detector.detect("work/t/j/audio.wav", params))
 
 
-@pytest.mark.xfail(strict=True, reason="S11")
 async def test_silence_file_no_regions(tmp_path: Path) -> None:
     _requires_silero()
     assert await _detect(tmp_path, [0] * (5 * RATE)) == ()
 
 
-@pytest.mark.xfail(strict=True, reason="S11")
 async def test_tone_bursts_found(tmp_path: Path) -> None:
-    """Two bursts of speech-band noise separated by 2 s of silence are both reported."""
+    """Two voiced-like bursts (120 Hz harmonics, syllable-rate envelope) at 1-3 s and 5-7 s.
+
+    Silero is trained on speech, so the count on synthetic tones is not a criterion (D-039). The
+    contract is: at least one region is reported, and every region lies inside a burst.
+    """
     _requires_silero()
-    rng = random.Random(7)
-    burst = [int(rng.uniform(-12_000, 12_000)) for _ in range(2 * RATE)]
-    samples = [0] * RATE + burst + [0] * (2 * RATE) + burst + [0] * RATE
+
+    def burst(n: int) -> list[int]:
+        out = []
+        for i in range(n):
+            t = i / RATE
+            envelope = 0.5 * (1 - math.cos(2 * math.pi * 4 * t))
+            tone = sum(math.sin(2 * math.pi * 120 * k * t) / k for k in range(1, 12))
+            out.append(int(9_000 * envelope * tone / 3))
+        return out
+
+    samples = [0] * RATE + burst(2 * RATE) + [0] * (2 * RATE) + burst(2 * RATE) + [0] * RATE
     regions = await _detect(tmp_path, samples)
-    assert len(regions) >= 2
+    assert regions
+    bursts = [(RATE, 3 * RATE), (5 * RATE, 7 * RATE)]
+    for region in regions:
+        assert any(
+            region.start_sample >= a - RATE // 2 and region.end_sample <= b + RATE // 2
+            for a, b in bursts
+        ), (region.start_sample, region.end_sample)
