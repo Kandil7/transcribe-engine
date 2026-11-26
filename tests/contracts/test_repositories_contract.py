@@ -419,3 +419,40 @@ def _job_for_contract(job_id: str, media_id: str) -> object:
         error_code=None,
         warnings=(),
     )
+
+
+@pytest.mark.parametrize("kind", KINDS)
+async def test_add_reference_is_true_once_per_job(kind: str, pg_url: str) -> None:
+    """D-037. A job holds one reference to a result: the first call adds it, a repeat does not."""
+    jobs_mod = _mod("transcribe_engine.domain.jobs")
+    keys = _mod("transcribe_engine.domain.keys")
+    config = _mod("transcribe_engine.domain.config").PipelineConfig(
+        engine="faster-whisper",
+        model_revision="pending-s00",
+        language="ar",
+        decoding_params={},
+        vad_params={},
+        diarization_enabled=False,
+        pipeline_version="1.0.0",
+    )
+    make, _ = _backend(kind, pg_url)
+    sha = hashlib.sha256(b"ref-contract").hexdigest()
+    key = keys.result_key(sha, config)
+    async with make() as uow:  # type: ignore[attr-defined]
+        media = await uow.media.upsert(  # type: ignore[attr-defined]
+            jobs_mod.Media(
+                id="media-ref",
+                tenant_id="tenant-a",
+                sha256=sha,
+                storage_key="incoming/tenant-a/media-ref",
+                duration_ms=1000,
+                format="mp3",
+                size_bytes=5,
+            )
+        )
+        result, _ = await uow.results.claim_key(key, media.id, config)  # type: ignore[attr-defined]
+        await uow.jobs.add(_job_for_contract("job-ref", media.id))  # type: ignore[attr-defined]
+        first = await uow.results.add_reference("tenant-a", "job-ref", result.id)  # type: ignore[attr-defined]
+        again = await uow.results.add_reference("tenant-a", "job-ref", result.id)  # type: ignore[attr-defined]
+        await uow.commit()  # type: ignore[attr-defined]
+    assert (first, again) == (True, False)

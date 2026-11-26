@@ -12,7 +12,7 @@ from testcontainers.community.postgres import PostgresContainer
 pytestmark = pytest.mark.integration
 
 ROOT = Path(__file__).resolve().parents[2]
-HEAD = "0005_chunks_transcripts"  # D-033: moved from 0004 when S10 added chunk tables
+HEAD = "0006_result_refs"  # D-037: moved from 0005 when S10 added result references
 
 
 def _alembic_config() -> Config:

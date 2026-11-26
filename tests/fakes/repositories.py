@@ -26,6 +26,7 @@ class FakeStore:
     chunk_plans: dict[tuple[str, str], dict[str, object]] = field(default_factory=dict)
     chunk_results: dict[tuple[str, str, str], tuple[object, ...]] = field(default_factory=dict)
     transcripts: dict[tuple[str, str], object] = field(default_factory=dict)
+    result_refs: set[tuple[str, str]] = field(default_factory=set)  # (tenant, job) (D-037)
 
 
 class FakeJobRepository:
@@ -120,6 +121,13 @@ class FakeResultRepository:
 
     async def get_by_key(self, result_key: str) -> Result | None:
         return self._store.results_by_key.get(result_key)
+
+    async def add_reference(self, tenant_id: str, job_id: str, result_id: str) -> bool:
+        key = (tenant_id, job_id)
+        if key in self._store.result_refs:
+            return False
+        self._store.result_refs.add(key)
+        return True
 
     async def incr_ref(self, result_id: str, delta: int) -> int:
         for key, result in self._store.results_by_key.items():

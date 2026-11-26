@@ -172,3 +172,12 @@ transcript_table = sa.Table(
     sa.Column("sample_rate", sa.Integer, nullable=False),
     sa.Column("words", postgresql.JSONB, nullable=False),
 )
+
+
+result_ref_table = sa.Table(
+    "result_refs",
+    metadata,
+    sa.Column("job_id", sa.Text, sa.ForeignKey("jobs.id"), primary_key=True),
+    sa.Column("tenant_id", sa.Text, nullable=False),
+    sa.Column("result_id", sa.Text, sa.ForeignKey("results.id"), nullable=False),
+)

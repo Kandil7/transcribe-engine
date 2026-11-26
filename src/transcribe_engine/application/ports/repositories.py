@@ -72,6 +72,11 @@ class ResultRepository(Protocol):
 
     async def get_by_key(self, result_key: str) -> Result | None: ...
 
+    async def add_reference(self, tenant_id: str, job_id: str, result_id: str) -> bool:
+        """Record that this job uses this result (D-037). True only for the first call per job, so a
+        retried job does not add a second reference."""
+        ...
+
     async def incr_ref(self, result_id: str, delta: int) -> int:
         """Add `delta` to the reference count. Raises PermanentError if it would go negative."""
         ...

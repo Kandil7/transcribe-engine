@@ -622,3 +622,18 @@ port types strict everywhere else.
 Reversibility: easy.
 Confidence: high.
 Applied in: S10 worker commit.
+
+## D-037 — Per-job result references make the cache-hit increment idempotent
+Date: 2026-11-26 · Slice: S10 · Status: decided · Review: none
+Context: S09 incremented `ref_count` on a cache hit before the worker's fenced completion (review finding). A lease that
+expires after the increment and a re-run of the job would count the same reference twice.
+Options: A) Move the increment into the fenced completion SQL. B) A `result_refs` row per (job, result): the increment runs
+only when the row is newly inserted, in the same unit of work. C) Leave the double count and rely on reconciliation.
+Decision: B. Migration 0006 adds `result_refs` (primary key job_id, tenant_id, result_id) under the RLS policy of jobs.
+`add_reference` returns True once per job. A job that never completes keeps its reference, so the count errs high
+(never premature deletion).
+Rationale: A needs the completion path to know the result; B keeps the increment local to the ingest unit of work and
+makes a retry a no-op. C would let a shared result be deleted while in use.
+Reversibility: moderate — the table can be dropped only when no job holds a reference.
+Confidence: high.
+Applied in: S10 result-references commit. Test pin moved to 0006 in tests/integration/test_migrations.py.

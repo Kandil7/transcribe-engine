@@ -33,6 +33,7 @@ from transcribe_engine.infrastructure.db.models import (
     chunk_table,
     jobs,
     media,
+    result_ref_table,
     results,
     transcript_table,
 )
@@ -279,6 +280,14 @@ class SqlResultRepository:
             config=_config_from_canonical(row.config_canonical),
             ref_count=row.ref_count,
         )
+
+    async def add_reference(self, tenant_id: str, job_id: str, result_id: str) -> bool:
+        inserted = await self._conn.execute(
+            pg_insert(result_ref_table)
+            .values(job_id=job_id, tenant_id=tenant_id, result_id=result_id)
+            .on_conflict_do_nothing(index_elements=["job_id"])
+        )
+        return bool(inserted.rowcount == 1)
 
     async def incr_ref(self, result_id: str, delta: int) -> int:
         """Refuse an unknown id or a count that would go negative (D-019)."""
