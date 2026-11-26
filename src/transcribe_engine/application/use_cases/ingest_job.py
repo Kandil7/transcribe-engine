@@ -8,7 +8,7 @@ while its SHA-256 is computed, so the whole object is never held in memory (D-02
 
 import hashlib
 import tempfile
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager
 from pathlib import Path
 
@@ -24,12 +24,16 @@ from transcribe_engine.application.ports.storage import ObjectStorage
 from transcribe_engine.domain.jobs import ErrorCode, Job, JobEvent, JobState, Transition, transition
 from transcribe_engine.domain.keys import result_key
 from transcribe_engine.domain.media_rules import IngestLimits, admission_error
-from transcribe_engine.domain.storage_keys import incoming_key
+from transcribe_engine.domain.storage_keys import incoming_key, work_key
 
 __all__ = ["IngestJob"]
 
 MakeUow = Callable[[str | None], AbstractAsyncContextManager[UnitOfWork]]
 DEFAULT_CHUNK_BYTES = 8 * 2**20
+WAV_NAME = "audio.wav"
+# Conversion budget: a fixed base plus half a second per second of audio (design: proportional).
+CONVERSION_BASE_S = 60.0
+CONVERSION_S_PER_MEDIA_S = 0.5
 
 
 class _RefusedError(Exception):
@@ -68,29 +72,42 @@ class IngestJob:
             return _refuse(job, ErrorCode.TOO_LARGE)
         with tempfile.TemporaryDirectory(dir=self._scratch_root) as scratch:
             source = Path(scratch) / "upload"
+            wav = Path(scratch) / WAV_NAME
             try:
                 sha256, size = await self._stream_to(key, source)
                 info = await self._probe_file(source)
+                code = admission_error(info.format_name, info.duration_ms, size, self._limits)
+                if code is not None:
+                    return _refuse(job, code)
+                if await self._finalize_media(job, sha256, info, size):
+                    return transition(
+                        JobState.PENDING_VALIDATION,
+                        JobEvent.CACHE_HIT,
+                        attempt_count=job.attempt_count,
+                        max_attempts=job.max_attempts,
+                    )
+                await self._normalize(source, wav, info.duration_ms)
             except _RefusedError as refused:
                 return _refuse(job, refused.code)
-            code = admission_error(info.format_name, info.duration_ms, size, self._limits)
-            if code is not None:
-                return _refuse(job, code)
-            cached = await self._finalize_media(job, sha256, info, size)
-            if cached:
-                return transition(
-                    JobState.PENDING_VALIDATION,
-                    JobEvent.CACHE_HIT,
-                    attempt_count=job.attempt_count,
-                    max_attempts=job.max_attempts,
-                )
-            # Normalization and hand-off follow in the next step.
-            return transition(
-                JobState.PENDING_VALIDATION,
-                JobEvent.VALIDATED,
-                attempt_count=job.attempt_count,
-                max_attempts=job.max_attempts,
+            await self._storage.put(
+                work_key(job.tenant_id, job.id, WAV_NAME), _file_chunks(wav, self._chunk_bytes)
             )
+        # Hand-off: the claim keeps the job on cpu until this write; the worker sets queue=gpu.
+        return transition(
+            JobState.PENDING_VALIDATION,
+            JobEvent.VALIDATED,
+            attempt_count=job.attempt_count,
+            max_attempts=job.max_attempts,
+        )
+
+    async def _normalize(self, source: Path, target: Path, duration_ms: int) -> None:
+        timeout_s = CONVERSION_BASE_S + duration_ms / 1000 * CONVERSION_S_PER_MEDIA_S
+        try:
+            await self._normalizer.to_pcm16_mono_16k(source, target, timeout_s=timeout_s)
+        except CorruptMediaError as exc:
+            raise _RefusedError(ErrorCode.INVALID_MEDIA) from exc
+        except UnsupportedMediaError as exc:
+            raise _RefusedError(ErrorCode.UNSUPPORTED_FORMAT) from exc
 
     async def _finalize_media(self, job: Job, sha256: str, info: MediaInfo, size: int) -> bool:
         """Record the probed content on the upload's media row and look for a stored result.
@@ -138,3 +155,9 @@ def _refuse(job: Job, code: ErrorCode) -> Transition:
         max_attempts=job.max_attempts,
         error_code=code,
     )
+
+
+async def _file_chunks(path: Path, chunk_bytes: int) -> AsyncIterator[bytes]:
+    with path.open("rb") as handle:
+        while chunk := handle.read(chunk_bytes):
+            yield chunk
