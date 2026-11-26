@@ -14,9 +14,10 @@ import asyncio
 import logging
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 from transcribe_engine.application.ports.asr import ASREngine
+from transcribe_engine.application.ports.diarizer import Diarizer
 from transcribe_engine.application.ports.repositories import UnitOfWork
 from transcribe_engine.domain.chunks import Chunk
 from transcribe_engine.domain.errors import PermanentError, TransientError
@@ -27,10 +28,12 @@ from transcribe_engine.domain.jobs import (
     JobStage,
     JobState,
     Transition,
+    Warning,
     chunk_failed_warning,
     transition,
 )
-from transcribe_engine.domain.merge import ChunkResult, merge, validate_merge
+from transcribe_engine.domain.merge import ChunkResult, MergedWords, merge, validate_merge
+from transcribe_engine.domain.speakers import assign_speakers
 from transcribe_engine.domain.storage_keys import work_key
 
 __all__ = ["ProcessJob"]
@@ -39,6 +42,15 @@ _log = logging.getLogger(__name__)
 
 MakeUow = Callable[[str | None], AbstractAsyncContextManager[UnitOfWork]]
 WAV = "audio.wav"
+
+
+@dataclass(frozen=True)
+class Diarization:
+    """Optional speaker assignment for a job (S17). `split_channels` means the file was split by
+    channel, so diarization is skipped (AC-6)."""
+
+    diarizer: Diarizer
+    split_channels: bool = False
 
 
 class ProcessJob:
@@ -50,11 +62,13 @@ class ProcessJob:
         language: str = "ar",
         concurrency: int = 32,
         require_complete_text: bool = False,
+        diarization: Diarization | None = None,
     ) -> None:
         self._make_uow = make_uow
         self._asr = asr
         self._language = language
         self._concurrency = concurrency
+        self._diarization = diarization
         self._require_complete_text = require_complete_text
 
     async def __call__(self, job: Job) -> Transition:
@@ -105,9 +119,12 @@ class ProcessJob:
             stored = await uow.chunks.results(tenant, job.id)
             per_chunk = [ChunkResult(c.idx, stored.get(c.chunk_id, ())) for c in plan]
             merged = merge(plan, per_chunk)
+        merged, diarization_warnings = await self._diarize(job, merged)
+        async with self._make_uow(tenant) as uow:
             await uow.chunks.save_transcript(tenant, job.id, merged)
             await uow.commit()
         warnings = [chunk_failed_warning(idx) for idx in sorted(failed)]
+        warnings += diarization_warnings
         warnings += validate_merge(merged, _duration_bound(plan))
         done = transition(
             JobState.PROCESSING,
@@ -116,6 +133,23 @@ class ProcessJob:
             max_attempts=job.max_attempts,
         )
         return replace(done, warnings=tuple(warnings))
+
+    async def _diarize(self, job: Job, merged: MergedWords) -> tuple[MergedWords, list[str]]:
+        """Assign speakers over the whole file (S17).
+
+        A failure keeps the transcript without speakers and adds `diarization_failed`; the job
+        still completes (design: partial state)."""
+        if self._diarization is None or not job.config.diarization_enabled:
+            return merged, []
+        if self._diarization.split_channels:  # S13: a channel-split file's channel is its speaker
+            return merged, []
+        try:
+            diarizer = self._diarization.diarizer
+            turns = await diarizer.diarize(work_key(job.tenant_id, job.id, WAV), None)
+        except (TransientError, PermanentError):
+            _log.warning("diarization failed", extra=_fields(job, -1))
+            return merged, [Warning.DIARIZATION_FAILED.value]
+        return replace(merged, words=assign_speakers(merged.words, turns)), []
 
 
 def _fields(job: Job, chunk_idx: int) -> dict[str, object]:
