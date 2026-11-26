@@ -7,7 +7,7 @@ import pytest
 
 
 def _module(name: str) -> ModuleType:
-    # Imported lazily so the file collects before the module exists (xfail until S00 lands it).
+    # Imported lazily so the test file collects even when the module is missing.
     return importlib.import_module(name)
 
 
@@ -24,7 +24,6 @@ def _row(**overrides: object) -> str:
     return json.dumps(row, ensure_ascii=False)
 
 
-@pytest.mark.xfail(strict=True, reason="S00")
 def test_valid_turn_parses_into_integer_milliseconds() -> None:
     manifest = _module("evaluation.spike.manifest")
 
@@ -35,7 +34,6 @@ def test_valid_turn_parses_into_integer_milliseconds() -> None:
     assert turn.speaker == "S1"
 
 
-@pytest.mark.xfail(strict=True, reason="S00")
 @pytest.mark.parametrize(
     "overrides",
     [
@@ -58,7 +56,6 @@ def test_invalid_turn_is_rejected(overrides: dict[str, object]) -> None:
         manifest.parse_line(1, _row(**overrides))
 
 
-@pytest.mark.xfail(strict=True, reason="S00")
 def test_missing_key_is_named_in_the_error() -> None:
     manifest = _module("evaluation.spike.manifest")
 
@@ -68,7 +65,6 @@ def test_missing_key_is_named_in_the_error() -> None:
         manifest.parse_line(7, json.dumps(row, ensure_ascii=False))
 
 
-@pytest.mark.xfail(strict=True, reason="S00")
 def test_summary_counts_turns_speakers_duration_and_conditions(tmp_path: Path) -> None:
     manifest = _module("evaluation.spike.manifest")
 
@@ -87,7 +83,6 @@ def test_summary_counts_turns_speakers_duration_and_conditions(tmp_path: Path) -
     assert summary.conditions == {"clean": 1, "noisy": 1}
 
 
-@pytest.mark.xfail(strict=True, reason="S00")
 def test_coverage_gate_reports_each_gap() -> None:
     manifest = _module("evaluation.spike.manifest")
 
@@ -98,7 +93,6 @@ def test_coverage_gate_reports_each_gap() -> None:
     assert any("noisy" in problem for problem in problems)
 
 
-@pytest.mark.xfail(strict=True, reason="S00")
 def test_full_coverage_passes_the_gate() -> None:
     manifest = _module("evaluation.spike.manifest")
 
@@ -112,7 +106,6 @@ def test_full_coverage_passes_the_gate() -> None:
     assert manifest.coverage_problems(manifest.summarize(turns)) == []
 
 
-@pytest.mark.xfail(strict=True, reason="S00")
 def test_cli_prints_counts_and_exits_zero_on_a_valid_file(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
