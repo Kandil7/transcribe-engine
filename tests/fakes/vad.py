@@ -9,5 +9,5 @@ from transcribe_engine.application.ports.vad import VadResult
 class FakeVad:
     result: VadResult
 
-    async def analyze(self, audio_key: str) -> VadResult:
+    async def analyze(self, audio_key: str, params: object) -> VadResult:
         return self.result

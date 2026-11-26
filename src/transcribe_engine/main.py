@@ -23,9 +23,9 @@ from transcribe_engine.infrastructure.clock import SystemClock
 from transcribe_engine.infrastructure.db.uow import SqlUnitOfWork
 from transcribe_engine.infrastructure.media.ffmpeg import FfmpegNormalizer
 from transcribe_engine.infrastructure.media.ffprobe import FfprobeMediaProbe
+from transcribe_engine.infrastructure.ml.silero_vad import SileroVad
 from transcribe_engine.infrastructure.settings import Settings
 from transcribe_engine.infrastructure.storage.s3 import S3ObjectStorage
-from transcribe_engine.infrastructure.vad.whole_file import WholeFileVad
 from transcribe_engine.presentation.api.app import create_app
 
 __all__ = ["build_app", "build_handlers", "build_storage"]
@@ -68,9 +68,10 @@ def build_handlers(
     samples_per_ms = NORMALIZED_SAMPLE_RATE // 1000
     prepare = PrepareChunks(
         make_uow,
-        WholeFileVad(storage),  # plumbing until S11 (D-035)
-        max_samples=settings.chunk_max_ms * samples_per_ms,
+        SileroVad(storage, scratch),
+        max_samples=settings.chunk_max_ms * samples_per_ms,  # the engine's longest chunk (S11)
         pad=settings.chunk_pad_ms * samples_per_ms,
+        overlap_samples=settings.chunk_overlap_ms * samples_per_ms,
     )
     ingest = IngestJob(
         make_uow=make_uow,

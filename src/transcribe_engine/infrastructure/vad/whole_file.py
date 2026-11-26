@@ -8,6 +8,7 @@ from transcribe_engine.application.ports.storage import ObjectStorage
 from transcribe_engine.application.ports.vad import VadResult
 from transcribe_engine.domain.chunks import SpeechRegion
 from transcribe_engine.domain.errors import PermanentError
+from transcribe_engine.domain.vad import VadParams
 
 __all__ = ["WholeFileVad"]
 
@@ -18,7 +19,8 @@ class WholeFileVad:
     def __init__(self, storage: ObjectStorage) -> None:
         self._storage = storage
 
-    async def analyze(self, audio_key: str) -> VadResult:
+    async def analyze(self, audio_key: str, params: VadParams | None = None) -> VadResult:
+        # `params` is accepted for the port and ignored: this adapter is plumbing (D-035).
         info = await self._storage.head(audio_key)
         if info is None:
             raise PermanentError("normalized audio is missing")

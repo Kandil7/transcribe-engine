@@ -7,8 +7,6 @@ import importlib
 from types import ModuleType
 from typing import Any
 
-import pytest
-
 RATE = 16_000
 
 
@@ -73,7 +71,6 @@ async def test_plan_is_stored_for_the_job_and_media_hash() -> None:
     assert all(c.sample_rate == RATE for c in planned)
 
 
-@pytest.mark.xfail(strict=True, reason="S11")
 async def test_uses_engine_max_chunk_seconds() -> None:
     """AC-6. VAD runs in the CPU stage, and the plan respects the configured engine's maximum chunk
     length: no chunk core is longer than max_chunk_ms, and speech is still fully covered."""
@@ -119,7 +116,12 @@ async def test_uses_engine_max_chunk_seconds() -> None:
         return fakes_repo.FakeUnitOfWork(store)
 
     run = prepare.PrepareChunks(
-        make_uow, vad, max_chunk_ms=12_000, pad_ms=200, target_ms=10_000, overlap_ms=1_500
+        make_uow,
+        vad,
+        max_samples=12 * RATE,
+        pad=RATE // 5,
+        target_samples=10 * RATE,
+        overlap_samples=RATE * 3 // 2,
     )
     await run(job, "f" * 64)
     async with make_uow("tenant-a") as uow:
