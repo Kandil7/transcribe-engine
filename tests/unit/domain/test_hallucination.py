@@ -8,8 +8,6 @@ import importlib
 from types import ModuleType
 from typing import Any
 
-import pytest
-
 RATE = 16_000
 KNOWN = "اشتركوا في القناة"
 
@@ -30,7 +28,6 @@ def _flag(texts_and_seconds: list[tuple[str, float]]) -> list[Any]:
     return list(hallucination.flag_hallucinations(segments, rules))
 
 
-@pytest.mark.xfail(strict=True, reason="S12")
 def test_repetition_flagged() -> None:
     phrase = "والله ده كان حاجة حلوة قوي "
     flagged = _flag([(phrase * 4, 8.0)])
@@ -38,14 +35,12 @@ def test_repetition_flagged() -> None:
     assert "repetition" in flagged[0].reasons
 
 
-@pytest.mark.xfail(strict=True, reason="S12")
 def test_known_phrase_flagged() -> None:
     flagged = _flag([("كلام عادي " + KNOWN + " يا جماعة", 4.0)])
     assert flagged[0].suspect is True
     assert "known_phrase" in flagged[0].reasons
 
 
-@pytest.mark.xfail(strict=True, reason="S12")
 def test_fast_speech_flagged() -> None:
     # 30 words in 2 seconds is 15 words per second, above the 6 words/s limit.
     text = " ".join(f"كلمة{i}" for i in range(30))
@@ -54,7 +49,6 @@ def test_fast_speech_flagged() -> None:
     assert "fast_speech" in flagged[0].reasons
 
 
-@pytest.mark.xfail(strict=True, reason="S12")
 def test_normal_text_not_flagged() -> None:
     text = "ازيك يا أستاذ محمد عامل إيه النهارده في الشغل"  # 9 words in 5 seconds
     flagged = _flag([(text, 5.0)])
