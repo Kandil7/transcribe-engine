@@ -654,3 +654,33 @@ local key is not a secret. The demo never reads what D-026 says the system must 
 Reversibility: easy — scripts and one compose variable.
 Confidence: medium. Containerised workers (A) remain the production path (ADR-0005); a Linux worker image is a later task.
 Applied in: S10 local-runtime commit.
+
+## D-039 — Silero contract: the tone-burst criterion is a region inside a burst, not a count
+Date: 2026-11-26 · Slice: S11 · Status: decided · Review: requested (human check with real Arabic speech, R-001)
+Context: AC-5 asks that tone bursts are found. Silero is trained on speech. White-noise bursts are not detected at
+all. Synthetic 120 Hz harmonic bursts with a syllable-rate envelope give one region that covers part of one burst.
+Options: A) Keep "two regions found" and fail. B) Lower the threshold until synthetic bursts pass, which tunes the
+detector to the fixture. C) Assert what the adapter guarantees: at least one region, and every region lies inside a
+burst.
+Decision: C. The test records this. The real speech check happens with the Arabic audio that R-001 will provide.
+Rationale: The contract should test the adapter's plumbing and its reporting, not the detector's sensitivity to tones.
+Reversibility: easy — one test.
+Confidence: medium.
+Applied in: S11 adapter commit.
+
+## D-040 — S11 chunking: overlap tiled into cores, VAD parameters from the job, sample-based planner
+Date: 2026-11-26 · Slice: S11 · Status: decided · Review: none
+Context: Fixed windows overlap by design (1.5 s). The merge rule (S10) needs cores that tile the file, or a word in the
+overlap would be kept twice. The spec says VAD parameters come from `PipelineConfig.vad_params`. The S10 planner used
+samples, and an existing passing test depends on its constructor.
+Decision: (1) `tiles()` splits each overlap at its midpoint: the shared audio becomes padding context, and each sample
+belongs to one core. (2) `VadParams.from_mapping` reads `job.config.vad_params`, with defaults for missing keys and
+range checks. (3) `PrepareChunks` takes samples (`max_samples`, `pad`, `target_samples`, `overlap_samples`), and the
+millisecond `cut_and_merge` stays as the public wrapper. (4) The gaps between regions are the silences that cuts may use.
+Also: create_job does not yet write the default VAD parameters into the config; they apply when absent. Adding them to the
+result key is a follow-up that changes config canonical JSON for new jobs only.
+Rationale: Tiling keeps the midpoint rule valid. Config-sourced parameters are what the result key needs. Samples avoid
+rounding loss, as in D-032.
+Reversibility: easy.
+Confidence: medium.
+Applied in: S11 wiring commit.
