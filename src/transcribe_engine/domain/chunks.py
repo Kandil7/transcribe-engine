@@ -22,6 +22,7 @@ NORMALIZED_SAMPLE_RATE = 16_000
 class SpeechRegion:
     start_sample: int
     end_sample: int
+    prob: float = 1.0  # detector confidence for the region (S11)
 
     def __post_init__(self) -> None:
         if self.start_sample < 0 or self.end_sample <= self.start_sample:
