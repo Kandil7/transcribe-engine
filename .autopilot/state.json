@@ -1,7 +1,7 @@
 {
   "version": 1,
   "status": "running",
-  "current": "S09",
+  "current": null,
   "remote": true,
   "iterations": 10,
   "last_run": "2026-11-26",
@@ -95,11 +95,11 @@
       "notes": "Merged via PR #17 (rebase). 158 unit, 57 itest; reviews applied (150ac9b)."
     },
     "S09": {
-      "status": "in_progress",
+      "status": "partial",
       "branch": "feat/S09-ingest-validation",
-      "merged": null,
+      "merged": "a5d306a",
       "tag": null,
-      "notes": "Ingest, probe, sandbox, dedupe, normalize, hand-off. make check 194 passed; make itest 64 passed. Review findings fixed; container confinement open (D-030)."
+      "notes": "Merged via PR #21 (rebase). make check 194 passed; make itest 64 passed; security review fixed (D-030). Open: architecture-reviewer and test-reviewer not run; dref confinement needs container (D-030)."
     },
     "S10": {
       "status": "todo",
