@@ -158,11 +158,11 @@
       "notes": "Merged via PR #41. Assignment by largest overlap with overlap flag (AC-1, AC-2); diarizer port and pipeline wiring, failure as warning (AC-3); channel split skips diarization (AC-6). Deferred: AC-4 (no speaker-count input), AC-5 (no adapter, gpu fixture). Default diarizer undecided (D-056, R-008). Depends on partial S14 (D-055)."
     },
     "S18": {
-      "status": "todo",
+      "status": "partial",
       "branch": null,
-      "merged": null,
+      "merged": "(see PR #43)",
       "tag": null,
-      "notes": ""
+      "notes": "Merged via PR #43. Pure RAG domain: token-bounded chunks never crossing a topic boundary (AC-1, AC-2), chunk metadata (AC-3), RRF (AC-4). Deferred: AC-5 (index use case needs the embedder), AC-6 to AC-8 (pgvector tables, search index, API), embedder and reranker models (R-009, D-057). Parent level and summary left for later."
     },
     "S19": {
       "status": "todo",
