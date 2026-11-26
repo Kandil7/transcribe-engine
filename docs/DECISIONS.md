@@ -498,3 +498,29 @@ Rationale: [D: دورة الطلب 6–7]، [D: فحص الملفات وعزل F
 Reversibility: moderate — `finalize` and the handler contract are used by S10.
 Confidence: medium.
 Applied in: S09 spec commit (resolved questions), S09 feature commits (see BUILD_LOG).
+
+## D-030 — S09 security review: fixed findings and residual risk
+Date: 2026-11-26 · Slice: S09 · Status: decided · Review: none
+Context: The security reviewer found four issues in the ingest path. Two were real defects, one is a scope gap that
+this host cannot close, and one was a commit-scope mismatch.
+Fixed:
+- Declared duration was trusted. FFmpeg now runs with `-t` set to the admission limit, and the normalized duration
+  and size are checked against the limits before upload. Refusals are TOO_LONG and TOO_LARGE.
+- Tool output was read without a cap. The sandbox streams stdout in 64 KiB chunks, kills the tool past 16 MiB, and
+  refuses with a permanent error. A test covers the cap. Killing a tool with unread output could hang on Windows,
+  so the stop path drains the pipe to EOF and bounds the wait.
+- Commit scope: the normalization and hand-off changes were uncommitted when reviewed. They are committed (4c2c2d9),
+  and this review covers HEAD.
+Residual, not fixed here:
+- `-protocol_whitelist file` allows any local path. An MP4 with an external `dref` entry could in principle make the
+  demuxer read a host file outside the scratch root. This is not reproduced. The mitigation is process confinement: the
+  production CPU worker must run in a container that bind-mounts only the scratch root. This host cannot provide that,
+  so the gap is open until the container image exists (S10 make dev, or the deployment slice). A test for the refused
+  `dref` must be added with that confinement.
+- The ffprobe magic check is a substring match on the first 512 bytes. It can refuse a valid file whose metadata
+  contains "ffconcat", and it misses a UTF-8 BOM before `#EXTM3U`. The format allow-list still refuses HLS and concat,
+  so this is a nit, not a bypass.
+Rationale: [D: فحص الملفات وعزل FFmpeg]; the fixes follow the design's timeouts and limits.
+Reversibility: easy — constants and the stop path. The residual needs the container.
+Confidence: medium.
+Applied in: S09 review-fix commit (see BUILD_LOG).
