@@ -8,10 +8,6 @@ import importlib
 import itertools
 from types import ModuleType
 
-import pytest
-
-pytestmark = pytest.mark.xfail(strict=True, reason="S20")
-
 SECRET = b"whsec_test"
 TS = 1_700_000_000
 BODY = b'{"event":"transcript.completed"}'
