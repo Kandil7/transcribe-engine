@@ -868,3 +868,31 @@ D-056 (no default diarizer yet; port and fake first).
 - AC-4: needs a speaker-count source on the job (R-008c).
 - AC-5 and the Diarizer contract test: need an adapter (pyannote or Sortformer, R-008a,b). The GPU fixture needs the human reference (R-001).
 - Diarization is not wired to the stereo channel split of S13 yet; `split_channels` is a caller option.
+
+## S18 — RAG chunks and rank fusion (partial)   (2026-11-26 → 2026-11-26)
+Branch: feat/S18-rag-indexing-search   Merged: PR #43   Tag: —
+### What was built
+- `domain/rag.py`: `RagSentence`, `RagChunkConfig`, `RagChunk` (spec fields), `split_sentences` (token bounds, topic boundaries, overlap inside one topic), `build_rag_chunks` (small level with source metadata, ids from `domain.keys.rag_chunk_id`), `contextual_header`, `rrf` (k = 60).
+### How it works
+Each transcript segment is one sentence for now. Sentences are grouped up to `max_tokens`. A similarity below the threshold between neighbours is a topic boundary: a cut there ignores the minimum size, and overlap is added only inside one topic. RRF fuses ranked lists as the sum of 1/(k + rank).
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | 51515fa docs(S18) Q1–Q3 (D-057) | open questions resolved | — |
+| 2 | e7d9c78 test(S18) RAG tests (xfail) | AC-1 to AC-4 | — |
+| 3 | 57d0edf feat(S18) RAG domain | AC-1 to AC-4 | AC-1 to AC-4 |
+### Verification
+- `make check`: 294 passed, 1 skipped (R-001). No S18 xfail left. Hypothesis ran 200 examples for AC-1.
+- PR #43 CI: check, commits, integration, alerts all passed.
+### Decisions
+D-057 (FTS v1, models deferred, pure domain first).
+### Problems and fixes
+- A one-line replacement broke a docstring; repaired before commit.
+- A commit attempt failed on xfail markers left on passing tests; removed in the feature commit as the rules require.
+### Review findings
+- Not run for S18 yet (no uploads, SQL or webhooks in this part). Review is due with AC-5 to AC-8.
+### Follow-ups
+- AC-5 (index use case with an Embedder port and fake), AC-6 to AC-8 (pgvector tables, search index, GET /v1/search).
+- Embedding and reranker models: R-009 (owner approval, licences, download).
+- Parent (2–5 min) and summary levels (S19 provides chapters).
+- Sentences are segments for now; the design asks for sentence splitting and similarity boundaries from real embeddings.

@@ -24,7 +24,7 @@ Kept in sync with `.autopilot/state.json` by the autopilot. Status: `todo` · `i
 | 16 | S14 | Forced alignment | todo | | | | |
 | 17 | S16 | Evaluation harness | partial | — | 09d77ce (PR #39) | v0.4.0 pending | metrics, SNR mix, gate; accuracy unmeasured (R-001) |
 | 18 | S17 | Speaker diarization | partial | — | PR #41 | — | assignment, port, wiring; AC-4/AC-5 deferred (R-008) |
-| 19 | S18 | RAG indexing and search | todo | | | | |
+| - | S18 | RAG chunks, embeddings, hybrid search | partial | — | PR #43 | — | chunks, boundaries, RRF (AC-1 to AC-4); index, pgvector, API deferred (R-009) |
 | 20 | S20 | Outbox, webhooks, observability | partial | — | 7b8c5dc (PR #35) | — | delivery, logs, metrics, alerts; spans and metric values not wired (follow-up) |
 | 21 | S19 | Enrichment | todo | | | | |
 | 22 | S21 | Privacy, retention, deletion | todo | | | | |
