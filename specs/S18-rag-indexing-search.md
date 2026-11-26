@@ -73,7 +73,7 @@ class SearchIndex(Protocol):
 8. `feat(S18): add search and rag-chunks endpoints`
 
 ## Open questions
-- [ ] Q1 — BM25 in Postgres: built-in FTS (`ts_rank`, not true BM25) on normalized text, an extension, or
+- [x] Q1 — (resolved by: autopilot, 2026-11-26, D-057) BM25 in Postgres: built-in FTS (`ts_rank`, not true BM25) on normalized text, an extension, or
   OpenSearch? Proposed: built-in FTS behind `SearchIndex` for v1; compare recall in S16.
-- [ ] Q2 — Embedding and reranker models: compare 2–3 on real Arabic questions (design requirement), record ADR.
-- [ ] Q3 — Parent level before S19 chapters exist: proposed fixed 2–5 min windows on speaker-turn boundaries.
+- [x] Q2 — (resolved by: autopilot, 2026-11-26, D-057; model choice open, R-009) Embedding and reranker models: compare 2–3 on real Arabic questions (design requirement), record ADR.
+- [x] Q3 — (resolved by: autopilot, 2026-11-26, D-057) Parent level before S19 chapters exist: proposed fixed 2–5 min windows on speaker-turn boundaries.
