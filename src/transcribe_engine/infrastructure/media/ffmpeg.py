@@ -18,8 +18,14 @@ _MS_PER_S = 1000
 
 
 class FfmpegNormalizer:
-    def __init__(self, binary: tuple[str, ...] = ("ffmpeg",)) -> None:
+    def __init__(
+        self,
+        binary: tuple[str, ...] = ("ffmpeg",),
+        max_seconds: float = 3 * 60 * 60,
+    ) -> None:
         self._binary = binary
+        # Output is capped at the admission limit, whatever the container declared (review fix).
+        self._max_seconds = max_seconds
 
     async def to_pcm16_mono_16k(self, src: Path, dst: Path, *, timeout_s: float) -> NormalizedAudio:
         argv = [
@@ -32,6 +38,8 @@ class FfmpegNormalizer:
             "file",
             "-i",
             str(src),
+            "-t",
+            str(self._max_seconds),
             "-map",
             "0:a:0",
             "-vn",

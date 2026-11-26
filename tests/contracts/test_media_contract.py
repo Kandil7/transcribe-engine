@@ -117,3 +117,13 @@ async def test_probe_timeout_is_transient(tmp_path: Path) -> None:
     clip.write_bytes(b"RIFF" + b"\x00" * 64)
     with pytest.raises(domain_errors.TransientError):
         await probe.probe(clip)
+
+
+async def test_tool_output_is_capped(tmp_path: Path) -> None:
+    """Review fix (S09). A tool that writes past the output cap is killed and refused, so a crafted
+    file cannot exhaust worker memory through metadata."""
+    domain_errors = _mod("transcribe_engine.application.ports.media")
+    sandbox = _mod("transcribe_engine.infrastructure.media.sandbox")
+    noisy = (sys.executable, "-c", "import sys; sys.stdout.buffer.write(b'x' * (40 * 2**20))")
+    with pytest.raises(domain_errors.CorruptMediaError):
+        await sandbox.run_tool([*noisy], timeout_s=30)
