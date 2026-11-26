@@ -125,30 +125,30 @@
     "S13": {
       "status": "partial",
       "branch": "feat/S13-audio-profiling-routing",
-      "merged": null,
+      "merged": "PR31",
       "tag": null,
-      "notes": "Routing domain done (AC-1, AC-2, D-044). Profiler and enhancer adapters blocked on licenses (R-004, Q2). Wiring (AC-3, AC-5, AC-6) not started."
+      "notes": "Merged (PR #31). Routing domain (AC-1, AC-2, D-044). Profiler and enhancer adapters and wiring (AC-3, AC-5, AC-6) blocked on licences (R-004, Q2)."
     },
     "S14": {
-      "status": "todo",
-      "branch": null,
-      "merged": null,
+      "status": "partial",
+      "branch": "feat/S14-forced-alignment",
+      "merged": "PR33",
       "tag": null,
-      "notes": ""
+      "notes": "Merged (PR #33). Verbalizer and token map (AC-1, AC-2, D-047). Aligner port, adapter, fallback and ProcessJob wiring (AC-3 to AC-5) blocked on the model decision (R-005)."
     },
     "S15": {
       "status": "partial",
       "branch": "feat/S15-canonical-transcript-renderers",
-      "merged": null,
+      "merged": "PR32",
       "tag": null,
-      "notes": "Canonical JSON and schema, derived text, cues, SRT and VTT (RTL, BOM, golden), TXT, MD, CSV, result formats and /subtitles with profiles (D-045, D-046). Unit tests pass locally; integration AC-8 test runs in CI (Docker not available here). Pending: render cache (D-046), viewer test for cps (Q1), v0.3.0-local needs a real ASR (R-003)."
+      "notes": "Merged (PR #32). Canonical transcript, renderers, result formats and subtitle endpoint (AC-1 to AC-8, D-045, D-046). Render cache and viewer test (R-005) open. v0.3.0-local waits for a real ASR (R-003)."
     },
     "S16": {
-      "status": "todo",
-      "branch": null,
+      "status": "partial",
+      "branch": "feat/S16-evaluation-harness",
       "merged": null,
       "tag": null,
-      "notes": ""
+      "notes": "Metrics, hallucination definition, SNR mixing and the regression gate (AC-1, AC-2, AC-3, AC-4, AC-6 dry run). AC-5 needs the dev set (R-001); nightly workflow needs a GPU runner. Entity error rate, timing MAE and DER implemented later."
     },
     "S17": {
       "status": "todo",
