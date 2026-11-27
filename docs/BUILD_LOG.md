@@ -1058,3 +1058,9 @@ Branches: feat/S20-tracing-metrics, feat/S20-stage-spans-vad   Merged: PR #57, P
 - Cache lookup and hit counters: the lookup is in IngestJob, and the application layer cannot import the metrics module. A metrics port would need a fake and a real adapter for two counters, so it is deferred.
 - Per-stage RTF: the span knows the duration, not the audio length. Needs the audio duration passed into the span.
 - OpenTelemetry exporter (D-052): the log sink is the only tracer.
+
+## S20 — publisher shutdown fix (2026-11-27)
+Branch: fix/S20-publisher-shutdown   Merged: pending PR
+- The publisher worker never closed its webhook HTTP client. `run_publisher` now closes the sender in a finally block in the same event loop. A new unit test (tests/unit/test_worker_publisher.py) checks the close, with a positive control that the loop ran.
+- Webhook secret encryption was checked: no code writes webhook_secrets, so nothing is stored in plaintext today. Recorded as a precondition of the writer (D-066, R-012).
+- Verification: make check 322 passed, 1 skipped; make itest 95 passed.

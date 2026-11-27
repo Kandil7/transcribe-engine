@@ -176,7 +176,7 @@
       "branch": null,
       "merged": "7b8c5dc",
       "tag": null,
-      "notes": "Merged via PR #35 (rebase). Outbox in terminal transactions (AC-1 integration), signed pinned delivery with SSRF guard and leases (D-053), retries to 24 h (AC-4), JSON logs (AC-5), metrics registered (AC-6), alert rules with promtool CI job (AC-7; promtool not run locally, R-006). Partial: per-stage spans not wired; metric values not written at call sites; secrets plaintext at rest (D-049); HTTP client not closed on shutdown."
+      "notes": "Merged via PR #35 (rebase). Outbox in terminal transactions (AC-1 integration), signed pinned delivery with SSRF guard and leases (D-053), retries to 24 h (AC-4), JSON logs (AC-5), metrics registered (AC-6), alert rules with promtool CI job (AC-7; promtool not run locally, R-006). Partial: cache counters and per-stage RTF not wired (see BUILD_LOG S20); OpenTelemetry exporter not built (D-052). Secret encryption is a precondition of the writer, not built (D-066, R-012). Publisher HTTP client now closed on shutdown."
     },
     "S21": {
       "status": "partial",
