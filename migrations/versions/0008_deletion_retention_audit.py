@@ -30,6 +30,12 @@ def upgrade() -> None:
         "tenants",
         sa.Column("retention_days", sa.Integer, nullable=False, server_default="30"),
     )
+    op.create_check_constraint(
+        "ck_tenants_retention_days", "tenants", "retention_days BETWEEN 1 AND 3650"
+    )
+    # A cached result no longer holds its original upload (D-060): the upload can be deleted
+    # when no job uses it, and the result's pointer is cleared first.
+    op.alter_column("results", "media_id", existing_type=sa.Text, nullable=True)
     op.add_column(
         "tenants",
         sa.Column("training_consent", sa.Boolean, nullable=False, server_default=sa.false()),
@@ -64,4 +70,6 @@ def downgrade() -> None:
     op.drop_column("jobs", "audio_deleted_at")
     op.drop_column("jobs", "training_consent")
     op.drop_column("tenants", "training_consent")
+    op.alter_column("results", "media_id", existing_type=sa.Text, nullable=False)
+    op.drop_constraint("ck_tenants_retention_days", "tenants", type_="check")
     op.drop_column("tenants", "retention_days")

@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from transcribe_engine.application.ports.deletion import DeletionOutcome
 from transcribe_engine.domain.storage_keys import job_prefix
+from transcribe_engine.infrastructure.db.session import SYSTEM_SCOPE
 
 __all__ = ["SqlDeletionStore"]
 
@@ -39,6 +40,9 @@ class SqlDeletionStore:
         ).one_or_none()
         if job is None:
             return _NOT_FOUND
+        # Ownership checks below must see every tenant's jobs and results, not only this tenant's
+        # rows (D-060). The scope lasts for this transaction only.
+        await self._conn.execute(SYSTEM_SCOPE)
         rows: dict[str, int] = {}
         refs = (
             await self._conn.execute(
@@ -213,14 +217,14 @@ class SqlDeletionStore:
     async def _release_media(
         self, tenant_id: str, media_id: str, rows: dict[str, int]
     ) -> str | None:
-        """The media's storage key if the row was removed, else None."""
+        """The media's storage key if the row was removed, else None.
+
+        Results no longer keep the original upload alive (D-060): a cached transcript is
+        derived data and does not need the audio. A results row that points at the media is
+        cleared first."""
         used = (
             await self._conn.execute(
-                text(
-                    "SELECT (SELECT count(*) FROM jobs WHERE media_id = :media) "
-                    "+ (SELECT count(*) FROM results WHERE media_id = :media)"
-                ),
-                {"media": media_id},
+                text("SELECT count(*) FROM jobs WHERE media_id = :media"), {"media": media_id}
             )
         ).scalar_one()
         if used:
@@ -233,6 +237,10 @@ class SqlDeletionStore:
         ).scalar_one_or_none()
         if key is None:
             return None
+        await self._conn.execute(
+            text("UPDATE results SET media_id = NULL WHERE media_id = :media"),
+            {"media": media_id},
+        )
         await self._conn.execute(text("DELETE FROM media WHERE id = :media"), {"media": media_id})
         rows["media"] = 1
         return str(key)

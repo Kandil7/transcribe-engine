@@ -376,3 +376,44 @@ async def test_retention_sweep_on_postgres(pg_url: str, minio: MinioContainer) -
         assert marked is True
     finally:
         await engine.dispose()
+
+
+async def test_original_audio_removed_when_result_is_shared(
+    pg_url: str, minio: MinioContainer
+) -> None:
+    """D-060: the producer's original upload goes when the producer is deleted.
+
+    A cache-hit owner still holds the shared result, which stays. Positive control: the shared
+    result exists after the delete."""
+    deletion = _mod("transcribe_engine.application.use_cases.delete_job_data")
+    keys = _mod("transcribe_engine.domain.storage_keys")
+    engine = create_async_engine(pg_url)
+    storage = _storage(minio)
+    shared_key = "rk-d60"
+    try:
+        result_id = await _seed(
+            engine,
+            storage,
+            tenant=TENANT_A,
+            job_id="s21-d60-a",
+            sha="c9" * 32,
+            result_key=shared_key,
+        )
+        await _seed(
+            engine,
+            storage,
+            tenant=TENANT_B,
+            job_id="s21-d60-b",
+            sha="d0" * 32,
+            result_key=shared_key,
+            cache_hit_of=result_id,
+        )
+        original_a = keys.incoming_key(TENANT_A, "up-s21-d60-a")
+        assert await storage.head(original_a) is not None  # type: ignore[attr-defined]
+
+        await deletion.DeleteJobData(_make_uow(engine), storage, _clock())(TENANT_A, "s21-d60-a")
+
+        assert await storage.head(original_a) is None  # type: ignore[attr-defined]
+        assert await _result_exists(engine, result_id)
+    finally:
+        await engine.dispose()
