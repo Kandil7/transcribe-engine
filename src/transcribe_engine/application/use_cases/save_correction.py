@@ -8,7 +8,11 @@
 
 from dataclasses import replace
 
-from transcribe_engine.application.errors import StaleVersionError, TranscriptNotFoundError
+from transcribe_engine.application.errors import (
+    InvalidEditError,
+    StaleVersionError,
+    TranscriptNotFoundError,
+)
 from transcribe_engine.application.ports.versions import SegmentAligner, TranscriptVersions
 from transcribe_engine.domain.corrections import Edit, apply_edits, merge_timings
 from transcribe_engine.domain.transcript import CanonicalTranscript, Segment
@@ -34,7 +38,10 @@ class SaveCorrection:
             raise TranscriptNotFoundError
         if latest.version != base_version:
             raise StaleVersionError
-        edited, changed = apply_edits(latest.segments, edits)
+        try:
+            edited, changed = apply_edits(latest.segments, edits)
+        except ValueError as exc:
+            raise InvalidEditError from exc
         originals = {segment.id: segment for segment in latest.segments}
         final: list[Segment] = []
         for edited_segment in edited:

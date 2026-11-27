@@ -33,3 +33,21 @@ class JobOut(BaseModel):
 class DeletionOut(BaseModel):
     id: str
     deletion_requested_at: datetime
+
+
+class EditIn(BaseModel):
+    segment_id: str
+    word_index_from: int = Field(ge=0)
+    word_index_to: int = Field(ge=0)
+    new_text: str = Field(max_length=2000)
+
+
+class CorrectionIn(BaseModel):
+    base_version: int = Field(ge=1)
+    edits: list[EditIn] = Field(default_factory=list, max_length=500)
+    speaker_renames: dict[str, str] = Field(default_factory=dict)
+
+
+class VersionOut(BaseModel):
+    job_id: str
+    version: int

@@ -92,8 +92,7 @@ def _edit(new_text: str) -> dict[str, Any]:
     return {"segment_id": "seg-0", "word_index_from": 1, "word_index_to": 2, "new_text": new_text}
 
 
-@pytest.mark.xfail(strict=True, reason="S22")
-async def test_stale_base_version_is_409(pg_url: str, app_url: str, minio: MinioContainer) -> None:
+async def test_stale_base_version_is_409(app_url: str, minio: MinioContainer) -> None:
     """AC-3 (API): the first save on version 1 gives version 2.
 
     A second save still on version 1 is a 409 with the stale_version problem. Positive control: a
@@ -101,7 +100,7 @@ async def test_stale_base_version_is_409(pg_url: str, app_url: str, minio: Minio
     """
     tenant = api_support.new_tenant()
     job = f"s22-{tenant}"
-    owner = create_async_engine(pg_url)
+    owner = create_async_engine(app_url)  # the API database: keys and jobs must live here
     app_engine = create_async_engine(app_url)
     try:
         await api_support.seed_tenant(owner, tenant)
@@ -137,9 +136,8 @@ async def test_stale_base_version_is_409(pg_url: str, app_url: str, minio: Minio
         await app_engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S22")
 async def test_edit_needing_alignment_is_503_without_aligner(
-    pg_url: str, app_url: str, minio: MinioContainer
+    app_url: str, minio: MinioContainer
 ) -> None:
     """Without an aligner, an edit that needs new word times is refused with 503; nothing is saved.
 
@@ -147,7 +145,7 @@ async def test_edit_needing_alignment_is_503_without_aligner(
     """
     tenant = api_support.new_tenant()
     job = f"s22-noal-{tenant}"
-    owner = create_async_engine(pg_url)
+    owner = create_async_engine(app_url)  # the API database: keys and jobs must live here
     app_engine = create_async_engine(app_url)
     try:
         await api_support.seed_tenant(owner, tenant)
@@ -174,11 +172,10 @@ async def test_edit_needing_alignment_is_503_without_aligner(
         await app_engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S22")
-async def test_unknown_transcript_is_404(pg_url: str, app_url: str, minio: MinioContainer) -> None:
+async def test_unknown_transcript_is_404(app_url: str, minio: MinioContainer) -> None:
     """A version save for a job that does not exist is 404, not a silent success."""
     tenant = api_support.new_tenant()
-    owner = create_async_engine(pg_url)
+    owner = create_async_engine(app_url)  # the API database: keys and jobs must live here
     app_engine = create_async_engine(app_url)
     try:
         await api_support.seed_tenant(owner, tenant)

@@ -4,9 +4,12 @@ Messages carry no tenant data, file names, or transcript text (CLAUDE.md logging
 """
 
 __all__ = [
+    "AlignmentUnavailableError",
     "ApplicationError",
+    "CorrectionsUnavailableError",
     "ForbiddenError",
     "IdempotencyKeyReusedError",
+    "InvalidEditError",
     "InvalidWebhookUrlError",
     "JobAlreadyTerminalError",
     "JobNotFoundError",
@@ -57,6 +60,26 @@ class TranscriptNotFoundError(ApplicationError):
     status = 404
     code = "transcript_not_found"
     title = "Transcript not found"
+
+
+class InvalidEditError(ApplicationError):
+    status = 422
+    code = "invalid_edit"
+    title = "The edit names a segment or word that is not in this transcript"
+
+
+class AlignmentUnavailableError(ApplicationError):
+    """An edit needs new word times and no aligner is configured. Nothing is saved (S14, R-005)."""
+
+    status = 503
+    code = "alignment_unavailable"
+    title = "Alignment is not available on this deployment yet"
+
+
+class CorrectionsUnavailableError(ApplicationError):
+    status = 503
+    code = "corrections_unavailable"
+    title = "Corrections are not configured on this deployment"
 
 
 class StaleVersionError(ApplicationError):

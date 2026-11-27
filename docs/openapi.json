@@ -1,6 +1,35 @@
 {
   "components": {
     "schemas": {
+      "CorrectionIn": {
+        "properties": {
+          "base_version": {
+            "minimum": 1.0,
+            "title": "Base Version",
+            "type": "integer"
+          },
+          "edits": {
+            "items": {
+              "$ref": "#/components/schemas/EditIn"
+            },
+            "maxItems": 500,
+            "title": "Edits",
+            "type": "array"
+          },
+          "speaker_renames": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Speaker Renames",
+            "type": "object"
+          }
+        },
+        "required": [
+          "base_version"
+        ],
+        "title": "CorrectionIn",
+        "type": "object"
+      },
       "CreateTranscriptionIn": {
         "properties": {
           "diarization": {
@@ -64,6 +93,37 @@
           "deletion_requested_at"
         ],
         "title": "DeletionOut",
+        "type": "object"
+      },
+      "EditIn": {
+        "properties": {
+          "new_text": {
+            "maxLength": 2000,
+            "title": "New Text",
+            "type": "string"
+          },
+          "segment_id": {
+            "title": "Segment Id",
+            "type": "string"
+          },
+          "word_index_from": {
+            "minimum": 0.0,
+            "title": "Word Index From",
+            "type": "integer"
+          },
+          "word_index_to": {
+            "minimum": 0.0,
+            "title": "Word Index To",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "segment_id",
+          "word_index_from",
+          "word_index_to",
+          "new_text"
+        ],
+        "title": "EditIn",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -209,6 +269,24 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VersionOut": {
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "job_id",
+          "version"
+        ],
+        "title": "VersionOut",
         "type": "object"
       }
     }
@@ -467,6 +545,55 @@
           }
         },
         "summary": "Get Subtitles"
+      }
+    },
+    "/v1/transcriptions/{job_id}/versions": {
+      "post": {
+        "operationId": "save_transcript_version_v1_transcriptions__job_id__versions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorrectionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Transcript Version"
       }
     },
     "/v1/transcriptions/{job_id}:cancel": {
