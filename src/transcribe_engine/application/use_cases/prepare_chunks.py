@@ -12,10 +12,11 @@ from collections.abc import Callable, Sequence
 from contextlib import AbstractAsyncContextManager
 
 from transcribe_engine.application.ports.repositories import UnitOfWork
+from transcribe_engine.application.ports.tracing import Tracer, open_span
 from transcribe_engine.application.ports.vad import VoiceActivity
 from transcribe_engine.application.use_cases.ingest_job import WAV_NAME
 from transcribe_engine.domain.chunks import NORMALIZED_SAMPLE_RATE, SpeechRegion, plan_chunks
-from transcribe_engine.domain.jobs import Job
+from transcribe_engine.domain.jobs import Job, JobStage
 from transcribe_engine.domain.storage_keys import work_key
 from transcribe_engine.domain.vad import SampleSpan, VadParams, cut_samples, tiles
 
@@ -28,7 +29,7 @@ class PrepareChunks:
     """`max_samples` is the engine's longest chunk. `target_samples` (default: the maximum) is
     the length adjacent regions merge up to. `overlap_samples` is the context shared by windows."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 - one argument per setting; a parameter object would only rename them
         self,
         make_uow: MakeUow,
         vad: VoiceActivity,
@@ -37,6 +38,7 @@ class PrepareChunks:
         pad: int,
         target_samples: int | None = None,
         overlap_samples: int = 0,
+        tracer: Tracer | None = None,
     ) -> None:
         self._make_uow = make_uow
         self._vad = vad
@@ -44,10 +46,12 @@ class PrepareChunks:
         self._pad = pad
         self._target_samples = target_samples if target_samples is not None else max_samples
         self._overlap_samples = overlap_samples
+        self._tracer = tracer
 
     async def __call__(self, job: Job, media_sha256: str) -> None:
         params = VadParams.from_mapping(job.config.vad_params)
-        analysis = await self._vad.analyze(work_key(job.tenant_id, job.id, WAV_NAME), params)
+        with open_span(self._tracer, job.id, JobStage.VAD.value):
+            analysis = await self._vad.analyze(work_key(job.tenant_id, job.id, WAV_NAME), params)
         spans = cut_samples(
             analysis.regions,
             target=self._target_samples,

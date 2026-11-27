@@ -9,8 +9,6 @@ import importlib
 from types import ModuleType
 from typing import Any
 
-import pytest
-
 from tests.fakes.tracing import FakeTracer
 
 
@@ -33,11 +31,10 @@ async def test_process_job_opens_stage_spans() -> None:
     assert stages[(job.id, "PERSISTING")] == "ok"
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_ingest_opens_validating_and_normalizing_spans(tmp_path: Any) -> None:
     """A normal upload is probed (VALIDATING) and converted (NORMALIZING), each in its own span.
 
-    Positive control: the same upload still hands off to the GPU stage (PENDING_VALIDATION).
+    Positive control: the same upload still hands off to the GPU queue (QUEUED).
     """
     helpers = _mod("tests.unit.application.test_ingest_job")
     jobs = _mod("transcribe_engine.domain.jobs")
@@ -46,13 +43,12 @@ async def test_ingest_opens_validating_and_normalizing_spans(tmp_path: Any) -> N
     result = await helpers._ingest(storage, probe, normalizer, make_uow, tmp_path, tracer=tracer)(
         helpers._job()
     )
-    assert result.to is jobs.JobState.PENDING_VALIDATION
+    assert result.to is jobs.JobState.QUEUED  # the hand-off to the GPU queue, as in test_handoff
     stages = {(j, s): status for j, s, status in tracer.closed}
     assert stages[("job-1", "VALIDATING")] == "ok"
     assert stages[("job-1", "NORMALIZING")] == "ok"
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_prepare_opens_vad_span() -> None:
     """Planning the chunks asks VAD for speech regions inside a VAD span.
 

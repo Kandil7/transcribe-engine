@@ -21,7 +21,16 @@ from transcribe_engine.application.ports.media import (
 )
 from transcribe_engine.application.ports.repositories import UnitOfWork
 from transcribe_engine.application.ports.storage import ObjectStorage
-from transcribe_engine.domain.jobs import ErrorCode, Job, JobEvent, JobState, Transition, transition
+from transcribe_engine.application.ports.tracing import Tracer, open_span
+from transcribe_engine.domain.jobs import (
+    ErrorCode,
+    Job,
+    JobEvent,
+    JobStage,
+    JobState,
+    Transition,
+    transition,
+)
 from transcribe_engine.domain.keys import result_key
 from transcribe_engine.domain.media_rules import IngestLimits, admission_error, output_error
 from transcribe_engine.domain.storage_keys import incoming_key, work_key
@@ -55,6 +64,7 @@ class IngestJob:
         limits: IngestLimits = IngestLimits(),  # noqa: B008 - frozen dataclass default, never mutated
         chunk_bytes: int = DEFAULT_CHUNK_BYTES,
         prepare: Callable[[Job, str], Awaitable[None]] | None = None,
+        tracer: Tracer | None = None,
     ) -> None:
         self._make_uow = make_uow
         self._storage = storage
@@ -64,6 +74,7 @@ class IngestJob:
         self._limits = limits
         self._chunk_bytes = chunk_bytes
         self._prepare = prepare  # CPU stage after upload: plans the chunks (S10)
+        self._tracer = tracer
 
     async def __call__(self, job: Job) -> Transition:
         key = incoming_key(job.tenant_id, job.media_id)
@@ -77,7 +88,8 @@ class IngestJob:
             wav = Path(scratch) / WAV_NAME
             try:
                 sha256, size = await self._stream_to(key, source)
-                info = await self._probe_file(source)
+                with open_span(self._tracer, job.id, JobStage.VALIDATING.value):
+                    info = await self._probe_file(source)
                 code = admission_error(info.format_name, info.duration_ms, size, self._limits)
                 if code is not None:
                     return _refuse(job, code)
@@ -88,7 +100,8 @@ class IngestJob:
                         attempt_count=job.attempt_count,
                         max_attempts=job.max_attempts,
                     )
-                await self._normalize(source, wav, info.duration_ms)
+                with open_span(self._tracer, job.id, JobStage.NORMALIZING.value):
+                    await self._normalize(source, wav, info.duration_ms)
             except _RefusedError as refused:
                 return _refuse(job, refused.code)
             await self._storage.put(

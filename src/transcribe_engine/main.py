@@ -124,6 +124,7 @@ def build_handlers(
 
     scratch = Path(settings.scratch_dir)
     scratch.mkdir(parents=True, exist_ok=True)
+    tracer = LogTracer()
     samples_per_ms = NORMALIZED_SAMPLE_RATE // 1000
     prepare = PrepareChunks(
         make_uow,
@@ -131,6 +132,7 @@ def build_handlers(
         max_samples=settings.chunk_max_ms * samples_per_ms,  # the engine's longest chunk (S11)
         pad=settings.chunk_pad_ms * samples_per_ms,
         overlap_samples=settings.chunk_overlap_ms * samples_per_ms,
+        tracer=tracer,
     )
     ingest = IngestJob(
         make_uow=make_uow,
@@ -139,6 +141,7 @@ def build_handlers(
         normalizer=FfmpegNormalizer(),
         scratch_root=scratch,
         prepare=prepare,
+        tracer=tracer,
     )
     process = ProcessJob(
         make_uow,
@@ -147,6 +150,6 @@ def build_handlers(
         concurrency=settings.asr_concurrency,
         # A chunk the model cannot read fails the job, not a silent transcript with a gap (review).
         require_complete_text=settings.asr_engine == "whisper_local",
-        tracer=LogTracer(),
+        tracer=tracer,
     )
     return ingest, process
