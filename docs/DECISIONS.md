@@ -1225,3 +1225,23 @@ Limits: the model's own whole-file path crashes on very long input (see D-074 no
 Reversibility: easy (one settings value).
 Confidence: medium (end-to-end plausibility, not accuracy).
 Applied in: feat(S12) and test(S12) commits on feat/S12-cohere-local-adapter.
+
+## D-077 — S14 fallback: segment times flagged per chunk, reported as a job warning (AC-4)
+Date: 2026-11-27 · Slice: S14 · Status: decided · Review: none
+Context: the spec says the aligned word carries `fallback=true` when alignment fails. The published transcript schema
+(docs/schemas/transcript-1.0.json) forbids extra properties on a word, so a word flag would change the public contract and
+need a schema version bump.
+Options: A) Add `fallback` to the transcript word and bump the schema to 1.1. B) Keep the transcript unchanged; flag the
+words on the chunk result and report the chunk as a warning `alignment_fallback:<idx>`. C) Drop the fallback and fail the
+job.
+Decision: B. Segment times come from segment_times (domain, pure): the words are spread over the chunk's core span in
+proportion to length, and flagged on the chunk result. Only a permanent aligner failure falls back; a transient failure
+propagates so the job retries. The job still completes and reports the warning.
+Rationale: AC-4 wants the job to keep its transcript when alignment fails. B keeps the public schema stable. The word-level
+flag can still be added later with a schema bump if consumers need it.
+Consequence for AC-5: the spec's mandatory-alignment rule is covered at adapter level (vLLM and the local Cohere adapter refuse
+text without word times when no aligner is wired) and at job level (test_permanent_chunk_failure_fails_the_job_when_complete_
+text_is_required). A separate ProcessJob test with the spec's exact name is not added (it would duplicate those).
+Reversibility: easy (a warning string and a flag on the chunk result).
+Confidence: medium.
+Applied in: feat(S14) commit ac0785a.
