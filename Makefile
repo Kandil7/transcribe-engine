@@ -11,6 +11,12 @@ setup: ## Install deps and git hooks
 	uv sync --all-groups
 	$(UV) pre-commit install --hook-type pre-commit --hook-type commit-msg || true
 
+gpu-torch: ## Install the CUDA 12.6 torch build for this machine's Quadro RTX 5000 (D-073, local only)
+	uv pip install --python .venv --index-url https://download.pytorch.org/whl/cu126 "torch==2.14.1"
+
+gpu-check: ## Check that torch sees the GPU and computes a half-precision product correctly
+	$(UV) python -c "import torch; assert torch.cuda.is_available(), 'CUDA not available'; a=torch.ones(64,64,device='cuda',dtype=torch.float16); total=float((a@a).float().sum()); assert total == 64**3, total; print(torch.cuda.get_device_name(0), 'OK', total)"
+
 fmt: ## Format and auto-fix
 	$(UV) ruff format .
 	$(UV) ruff check --fix .
