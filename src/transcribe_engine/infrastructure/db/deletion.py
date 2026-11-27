@@ -61,6 +61,7 @@ class SqlDeletionStore:
         rows["chunks"] = await self._delete("chunks", job_id)
         rows["transcripts"] = await self._delete("transcripts", job_id)
         rows["idempotency_keys"] = await self._delete("idempotency_keys", job_id)
+        rows["transcript_revisions"] = await self._delete("transcript_revisions", job_id)
         rows["jobs"] = await self._delete("jobs", job_id)
 
         result_released = False
@@ -169,6 +170,7 @@ class SqlDeletionStore:
             "chunks": "DELETE FROM chunks WHERE job_id = :job",
             "transcripts": "DELETE FROM transcripts WHERE job_id = :job",
             "idempotency_keys": "DELETE FROM idempotency_keys WHERE job_id = :job",
+            "transcript_revisions": "DELETE FROM transcript_revisions WHERE transcript_id = :job",
             "jobs": "DELETE FROM jobs WHERE id = :job",
         }[table]
         result = await self._conn.execute(text(statement), {"job": job_id})
