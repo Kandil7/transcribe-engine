@@ -1209,3 +1209,19 @@ measured. The final report must state that accuracy is unmeasured (AUTOPILOT §8
 acceptance and for any production use.
 Reversibility: easy (defaults are settings values).
 Confidence: n/a (owner decision).
+
+## D-076 — Local Cohere engine: the pinned model through transformers, aligned like the vLLM engine
+Date: 2026-11-27 · Slice: S12 · Status: decided · Review: none
+Context: the Cohere model is verified to load offline on this machine (D-074). The only Cohere path so far was vLLM, which
+is not verified on a BF16 GPU here. The owner asked for the local Cohere adapter.
+Options: A) Use the local Cohere model through transformers, aligned by the aligner. B) Wait for a vLLM run. C) Keep Whisper
+as the only local engine.
+Decision: A. TE_ASR_ENGINE=cohere_local. It returns text from the model, and the aligner (D-070) places it. It refuses without an
+aligner, and it requires complete text, like the other engines.
+Rationale: it runs on this machine and is the production model. The vLLM path needs a BF16 GPU that this machine lacks.
+Verified 2026-11-27: the adapter runs end to end on a 30 s chunk of the lecture on the GPU: 50 words in order, with times inside
+the chunk. Accuracy is not measured (D-075).
+Limits: the model's own whole-file path crashes on very long input (see D-074 notes). The pipeline's 30 s chunks avoid it.
+Reversibility: easy (one settings value).
+Confidence: medium (end-to-end plausibility, not accuracy).
+Applied in: feat(S12) and test(S12) commits on feat/S12-cohere-local-adapter.
