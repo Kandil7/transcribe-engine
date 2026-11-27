@@ -13,6 +13,7 @@ import boto3
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from transcribe_engine.application.ports.asr import ASREngine
 from transcribe_engine.application.ports.repositories import UnitOfWork
 from transcribe_engine.application.ports.storage import ObjectStorage
 from transcribe_engine.application.ports.versions import SegmentAligner
@@ -24,6 +25,7 @@ from transcribe_engine.application.use_cases.save_correction import SaveCorrecti
 from transcribe_engine.domain.chunks import NORMALIZED_SAMPLE_RATE
 from transcribe_engine.infrastructure.alignment.unavailable import UnavailableAligner
 from transcribe_engine.infrastructure.asr.plumbing import PlumbingASR
+from transcribe_engine.infrastructure.asr.whisper_local import WhisperLocalASR
 from transcribe_engine.infrastructure.clock import SystemClock
 from transcribe_engine.infrastructure.db.outbox import SqlOutboxStore, SqlWebhookSecrets
 from transcribe_engine.infrastructure.db.uow import SqlUnitOfWork
@@ -95,6 +97,17 @@ def build_storage(settings: Settings) -> ObjectStorage:
     return S3ObjectStorage(client, settings.s3_bucket)
 
 
+def _asr_engine(storage: ObjectStorage, settings: Settings) -> ASREngine:
+    """The configured ASR engine (D-063).
+
+    The plumbing engine returns no words; use it only to test the pipeline itself (D-035)."""
+    if settings.asr_engine == "plumbing":
+        return PlumbingASR()
+    if settings.asr_engine == "whisper_local":
+        return WhisperLocalASR(storage, model_id=settings.asr_model_id, device=settings.asr_device)
+    raise ValueError(f"unknown TE_ASR_ENGINE: {settings.asr_engine}")
+
+
 def build_handlers(
     engine: AsyncEngine, storage: ObjectStorage, settings: Settings
 ) -> tuple[IngestJob, ProcessJob]:
@@ -123,7 +136,7 @@ def build_handlers(
     )
     process = ProcessJob(
         make_uow,
-        PlumbingASR(),  # plumbing until S12 (D-035)
+        _asr_engine(storage, settings),
         language="ar",
         concurrency=settings.asr_concurrency,
     )
