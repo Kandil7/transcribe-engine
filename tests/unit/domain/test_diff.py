@@ -7,8 +7,6 @@ everything as changed cannot pass.
 import importlib
 from types import ModuleType
 
-import pytest
-
 
 def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
@@ -34,7 +32,6 @@ def _version(words: tuple[str, ...], speaker_label: str = "Ali") -> object:
     )
 
 
-@pytest.mark.xfail(strict=True, reason="S22")
 def test_diff_known_cases() -> None:
     """AC-4: replace, insert, delete and a renamed speaker are each reported once.
 
