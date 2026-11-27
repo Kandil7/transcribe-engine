@@ -12,6 +12,8 @@ from dataclasses import replace
 from types import ModuleType
 from typing import Any
 
+import pytest
+
 from transcribe_engine.domain.errors import PermanentError
 
 RATE = 1000
@@ -269,3 +271,31 @@ async def test_split_channels_skip_diarization() -> None:
     whole = fakes_dia.FakeDiarizer()
     await helpers._process(make_uow, asr, diarization=_dia(whole, False))(job)
     assert len(whole.calls) == 1
+
+
+@pytest.mark.xfail(strict=True, reason="S10")
+async def test_unprepared_job_is_retried_not_completed() -> None:
+    """The fence (S10 race): a job whose plan was never committed must not complete empty.
+
+    ProcessJob raises a transient error so the job is retried. Positive control: a prepared
+    file with an empty plan (silence) still completes.
+    """
+    helpers = _mod("tests.unit.application.test_process_job")
+    fakes_asr = _mod("tests.fakes.asr")
+    errors = _mod("transcribe_engine.domain.errors")
+    job = helpers._job()
+    fakes_repo = _mod("tests.fakes.repositories")
+    store = fakes_repo.FakeStore()
+
+    def make_uow(tenant_id: str | None = None) -> Any:
+        return fakes_repo.FakeUnitOfWork(store)
+
+    asr = fakes_asr.FakeASR()
+    with pytest.raises(errors.TransientError):
+        await helpers._process(make_uow, asr)(job)
+
+    async with make_uow("tenant-a") as uow:
+        await uow.chunks.add_plan("tenant-a", job.id, ())  # prepared, and silent
+        await uow.commit()
+    result = await helpers._process(make_uow, asr)(job)
+    assert result.to == _mod("transcribe_engine.domain.jobs").JobState.COMPLETED
