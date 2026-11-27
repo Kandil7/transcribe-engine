@@ -15,15 +15,19 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from transcribe_engine.application.ports.repositories import UnitOfWork
 from transcribe_engine.application.ports.storage import ObjectStorage
+from transcribe_engine.application.ports.versions import SegmentAligner
 from transcribe_engine.application.use_cases.ingest_job import IngestJob
 from transcribe_engine.application.use_cases.prepare_chunks import PrepareChunks
 from transcribe_engine.application.use_cases.process_job import ProcessJob
 from transcribe_engine.application.use_cases.publish_outbox import OutboxPublisher
+from transcribe_engine.application.use_cases.save_correction import SaveCorrection
 from transcribe_engine.domain.chunks import NORMALIZED_SAMPLE_RATE
+from transcribe_engine.infrastructure.alignment.unavailable import UnavailableAligner
 from transcribe_engine.infrastructure.asr.plumbing import PlumbingASR
 from transcribe_engine.infrastructure.clock import SystemClock
 from transcribe_engine.infrastructure.db.outbox import SqlOutboxStore, SqlWebhookSecrets
 from transcribe_engine.infrastructure.db.uow import SqlUnitOfWork
+from transcribe_engine.infrastructure.db.versions import SqlTranscriptVersions
 from transcribe_engine.infrastructure.http.webhook_sender import DnsResolver, HttpWebhookSender
 from transcribe_engine.infrastructure.media.ffmpeg import FfmpegNormalizer
 from transcribe_engine.infrastructure.media.ffprobe import FfprobeMediaProbe
@@ -41,11 +45,19 @@ def _uow(engine: AsyncEngine, tenant_id: str | None) -> AbstractAsyncContextMana
     return cast(AbstractAsyncContextManager[UnitOfWork], SqlUnitOfWork(engine, tenant_id=tenant_id))
 
 
-def build_app(engine: AsyncEngine, storage: ObjectStorage) -> FastAPI:
+def build_app(
+    engine: AsyncEngine, storage: ObjectStorage, aligner: SegmentAligner | None = None
+) -> FastAPI:
+    """The API. `aligner` is None on deployments without an aligner.
+
+    Edits that need new word times are then refused with 503 (S22, R-005)."""
+
     def make_uow(tenant_id: str | None) -> AbstractAsyncContextManager[UnitOfWork]:
         return _uow(engine, tenant_id)
 
-    return create_app(make_uow, storage, SystemClock())
+    versions = SqlTranscriptVersions(engine, make_uow)
+    save = SaveCorrection(versions, aligner or UnavailableAligner())
+    return create_app(make_uow, storage, SystemClock(), save_correction=save.__call__)
 
 
 def build_make_uow(
