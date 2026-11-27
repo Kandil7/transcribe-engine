@@ -113,7 +113,7 @@ packages = ["transcribe_engine"]
 
 [[tool.mypy.overrides]]
 # Third-party ML libraries ship without types.
-module = ["torch.*", "torchaudio.*", "silero_vad.*", "numpy.*", "testcontainers.*"]
+module = ["torch.*", "torchaudio.*", "silero_vad.*", "numpy.*", "testcontainers.*", "onnxruntime.*"]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------- pytest
