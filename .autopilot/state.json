@@ -186,11 +186,11 @@
       "notes": "PR #47. DeleteJobData removes a job's audio, rows, unshared result and unused upload, with a content-free audit row (AC-1, AC-2, AC-3, AC-5 on Postgres and MinIO). Retention sweep per tenant (AC-4 on fakes and on Postgres). Sweeper worker role processes DELETE requests and the daily sweep. Per-job isolation (D-060). Legal review and region pinning open (R-011). Follow-ups: cross-tenant result reuse (pre-existing), embeddings deletion when RAG storage lands."
     },
     "S22": {
-      "status": "todo",
+      "status": "partial",
       "branch": null,
-      "merged": null,
+      "merged": "(see PR #48)",
       "tag": null,
-      "notes": ""
+      "notes": "PR #48. Pure edit model, timing merge (AC-1), re-alignment of changed segments only (AC-2), stale base version refused with 409 (AC-3), version diff (AC-4), consent-gated manifest with seven fields (AC-5, AC-6). Deferred: SQL version store, HTTP endpoint (409 in API), real aligner (R-005), re-index and events. Editor client is the owner's choice (D-061)."
     }
   },
   "statuses_help": "todo | in_progress | partial | blocked | done",

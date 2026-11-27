@@ -28,5 +28,5 @@ Kept in sync with `.autopilot/state.json` by the autopilot. Status: `todo` · `i
 | 20 | S20 | Outbox, webhooks, observability | partial | — | 7b8c5dc (PR #35) | — | delivery, logs, metrics, alerts; spans and metric values not wired (follow-up) |
 | - | S19 | Enrichment | partial | — | PR #45 | — | analytics, snapping, verified entities; API and LLM deferred (R-010) |
 | 22 | S21 | Privacy, retention, deletion | todo | | | | |
-| 23 | S22 | Corrections and training export | todo | | | v0.5.0 | |
+| - | S22 | Corrections and training export | partial | — | PR #48 | — | save, diff, consented manifest; SQL store, endpoint, aligner deferred (R-005) |
 | — | Final acceptance | | todo | | | v1.0.0-local | `docs/FINAL_REPORT.md` |
