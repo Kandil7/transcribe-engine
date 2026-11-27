@@ -9,7 +9,6 @@ calls it over HTTP with the OpenAI-compatible transcription route.
 """
 
 import io
-import struct
 import wave
 from typing import Any
 
@@ -20,11 +19,10 @@ from transcribe_engine.application.ports.storage import ObjectStorage
 from transcribe_engine.domain.chunks import NORMALIZED_SAMPLE_RATE, Chunk
 from transcribe_engine.domain.errors import PermanentError, TransientError
 from transcribe_engine.domain.merge import RawWord
+from transcribe_engine.infrastructure.asr.window import BYTES_PER_SAMPLE, read_window_pcm
 
 __all__ = ["VllmASR", "VllmClient"]
 
-_HEADER_PROBE_BYTES = 4096
-_BYTES_PER_SAMPLE = 2  # 16-bit PCM, mono (ADR-0003)
 _ROUTE = "/v1/audio/transcriptions"
 
 
@@ -103,34 +101,14 @@ class VllmASR:
         return _words(body, chunk.sample_rate)
 
     async def _window_as_wav(self, audio_key: str, start: int, end: int) -> bytes:
-        head = await self._storage.read_range(audio_key, 0, _HEADER_PROBE_BYTES)
-        data_offset = _data_offset(head)
-        pcm = await self._storage.read_range(
-            audio_key,
-            data_offset + start * _BYTES_PER_SAMPLE,
-            (end - start) * _BYTES_PER_SAMPLE,
-        )
+        pcm = await read_window_pcm(self._storage, audio_key, start, end)
         buffer = io.BytesIO()
         with wave.open(buffer, "wb") as out:
             out.setnchannels(1)
-            out.setsampwidth(_BYTES_PER_SAMPLE)
+            out.setsampwidth(BYTES_PER_SAMPLE)
             out.setframerate(NORMALIZED_SAMPLE_RATE)
             out.writeframes(pcm)
         return buffer.getvalue()
-
-
-def _data_offset(head: bytes) -> int:
-    """Byte offset of the PCM samples in a RIFF/WAVE file, found from its chunk list."""
-    if head[:4] != b"RIFF" or head[8:12] != b"WAVE":
-        raise PermanentError("normalized audio is not a WAV file")
-    pos = 12
-    while pos + 8 <= len(head):
-        chunk_id = head[pos : pos + 4]
-        (size,) = struct.unpack("<I", head[pos + 4 : pos + 8])
-        if chunk_id == b"data":
-            return pos + 8
-        pos += 8 + size + (size & 1)
-    raise PermanentError("normalized audio has no data chunk in its header")
 
 
 def _words(body: dict[str, Any], sample_rate: int) -> tuple[RawWord, ...]:
