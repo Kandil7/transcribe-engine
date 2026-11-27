@@ -120,7 +120,7 @@
       "branch": "feat/S12-asr-adapters",
       "merged": "80e0ef3",
       "tag": null,
-      "notes": "Local ASR merged (PRs #53, #54): whisper-large-v3-turbo from the local cache (D-063). Local demo verified on a real Arabic clip. Deferred: CUDA torch build, production vLLM model (R-003 part b), accuracy measurement (R-001). Production default chosen (D-067): Cohere Transcribe Arabic 07-2026 on vLLM; vLLM engine selectable (TE_ASR_ENGINE=vllm), refuses text without word times, compose service under asr-gpu. Not run on a GPU here. Word times need the aligner (R-005)."
+      "notes": "Local ASR merged (PRs #53, #54): whisper-large-v3-turbo from the local cache (D-063). Local demo verified on a real Arabic clip. Deferred: CUDA torch build, production vLLM model (R-003 part b), accuracy measurement (R-001). Production default chosen (D-067): Cohere Transcribe Arabic 07-2026 on vLLM; vLLM engine selectable (TE_ASR_ENGINE=vllm), refuses text without word times, compose service under asr-gpu. Not run on a GPU here. Word times need the aligner (R-005). Cohere model verified loading offline from the hub cache at the pinned revision and transcribing on the GPU (D-074); the vLLM service and the production adapter still need a run on a BF16-capable GPU; Cohere's own vLLM path is unverified here."
     },
     "S13": {
       "status": "partial",

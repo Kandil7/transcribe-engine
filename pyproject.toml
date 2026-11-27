@@ -28,6 +28,9 @@ ml = [
     "torchaudio",
     "silero-vad",
     "numpy",
+    "librosa",        # audio loading for the Cohere ASR custom code (D-074)
+    "soundfile",      # ditto (D-074)
+    "sentencepiece",  # tokenizer for the Cohere ASR custom code (D-074)
 ]
 
 [dependency-groups]
