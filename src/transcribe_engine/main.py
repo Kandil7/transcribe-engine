@@ -97,7 +97,7 @@ def build_storage(settings: Settings) -> ObjectStorage:
     return S3ObjectStorage(client, settings.s3_bucket)
 
 
-def _asr_engine(storage: ObjectStorage, settings: Settings) -> ASREngine:
+def _asr_engine(storage: ObjectStorage, settings: Settings, *, load: bool) -> ASREngine:
     """The configured ASR engine (D-063).
 
     The plumbing engine returns no words; use it only to test the pipeline itself (D-035)."""
@@ -107,13 +107,14 @@ def _asr_engine(storage: ObjectStorage, settings: Settings) -> ASREngine:
         engine = WhisperLocalASR(
             storage, model_id=settings.asr_model_id, device=settings.asr_device
         )
-        engine.load()  # a missing or broken model stops the worker here, not per chunk (review)
+        if load:  # only the GPU worker runs chunks; a broken model stops it at startup (review)
+            engine.load()
         return engine
     raise ValueError(f"unknown TE_ASR_ENGINE: {settings.asr_engine}")
 
 
 def build_handlers(
-    engine: AsyncEngine, storage: ObjectStorage, settings: Settings
+    engine: AsyncEngine, storage: ObjectStorage, settings: Settings, *, load_asr: bool
 ) -> tuple[IngestJob, ProcessJob]:
     """The cpu handler (ingest, then plan the chunks) and the gpu handler (process the chunks)."""
 
@@ -140,7 +141,7 @@ def build_handlers(
     )
     process = ProcessJob(
         make_uow,
-        _asr_engine(storage, settings),
+        _asr_engine(storage, settings, load=load_asr),
         language="ar",
         concurrency=settings.asr_concurrency,
         # A chunk the model cannot read fails the job, not a silent transcript with a gap (review).

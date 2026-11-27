@@ -103,7 +103,8 @@ def main(argv: list[str]) -> int:
         asyncio.run(serve_publisher(composition.build_publisher(engine, owner), settings))
         return 0
     storage = composition.build_storage(settings)
-    ingest, process = composition.build_handlers(engine, storage, settings)
+    # Only the gpu worker runs ASR, so only it loads the model (D-063, review).
+    ingest, process = composition.build_handlers(engine, storage, settings, load_asr=role == "gpu")
     handler: Handler = ingest if role == "cpu" else process
     asyncio.run(serve(SqlJobQueue(engine), handler, SqlReconciler(engine), settings, role))
     return 0
