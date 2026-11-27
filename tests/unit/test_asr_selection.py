@@ -40,3 +40,16 @@ def test_positive_controls_existing_engines_and_unknown_names() -> None:
     unknown.asr_engine = "nope"
     with pytest.raises(ValueError, match="unknown TE_ASR_ENGINE"):
         main._asr_engine(FakeObjectStorage(), unknown, load=False)
+
+
+@pytest.mark.xfail(strict=True, reason="S12")
+def test_cohere_local_engine_is_selected_by_configuration() -> None:
+    """TE_ASR_ENGINE=cohere_local builds the local Cohere adapter with the pinned model (D-074).
+
+    Positive control: the same selection sets the adapter's pinned revision from settings.
+    """
+    main = _mod("transcribe_engine.main")
+    cohere = _mod("transcribe_engine.infrastructure.asr.cohere_local")
+    engine = main._asr_engine(FakeObjectStorage(), _settings(asr_engine="cohere_local"), load=False)
+    assert isinstance(engine, cohere.CohereLocalASR)
+    assert engine.revision == cohere.DEFAULT_REVISION
