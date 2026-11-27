@@ -39,7 +39,6 @@ async def _run(lines: list[str]) -> Any:
     return await adapter.diarize("work/t/j/audio.wav", None)
 
 
-@pytest.mark.xfail(strict=True, reason="S17")
 async def test_segments_become_speaker_turns_in_ms() -> None:
     turns = await _run(["0.00 1.50 0", "1.50 3.25 1"])
     assert [(t.speaker, t.start_ms, t.end_ms) for t in turns] == [
@@ -48,7 +47,6 @@ async def test_segments_become_speaker_turns_in_ms() -> None:
     ]
 
 
-@pytest.mark.xfail(strict=True, reason="S17")
 async def test_malformed_segment_is_refused() -> None:
     with pytest.raises(PermanentError):
         await _run(["0.00 one 0"])
