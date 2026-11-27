@@ -77,9 +77,9 @@ def test_result_key_golden() -> None:
 def test_chunk_id_stable_across_runs() -> None:
     """AC-4: golden values; the same inputs always give the same id."""
     keys = _mod("keys")
-    got = keys.chunk_id("a" * 64, "b" * 64, 3, 16_000, 32_000)
-    assert got == "chk_b11628b04688fea4df545d9ffe7716d3764a39b0dfe527c50226f4c70870b222"
-    assert got == keys.chunk_id("a" * 64, "b" * 64, 3, 16_000, 32_000)
+    got = keys.chunk_id("job-1", "a" * 64, "b" * 64, 3, 16_000, 32_000)
+    assert got == "chk_a208812c8cf92c039ea0e22b3fed3e868c00d22c774cfbab02faf74c2780329a"
+    assert got == keys.chunk_id("job-1", "a" * 64, "b" * 64, 3, 16_000, 32_000)
 
 
 def test_rag_chunk_id_golden() -> None:
@@ -107,7 +107,7 @@ def test_all_keys_have_prefix_and_lowercase_hex() -> None:
     keys = _mod("keys")
     values = [
         (keys.result_key(FILE_SHA, _config()), "res_"),  # type: ignore[arg-type]
-        (keys.chunk_id("a" * 64, "b" * 64, 0, 0, 1), "chk_"),
+        (keys.chunk_id("job-1", "a" * 64, "b" * 64, 0, 0, 1), "chk_"),
         (keys.rag_chunk_id("tr", 1, 0, 1), "rag_"),
         (keys.embedding_id("x", "m"), "emb_"),
     ]
@@ -123,12 +123,11 @@ def test_rejects_float_ids_and_positions() -> None:
     """Float 16000.0 and int 16000 must not produce different ids; floats are rejected."""
     keys = _mod("keys")
     with pytest.raises(TypeError):
-        keys.chunk_id("a" * 64, "b" * 64, 3, 16_000.0, 32_000)
+        keys.chunk_id("job-1", "a" * 64, "b" * 64, 3, 16_000.0, 32_000)
     with pytest.raises(TypeError):
         keys.rag_chunk_id("tr", 1, 1000.0, 4500)
 
 
-@pytest.mark.xfail(strict=True, reason="S10")
 def test_chunk_ids_are_job_scoped() -> None:
     """The same audio processed by two jobs gets each job its own chunk ids.
 

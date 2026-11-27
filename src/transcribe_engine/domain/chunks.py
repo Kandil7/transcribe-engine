@@ -84,7 +84,7 @@ def plan_chunks(  # noqa: PLR0913 - the spec's keyword-only signature (S10, D-03
     total = len(cores)
     return tuple(
         Chunk(
-            chunk_id=chunk_id(media_sha256, config_hash, idx, start, end),
+            chunk_id=chunk_id(job_id, media_sha256, config_hash, idx, start, end),
             job_id=job_id,
             idx=idx,
             total=total,

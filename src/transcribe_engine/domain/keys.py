@@ -32,10 +32,15 @@ def result_key(file_sha256: str, config: PipelineConfig, isolation_scope: str | 
 
 
 def chunk_id(
-    media_sha256: str, config_hash: str, idx: int, start_sample: int, end_sample: int
+    job_id: str, media_sha256: str, config_hash: str, idx: int, start_sample: int, end_sample: int
 ) -> str:
-    """Stable id for one audio chunk. A re-run gives the same ids, so saved chunks are skipped."""
+    """Stable id for one audio chunk of one job.
+
+    A re-run of the same job gives the same ids, so saved chunks are skipped. The job id is part
+    of the id: the same audio processed by another job must not collide with its chunk rows (D-065).
+    """
     parts = [
+        job_id,
         media_sha256,
         config_hash,
         str(operator.index(idx)),
