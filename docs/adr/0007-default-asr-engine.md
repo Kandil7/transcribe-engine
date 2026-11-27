@@ -1,5 +1,5 @@
 # 0007. Default ASR engine
-Status: Provisional
+Status: Provisional (production default chosen in D-067; still unmeasured, R-001)
 Date: 2026-11-26   Slice: S00 (partial)
 
 ## Context
@@ -13,7 +13,8 @@ context, not evidence.
 - **Local default on the bootstrap machine:** faster-whisper (CTranslate2), FP16 on the Quadro RTX 5000,
   profile `local-gpu` (D-001). It is chosen so the pipeline and the local demo can run. It is not a
   quality claim.
-- **Production default:** not chosen yet. Candidates: Audar-ASR-V1-Turbo (served on vLLM, Qwen3-ASR format,
+- **Production default (decided, D-067):** CohereLabs Cohere Transcribe Arabic 07-2026 on vLLM (Apache-2.0). Word
+  times come from the forced aligner (R-005); text without word times is refused. Earlier candidates: Audar-ASR-V1-Turbo (served on vLLM, Qwen3-ASR format,
   not verified) and Cohere Transcribe Arabic 07-2026 (runtime not verified). Whisper large-v3 is the
   baseline. Falcon-ASR is excluded until its weights and a commercial license are published.
 - **Forced alignment mandatory:** undecided. It is decided in S14 from the word-timing error measured on

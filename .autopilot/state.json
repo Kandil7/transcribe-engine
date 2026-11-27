@@ -120,7 +120,7 @@
       "branch": "feat/S12-asr-adapters",
       "merged": "80e0ef3",
       "tag": null,
-      "notes": "Local ASR merged (PRs #53, #54): whisper-large-v3-turbo from the local cache (D-063). Local demo verified on a real Arabic clip. Deferred: CUDA torch build, production vLLM model (R-003 part b), accuracy measurement (R-001)."
+      "notes": "Local ASR merged (PRs #53, #54): whisper-large-v3-turbo from the local cache (D-063). Local demo verified on a real Arabic clip. Deferred: CUDA torch build, production vLLM model (R-003 part b), accuracy measurement (R-001). Production default chosen (D-067): Cohere Transcribe Arabic 07-2026 on vLLM; vLLM engine selectable (TE_ASR_ENGINE=vllm), refuses text without word times, compose service under asr-gpu. Not run on a GPU here. Word times need the aligner (R-005)."
     },
     "S13": {
       "status": "partial",
@@ -194,5 +194,5 @@
     }
   },
   "statuses_help": "todo | in_progress | partial | blocked | done",
-  "blocked_reason": "No eligible slice remains without an owner decision. Open: R-001 (human reference hour), R-003 (b) production vLLM model, R-004 and R-005 (licences, aligner model), R-008 (diarizer, gated terms), R-009 and R-010 (embedder, reranker, LLM), R-011 (Egyptian data protection review and GPU residency), R-012 (webhook secret master key source), R-013 (privacy rules for the training export). Engineering that does not need a decision is done: S20 publisher shutdown (PR #59)."
+  "blocked_reason": "No eligible slice remains without an owner decision. Open: R-001, R-004, R-005 (aligner, now needed for the production model), R-008, R-009, R-010, R-011, R-012, R-013, R-014 (trust-remote-code approval for vLLM)."
 }

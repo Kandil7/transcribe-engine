@@ -1077,3 +1077,37 @@ Rationale: AUTOPILOT §1 (safety first) is met because no secret exists to leak.
 any spec yet, so it is not added. Reversible: moderate (the writer is not built).
 Confidence: high.
 Applied in: docs commit on fix/S20-publisher-shutdown.
+
+## D-067 — Production ASR default: CohereLabs Cohere Transcribe Arabic 07-2026 on vLLM (R-003 part b)
+Date: 2026-11-27 · Slice: S12 · Status: decided · Review: requested
+Context: ADR-0007 left the production model open, with two unverified candidates. R-003 (b) asked the owner to name it
+so the deploy config can be written. Checked on the public sources: Audar-ASR-V1-Turbo is under the AudarAI Community
+License (commercial use limited; enterprise use needs a separate licence), and its card names GGUF/llama.cpp as the
+runtime. Cohere Transcribe Arabic 07-2026 is Apache-2.0 and documents vLLM serving, but returns no word timestamps. A
+Whisper large-v3 on vLLM was not verified for word timestamps (one upstream report says the granularity parameter
+did not work).
+Options: A) Audar (licence limits, runtime not vLLM). B) Cohere Transcribe Arabic on vLLM, with word times from the
+forced aligner (R-005). C) Whisper large-v3 on vLLM (word times unverified). D) Keep the local faster-whisper/transformers
+path as production.
+Decision: B. Cohere Transcribe Arabic 07-2026 is the production default on vLLM (TE_VLLM_MODEL). Its word times come from
+the forced aligner, which ADR-0007 already says is mandatory; until R-005 is answered, the adapter refuses text without
+word times (D-067 guard), so no silent transcript is produced.
+Rationale: Apache-2.0 allows commercial use. Arabic is its target language. It is the only candidate that is both licensed
+for use and documents vLLM serving. The priority order (safety and correctness first) rules out C and D as the default:
+C has no verified word path and D is the local profile. A is excluded by licence terms.
+Reversibility: easy (one settings value and one compose line; an evaluation report is required before a change, ADR-0007).
+Confidence: medium. Not measured on our data (R-001). The model card reports 2B parameters on one mirror and 5B on another;
+verify on the official card before deploy. --trust-remote-code is required by the model card; see R-014.
+Applied in: feat(S12) selection commit and build(S12) compose commit (see BUILD_LOG S12).
+
+## D-068 — Licence of the local Whisper model is Apache-2.0 on its card, not MIT (correction of D-063)
+Date: 2026-11-27 · Slice: S12 · Status: decided · Review: none
+Context: D-063 recorded Whisper as MIT, marked unverified. The official openai/whisper-large-v3 model card metadata states
+apache-2.0; an NVIDIA listing says MIT for a different packaging. The local engine uses large-v3-turbo, whose card was not
+checked in this run.
+Decision: record the upstream licence as Apache-2.0 for openai/whisper-large-v3 and mark openai/whisper-large-v3-turbo as
+unverified until its card is read. No code depends on the licence string.
+Rationale: the record must match the source; a wrong licence entry is a compliance risk.
+Reversibility: easy (documentation only).
+Confidence: medium (card metadata, not the legal text of the repository).
+Applied in: docs commit on feat/R003b-vllm-model.
