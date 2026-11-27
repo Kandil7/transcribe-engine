@@ -56,4 +56,4 @@ def export_manifest(items: Iterable[Segment], *, min_conf: float) -> Iterator[Ma
 6. `feat(S22): add consented training manifest export`
 
 ## Open questions
-- [ ] Q1 — Editor UI is not in scope of the backend; which client builds it?
+- [x] Q1 — (resolved by: autopilot, 2026-11-27, D-061) Editor UI is not in scope of the backend; which client builds it? Not decided here: the backend exposes save and diff only; the client is the owner's choice.

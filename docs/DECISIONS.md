@@ -979,3 +979,17 @@ Known follow-ups, not changed here: cross-tenant reuse of results by file sha256
 (pre-existing, D-007; needs a decision on isolation); the expire_audio path leaves a media row whose object is gone
 (harmless, cleaned at delete); no embeddings table yet, so the deletion path has nothing to remove for embeddings.
 Applied in: 0709541 (isolation), 76ca636 (ownership and audio).
+
+## D-061 — S22 scope: pure edit, diff and manifest first; versions and aligner behind ports
+Date: 2026-11-27 · Slice: S22 · Status: decided · Review: none
+Context: S22 Q1 asks which client builds the editor. The backend only needs to save and diff. The design needs a
+versioned transcript store (not yet in SQL), the S14 aligner (R-005, not built) and the API layer.
+Options: A) Build the SQL version store and the endpoint now. B) Build the pure logic and the use case on in-memory
+ports and fakes; defer the SQL store, the endpoint and the real aligner. C) Wait for the editor decision.
+Decision: Q1 is left to the owner (not a backend decision). B: the edit model, timing merge, diff, consent manifest,
+and SaveCorrection run on fakes. The SQL version store, the endpoint and the aligner adapter are follow-ups.
+Rationale: the consent gate and the diff rules are the parts that must be right; the storage and API can follow the
+ports without changing the rules.
+Reversibility: easy.
+Confidence: medium.
+Applied in: docs(S22) resolve Q1.
