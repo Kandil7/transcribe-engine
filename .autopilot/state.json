@@ -134,7 +134,7 @@
       "branch": null,
       "merged": null,
       "tag": null,
-      "notes": "Merged via PR #33 (partial): verbalizer and D-047. Aligner port, adapter and wiring not started (R-005)."
+      "notes": "Partial. Verbalizer (D-047). CTC Viterbi forced alignment in the domain (D-070). Aligner port and wav2vec2 ONNX adapter for parseh/aligner-ar (Apache-2.0, pinned), wired into the vLLM engine (GPU worker only). Not built: AC-4 segment fallback, AC-5 mandatory-alignment test in ProcessJob. AC-3 needs the reference set (R-001)."
     },
     "S15": {
       "status": "partial",
@@ -194,5 +194,5 @@
     }
   },
   "statuses_help": "todo | in_progress | partial | blocked | done",
-  "blocked_reason": "No eligible slice remains without an owner decision. Open: R-001, R-004, R-005 (aligner, now needed for the production model), R-008, R-009, R-010, R-011, R-012, R-013, R-014 (trust-remote-code approval for vLLM)."
+  "blocked_reason": "No eligible slice remains without an owner decision. Open: R-001 (human reference hour), R-004, R-005 part b (viewer test, S15 Q1), R-008, R-009, R-010, R-011, R-012, R-013. Finished: R-003 (b), R-014, R-005 (a)."
 }
