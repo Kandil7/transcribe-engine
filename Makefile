@@ -17,6 +17,10 @@ gpu-torch: ## Install the CUDA 12.6 torch build for this machine's Quadro RTX 50
 gpu-check: ## Check that torch sees the GPU and computes a half-precision product correctly
 	$(UV) python -c "import torch; assert torch.cuda.is_available(), 'CUDA not available'; a=torch.ones(64,64,device='cuda',dtype=torch.float16); total=float((a@a).float().sum()); assert total == 64**3, total; print(torch.cuda.get_device_name(0), 'OK', total)"
 
+setup-ml: ## Install the ML extra (torch, librosa, ...) that make dev's workers need (large download)
+	uv sync --all-groups --extra ml
+	@echo "On a machine with an NVIDIA GPU, run 'make gpu-torch' next: sync restores the CPU torch build (D-073)."
+
 fmt: ## Format and auto-fix
 	$(UV) ruff format .
 	$(UV) ruff check --fix .
