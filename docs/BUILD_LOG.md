@@ -1015,3 +1015,31 @@ D-061 (editor is the owner's choice; pure logic and use case on fakes first).
 - Security review (SQL, auth, data): 3 important findings fixed in f3968a5 (deleted job kept versions; SQL errors could log transcript text; request bounds); 2 nits fixed (integrity error mapping, cross-tenant test). OpenAPI snapshot regenerated (236cba7).
 - Verification: make check 308 passed; make itest 93 passed (includes the HTTP correction tests and the cross-tenant test).
 - Follow-ups: real aligner (R-005); re-index (S18) and events (S20) after a save; the training export reading the consent flag from the database; the editor client (D-061).
+
+## S12 — Local ASR (R-003 part a) and two S10 defects found by the local demo
+Branch: feat/R003-local-asr, fix/S10-job-scoped-chunk-ids   Merged: PR #53, PR #54   Tag: —
+### What was built
+- `infrastructure/asr/whisper_local.py`: `WhisperLocalASR` runs openai/whisper-large-v3-turbo from the local cache, offline, with word timestamps and Arabic forced (D-063).
+- `infrastructure/asr/window.py`: the chunk window reader, shared with the vLLM adapter.
+- Settings `TE_ASR_ENGINE` (default whisper_local), `TE_ASR_MODEL_ID`, `TE_ASR_DEVICE`; only the gpu worker loads the model, at startup.
+- S10 fence (D-064, migration 0010): a job completes only after its chunk plan is prepared.
+- S10 job-scoped chunk ids (D-065).
+### Verification
+- `make check`: 318 passed, 1 skipped (R-001). `make itest`: 93 passed.
+- Local demo on this machine (`make dev`, `make demo` on a real 2.6 s Arabic clip): 7 words with times, SRT with right-to-left marks and VTT served through the API. Re-runs of the same file now also give 7 words.
+- Speed on this machine: about 14 s per two-second clip on CPU, FP32. CUDA is not installed; the GPU path is a follow-up.
+- Accuracy is not measured: R-001 (the human reference hour) is still open. The output is plausible Arabic, not a score.
+### Decisions
+D-063 (local ASR choice, licences), D-064 (the fence), D-065 (job-scoped chunk ids; the AC-4 golden value changes).
+### Problems and fixes
+- The demo returned zero words on re-runs of the same file. Root cause: chunk ids had no job id, so the second job's chunk rows collided and were dropped (D-065).
+- Some jobs completed with no chunks: a late cpu stage could be overtaken by the GPU stage. The fence now retries an unprepared job (D-064).
+- An eager model load ran in every worker role and exhausted memory. Now only the gpu role loads it.
+- The first commit after review contained unrelated files; split and rewritten before push (unpushed history only).
+### Review findings
+- Security review of the local ASR: no network path, no pickle loading, no leaks in new errors. Its failure-handling findings (silent empty transcript, per-chunk reload, silent device fallback, unguarded word mapping, inverted window, safetensors) are fixed in f03e20c, with regression tests.
+### Follow-ups
+- CUDA torch build for the GPU path (FP16 on the Quadro RTX 5000).
+- The production vLLM model choice (R-003 part b) and the human reference hour (R-001).
+- Per-stage tracing and metric values (S20), still open.
+- Midad lecture corpus (111 files in D:\AI\Projects\ibn_khaldon_LAB) is a candidate for real-speech evaluation once its licence and terms are checked; it stays outside the repo.
