@@ -55,5 +55,5 @@ class DeletionReport:
 5. `feat(S21): add retention sweeper and lifecycle config`
 
 ## Open questions
-- [ ] Q1 — Egypt's Personal Data Protection Law (No. 151 of 2020) and data residency (where GPUs run):
+- [x] Q1 — (resolved by: autopilot, 2026-11-27, D-059; R-011) Egypt's Personal Data Protection Law (No. 151 of 2020) and data residency (where GPUs run):
   needs legal review before production; may add region pinning per tenant.

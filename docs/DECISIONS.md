@@ -942,3 +942,19 @@ verification, isolation) do not depend on the model.
 Reversibility: easy (an adapter behind the port).
 Confidence: high.
 Applied in: docs(S19) resolve Q1.
+
+## D-059 — S21 deletion: storage first, then one database transaction; legal review open (R-011)
+Date: 2026-11-27 · Slice: S21 · Status: decided · Review: requested (R-011)
+Context: S21 deletes everything a job owns, keeps shared results until the last owner goes, and sweeps expired
+audio. Q1 is a legal question (Law No. 151 of 2020 and where GPUs run); the autopilot cannot decide it.
+Options: A) Database first, then storage: a failed storage delete leaves orphan objects after the rows are gone.
+B) Storage first (idempotent), then the rows in one transaction; a retry is safe. C) Wait for legal review.
+Decision: B for engineering. A result is released only when its ref_count is 0 and no job still points at it. The
+original upload is deleted only when no other job or result uses its media row. No region pinning is built.
+Known window: a new job for the same media created during a delete can race the plan; the apply re-checks inside
+its transaction and reports it, but the object is already gone. Recorded as a follow-up.
+Rationale: B makes every failure retryable. C would block the engineering work; the legal answer changes only
+residency, not the deletion mechanics.
+Reversibility: moderate (schema changes for audit and consent).
+Confidence: medium.
+Applied in: docs(S21) resolve Q1.
