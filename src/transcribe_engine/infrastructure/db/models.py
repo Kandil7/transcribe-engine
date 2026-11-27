@@ -203,3 +203,18 @@ result_ref_table = sa.Table(
     sa.Column("tenant_id", sa.Text, nullable=False),
     sa.Column("result_id", sa.Text, sa.ForeignKey("results.id"), nullable=False),
 )
+
+
+transcript_revisions = sa.Table(
+    "transcript_revisions",
+    metadata,
+    sa.Column("transcript_id", sa.Text, nullable=False),
+    sa.Column("tenant_id", sa.Text, nullable=False),
+    sa.Column("version", sa.Integer, nullable=False),
+    sa.Column("source", sa.Text, nullable=False),
+    sa.Column("canonical", sa.Text, nullable=False),
+    sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+    sa.PrimaryKeyConstraint("transcript_id", "version", name="pk_transcript_revisions"),
+    sa.CheckConstraint("version >= 1", name="ck_transcript_revisions_version"),
+    sa.CheckConstraint("source IN ('asr', 'human')", name="ck_transcript_revisions_source"),
+)
