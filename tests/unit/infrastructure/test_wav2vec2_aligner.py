@@ -12,7 +12,6 @@ from types import ModuleType
 from typing import Any
 
 import numpy as np
-import pytest
 
 from tests.fakes.storage import FakeObjectStorage
 from transcribe_engine.domain.chunks import Chunk
@@ -78,11 +77,10 @@ async def _align(emitted: list[int], text: str, seconds: float) -> tuple[Any, ..
     aligner = _mod("transcribe_engine.infrastructure.alignment.wav2vec2_aligner")
     storage = FakeObjectStorage()
     await storage.put("work/t/j/audio.wav", _wav(np.zeros(int(seconds * RATE), dtype=np.int16)))
-    adapter = aligner.Wav2Vec2Aligner(_Session(emitted), VOCAB, blank=0)
+    adapter = aligner.Wav2Vec2Aligner(storage, _Session(emitted), VOCAB, blank=0)
     return await adapter.align("work/t/j/audio.wav", _chunk(seconds), text, language="ar")
 
 
-@pytest.mark.xfail(strict=True, reason="S14")
 async def test_words_are_placed_at_their_frames() -> None:
     # frames: pad, a, a, |, |, b, b, pad  -> "a" covers frames 1-2, "b" covers frames 5-6
     emitted = [0, 2, 2, 1, 1, 3, 3, 0]
@@ -93,6 +91,5 @@ async def test_words_are_placed_at_their_frames() -> None:
     ]
 
 
-@pytest.mark.xfail(strict=True, reason="S14")
 async def test_silent_chunk_without_text_has_no_words() -> None:
     assert await _align([0, 0, 0, 0], "", seconds=4 * STRIDE / RATE) == ()
