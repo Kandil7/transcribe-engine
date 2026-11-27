@@ -12,7 +12,7 @@ from testcontainers.community.postgres import PostgresContainer
 pytestmark = pytest.mark.integration
 
 ROOT = Path(__file__).resolve().parents[2]
-HEAD = "0008_deletion_retention_audit"  # D-059: moved from 0007 when S21 added audit and consent
+HEAD = "0009_transcript_revisions"  # S22: moved from 0008 when versioned transcripts were added
 
 
 def _alembic_config() -> Config:
