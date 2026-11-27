@@ -9,6 +9,7 @@ from typing import Protocol, Self
 
 from transcribe_engine.application.ports.auth import ApiKeyRepository
 from transcribe_engine.application.ports.chunks import ChunkRepository
+from transcribe_engine.application.ports.deletion import DeletionStore
 from transcribe_engine.application.ports.tenancy import IdempotencyRepository, TenantRepository
 from transcribe_engine.domain.config import PipelineConfig
 from transcribe_engine.domain.jobs import Job, JobStage, JobState, Media, Result, Transition
@@ -90,6 +91,7 @@ class UnitOfWork(Protocol):
     idempotency: IdempotencyRepository
     api_keys: ApiKeyRepository
     chunks: ChunkRepository
+    deletions: DeletionStore
 
     async def __aenter__(self) -> Self: ...
 

@@ -174,7 +174,6 @@ async def _result_exists(engine: AsyncEngine, result_id: str) -> bool:
     return found is not None
 
 
-@pytest.mark.xfail(strict=True, reason="S21")
 async def test_delete_removes_everything(pg_url: str, minio: MinioContainer) -> None:
     """AC-1: after DELETE, the job's audio and transcript objects are gone, its rows are gone from
     every table, and its sole result is released. Positive control: before the delete, every table
@@ -212,7 +211,6 @@ async def test_delete_removes_everything(pg_url: str, minio: MinioContainer) -> 
         await engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S21")
 async def test_shared_result_kept_until_last_owner(pg_url: str, minio: MinioContainer) -> None:
     """AC-2: two tenants hold jobs that share one result. Deleting the first keeps the result (the
     second still uses it). Deleting the last releases it. Positive control: the result exists before
@@ -256,7 +254,6 @@ async def test_shared_result_kept_until_last_owner(pg_url: str, minio: MinioCont
         await engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S21")
 async def test_audit_row_has_no_content(pg_url: str, minio: MinioContainer) -> None:
     """AC-3: the audit row for a deletion names the job and holds counts only.
 
@@ -290,7 +287,6 @@ async def test_audit_row_has_no_content(pg_url: str, minio: MinioContainer) -> N
         await engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S21")
 async def test_delete_is_idempotent(pg_url: str, minio: MinioContainer) -> None:
     """AC-5: a second DELETE of the same job succeeds and removes nothing.
 
