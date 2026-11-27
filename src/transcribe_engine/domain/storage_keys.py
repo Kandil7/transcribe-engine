@@ -17,6 +17,11 @@ def _check_id(kind: str, value: str) -> str:
     return value
 
 
+def job_prefix(tenant_id: str, job_id: str) -> str:
+    """The prefix under which a job owns its working objects (normalized audio, chunks)."""
+    return f"work/{_check_id('tenant id', tenant_id)}/{_check_id('job id', job_id)}/"
+
+
 def incoming_key(tenant_id: str, upload_id: str) -> str:
     """Key for a raw upload: incoming/{tenant}/{upload_id}."""
     return f"incoming/{_check_id('tenant id', tenant_id)}/{_check_id('upload id', upload_id)}"

@@ -64,6 +64,8 @@ jobs = sa.Table(
     sa.Column("seq", sa.BigInteger, sa.Identity(), nullable=False),
     sa.Column("deletion_requested_at", sa.DateTime(timezone=True), nullable=True),
     sa.Column("webhook_url", sa.Text, nullable=True),
+    sa.Column("training_consent", sa.Boolean, nullable=False, server_default=sa.false()),
+    sa.Column("audio_deleted_at", sa.DateTime(timezone=True), nullable=True),
 )
 
 transcript_versions = sa.Table(
@@ -124,6 +126,8 @@ tenants = sa.Table(
     metadata,
     sa.Column("id", sa.Text, primary_key=True),
     sa.Column("max_active_jobs", sa.Integer, nullable=False, server_default="5"),
+    sa.Column("retention_days", sa.Integer, nullable=False, server_default="30"),
+    sa.Column("training_consent", sa.Boolean, nullable=False, server_default=sa.false()),
     sa.Column("quota_audio_ms", sa.BigInteger, nullable=True),
     sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
 )

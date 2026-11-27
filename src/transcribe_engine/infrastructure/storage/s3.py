@@ -132,6 +132,13 @@ class S3ObjectStorage:
             ServerSideEncryption=SSE_ALGORITHM,
         )
 
+    async def delete(self, key: str) -> bool:
+        """Delete one object; True if it existed. Idempotent (S21)."""
+        if await self.head(key) is None:
+            return False
+        await _call(self._client.delete_object, Bucket=self._bucket, Key=key)
+        return True
+
     async def delete_prefix(self, prefix: str) -> int:
         """Delete every object under `prefix`; return how many were removed (D-015)."""
         check_prefix(prefix)

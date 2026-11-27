@@ -68,6 +68,9 @@ class FakeObjectStorage:
         chunks = [chunk async for chunk in data]
         self._store()[key] = b"".join(chunks)
 
+    async def delete(self, key: str) -> bool:
+        return self._store().pop(key, None) is not None
+
     async def delete_prefix(self, prefix: str) -> int:
         check_prefix(prefix)
         doomed = [k for k in self._store() if k.startswith(prefix)]
