@@ -13,13 +13,13 @@
 import asyncio
 import logging
 from collections.abc import Callable
-from contextlib import AbstractAsyncContextManager, AbstractContextManager, nullcontext
+from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from dataclasses import dataclass, replace
 
 from transcribe_engine.application.ports.asr import ASREngine
 from transcribe_engine.application.ports.diarizer import Diarizer
 from transcribe_engine.application.ports.repositories import UnitOfWork
-from transcribe_engine.application.ports.tracing import Tracer
+from transcribe_engine.application.ports.tracing import Tracer, open_span
 from transcribe_engine.domain.chunks import Chunk
 from transcribe_engine.domain.errors import PermanentError, TransientError
 from transcribe_engine.domain.jobs import (
@@ -98,10 +98,7 @@ class ProcessJob:
             return await self._finish(job, plan, failed)
 
     def _span(self, job: Job, stage: JobStage) -> AbstractContextManager[None]:
-        """One span per stage, linked by job id (S20). No tracer means no span."""
-        if self._tracer is None:
-            return nullcontext()
-        return self._tracer.span(job.id, stage.value)
+        return open_span(self._tracer, job.id, stage.value)
 
     async def _run_one(
         self, job: Job, audio_key: str, chunk: Chunk, gate: asyncio.Semaphore, failed: set[int]
