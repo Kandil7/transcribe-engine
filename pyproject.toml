@@ -17,6 +17,7 @@ dependencies = [
     "httpx",
     "structlog",
     "prometheus-client",
+    "transformers>=5.24.1",
 ]
 
 [project.optional-dependencies]
