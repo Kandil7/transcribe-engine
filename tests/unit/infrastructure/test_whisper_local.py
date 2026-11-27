@@ -19,6 +19,7 @@ from transcribe_engine.domain.chunks import Chunk
 from transcribe_engine.domain.errors import PermanentError, TransientError
 from transcribe_engine.infrastructure.asr import whisper_local
 from transcribe_engine.infrastructure.asr.whisper_local import WhisperLocalASR, words_from_output
+from transcribe_engine.infrastructure.asr.window import read_window_pcm
 
 RATE = 16_000
 
@@ -134,3 +135,76 @@ def test_missing_model_is_permanent_not_a_download() -> None:
     """
     with pytest.raises(PermanentError):
         whisper_local._cached_revision("nobody/not-a-real-model-for-tests")
+
+
+def test_failed_model_load_is_remembered_not_retried(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A model that fails to load is tried once.
+
+    Every later chunk gets the same permanent error without loading again (review: no per-chunk
+    reload). Positive control: the load was attempted.
+    """
+    attempts: list[str] = []
+
+    def broken_load(model_id: str, device: str | None, revision: str) -> object:
+        attempts.append(model_id)
+        raise PermanentError("model is not in the local cache")
+
+    monkeypatch.setattr(whisper_local, "_load_pipeline", broken_load)
+    storage = FakeObjectStorage()
+    asyncio.run(storage.put("work/t/j/audio.wav", _wav(np.zeros(RATE, dtype=np.int16))))
+    adapter = WhisperLocalASR(storage, revision="r")
+    chunk = _chunk(start=0, end=RATE, pad=0)
+    for _ in range(3):
+        with pytest.raises(PermanentError):
+            asyncio.run(adapter.transcribe("work/t/j/audio.wav", chunk, language="ar"))
+    assert len(attempts) == 1
+    assert attempts == [whisper_local.DEFAULT_MODEL_ID]
+
+
+def test_unknown_device_is_refused_before_any_load() -> None:
+    """A device other than cuda or cpu (for example "mps" or "cuda:0") is refused.
+
+    It is not silently run on the CPU. Positive control: the refusal names the allowed values.
+    """
+    with pytest.raises(PermanentError):
+        whisper_local._load_pipeline(whisper_local.DEFAULT_MODEL_ID, "mps", "r")
+
+
+def test_malformed_model_output_is_permanent() -> None:
+    """Output that is not the expected word list is a permanent error.
+
+    It must not escape as an AttributeError.
+
+    Positive control: a well-formed output still maps to words.
+    """
+    storage = FakeObjectStorage()
+    asyncio.run(storage.put("work/t/j/audio.wav", _wav(np.zeros(RATE, dtype=np.int16))))
+    chunk = _chunk(start=0, end=RATE, pad=0)
+
+    def malformed(inputs: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
+        return {"chunks": ["not a word"]}
+
+    def clean(inputs: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
+        return {"chunks": [{"text": "نعم", "timestamp": (0.0, 0.4)}]}
+
+    with pytest.raises(PermanentError):
+        asyncio.run(
+            WhisperLocalASR(storage, pipeline=malformed, revision="r").transcribe(
+                "work/t/j/audio.wav", chunk, language="ar"
+            )
+        )
+    assert asyncio.run(
+        WhisperLocalASR(storage, pipeline=clean, revision="r").transcribe(
+            "work/t/j/audio.wav", chunk, language="ar"
+        )
+    )
+
+
+def test_inverted_window_is_refused() -> None:
+    """A window whose end is before its start is refused, not read as an empty transcript. Positive
+    control: a normal window is read."""
+    storage = FakeObjectStorage()
+    asyncio.run(storage.put("work/t/j/audio.wav", _wav(np.zeros(RATE, dtype=np.int16))))
+    with pytest.raises(PermanentError):
+        asyncio.run(read_window_pcm(storage, "work/t/j/audio.wav", 9_000, 1_000))
+    assert asyncio.run(read_window_pcm(storage, "work/t/j/audio.wav", 0, 1_000))

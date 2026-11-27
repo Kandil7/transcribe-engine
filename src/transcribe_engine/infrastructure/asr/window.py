@@ -17,6 +17,8 @@ BYTES_PER_SAMPLE = 2  # 16-bit PCM, mono (ADR-0003)
 
 async def read_window_pcm(storage: ObjectStorage, audio_key: str, start: int, end: int) -> bytes:
     """Raw little-endian PCM for samples [start, end) of the normalized file."""
+    if start < 0 or end <= start:
+        raise PermanentError("chunk window is empty or inverted")
     head = await storage.read_range(audio_key, 0, HEADER_PROBE_BYTES)
     offset = data_offset(head)
     return await storage.read_range(
