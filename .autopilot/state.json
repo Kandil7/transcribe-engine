@@ -134,7 +134,7 @@
       "branch": null,
       "merged": null,
       "tag": null,
-      "notes": "Partial. Verbalizer (D-047). CTC Viterbi forced alignment in the domain (D-070). Aligner port and wav2vec2 ONNX adapter for parseh/aligner-ar (Apache-2.0, pinned), wired into the vLLM engine (GPU worker only). Not built: AC-4 segment fallback, AC-5 mandatory-alignment test in ProcessJob. AC-3 needs the reference set (R-001)."
+      "notes": "Partial. Verbalizer (D-047). CTC Viterbi forced alignment in the domain (D-070). Aligner port and wav2vec2 ONNX adapter for parseh/aligner-ar (Apache-2.0, pinned), wired into the vLLM engine (GPU worker only). Not built: AC-4 segment fallback, AC-5 mandatory-alignment test in ProcessJob. AC-3 needs the reference set (R-001). Fallback (AC-4) built: segment times on aligner failure, reported as alignment_fallback:<idx> (D-077). AC-5 covered at adapter and job level; the exact-name ProcessJob test is not added."
     },
     "S15": {
       "status": "partial",
