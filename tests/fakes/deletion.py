@@ -2,11 +2,14 @@
 application/ports/deletion.py: expired audio is found by tenant retention and creation time, and
 expiring a job's audio returns the storage keys the caller must delete before it commits."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from types import TracebackType
 from typing import Self
 
+from transcribe_engine.application.ports.deletion import DeletionOutcome
+from transcribe_engine.domain.errors import PermanentError
 from transcribe_engine.domain.storage_keys import job_prefix
 
 
@@ -26,6 +29,35 @@ class FakeDeletionStore:
 
     def add_job(self, tenant_id: str, job_id: str, created_at: datetime) -> None:
         self.jobs[job_id] = _FakeJob(tenant_id, job_id, created_at)
+
+    requested: list[tuple[str, str]] = field(default_factory=list)
+    fail_on: set[str] = field(default_factory=set)
+    removed: list[str] = field(default_factory=list)
+
+    async def requested_deletions(self) -> tuple[tuple[str, str], ...]:
+        return tuple(pair for pair in self.requested if pair[1] not in self.removed)
+
+    async def delete_job(self, tenant_id: str, job_id: str) -> DeletionOutcome:
+        if job_id in self.fail_on:
+            raise PermanentError("fake refusal for this job")
+        self.removed.append(job_id)
+        return DeletionOutcome(
+            found=True,
+            rows_deleted={"jobs": 1},
+            result_released=False,
+            media_released=False,
+            storage_keys=(job_prefix(tenant_id, job_id),),
+        )
+
+    async def record_audit(
+        self,
+        tenant_id: str,
+        event: str,
+        subject_id: str,
+        at: datetime,
+        detail: Mapping[str, object],
+    ) -> None:
+        return None
 
     def uow(self) -> "_FakeUow":
         return _FakeUow(self)

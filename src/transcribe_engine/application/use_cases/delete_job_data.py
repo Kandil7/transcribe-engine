@@ -4,6 +4,7 @@ Order: the storage objects go first, inside the open transaction; then the audit
 commit. If a storage delete fails, the transaction is rolled back, so the job and its rows remain
 and the call can be repeated. Storage deletes are idempotent, so repeating is safe (AC-5)."""
 
+import logging
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass, field
@@ -11,8 +12,11 @@ from dataclasses import dataclass, field
 from transcribe_engine.application.ports.clock import Clock
 from transcribe_engine.application.ports.repositories import UnitOfWork
 from transcribe_engine.application.ports.storage import ObjectStorage
+from transcribe_engine.domain.errors import DomainError
 
 __all__ = ["DeleteJobData", "DeletionReport", "run_requested_deletions"]
+
+_log = logging.getLogger(__name__)
 
 MakeUow = Callable[[str | None], AbstractAsyncContextManager[UnitOfWork]]
 EVENT = "job.deleted"
@@ -65,8 +69,23 @@ async def run_requested_deletions(make_uow: MakeUow, storage: ObjectStorage, clo
         pending = await uow.deletions.requested_deletions()
     deleter = DeleteJobData(make_uow, storage, clock)
     for tenant_id, job_id in pending:
-        await deleter(tenant_id, job_id)
+        await _isolated(deleter, tenant_id, job_id)
     return len(pending)
+
+
+async def _isolated(deleter: "DeleteJobData", tenant_id: str, job_id: str) -> bool:
+    """One job's failure must not stop the others (D-060).
+
+    It is logged by id and error class only."""
+    try:
+        await deleter(tenant_id, job_id)
+    except (DomainError, ValueError) as exc:
+        _log.warning(
+            "deletion failed; job stays pending",
+            extra={"job_id": job_id, "tenant_id": tenant_id, "error_code": type(exc).__name__},
+        )
+        return False
+    return True
 
 
 async def delete_storage(storage: ObjectStorage, keys: tuple[str, ...]) -> int:
