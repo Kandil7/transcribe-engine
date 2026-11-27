@@ -1197,3 +1197,15 @@ Licences read from installed metadata: librosa 1.0.1 ISC; soundfile 0.14.0 BSD-3
 Verified 2026-11-27: offline load of the processor, and the model (CohereAsrForConditionalGeneration, float16, GPU) from the
 hub cache at c3e911b…; the model transcribes the 2.64 s demo clip, 0.53 s on the second run. Accuracy not measured (R-001).
 Reversibility: easy. Confidence: high.
+
+## D-075 — Owner accepts unmeasured accuracy as provisional for now (R-001 waived, not resolved)
+Date: 2026-11-27 · Slice: S00, S12, S14, S17 · Status: decided by owner · Review: none
+Context: no human reference transcript exists (R-001), so no word error rate or diarization error rate has been measured
+for any ASR, aligner or diarizer choice. Several slices were held on that measurement.
+Decision (owner, 2026-11-27): accuracy is acceptable for now. The engines chosen so far (D-063, D-067, D-070, D-072)
+stand as provisional defaults until a measured comparison exists.
+Scope and limits: this is a risk acceptance by the owner, not a measurement. Nothing in the repo reports accuracy as
+measured. The final report must state that accuracy is unmeasured (AUTOPILOT §8). R-001 stays open for the final
+acceptance and for any production use.
+Reversibility: easy (defaults are settings values).
+Confidence: n/a (owner decision).
