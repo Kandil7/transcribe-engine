@@ -20,6 +20,7 @@
             "additionalProperties": {
               "type": "string"
             },
+            "maxProperties": 64,
             "title": "Speaker Renames",
             "type": "object"
           }
@@ -103,6 +104,7 @@
             "type": "string"
           },
           "segment_id": {
+            "maxLength": 64,
             "title": "Segment Id",
             "type": "string"
           },
