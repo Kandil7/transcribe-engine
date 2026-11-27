@@ -970,3 +970,39 @@ D-059 (storage first, one transaction; legal open), D-060 (isolation, system sco
 - Decide isolation scope for cached results across tenants (D-007).
 - Add embeddings to the deletion path when RAG storage lands (S18 AC-5 to AC-8).
 - Replace the 30-day default with the tenant setting in every path (currently default in SQL and tenant column).
+
+## S22 — Human corrections and training export (partial)   (2026-11-27 → 2026-11-27)
+Branch: feat/S22-corrections-training-export   Merged: PR #48   Tag: —
+### What was built
+- `domain/corrections.py`: `Edit`, `apply_edits` (changes only named segments), `merge_timings` (unchanged words keep their time).
+- `domain/diff.py`: `diff_versions` (replace, insert, delete per segment; speaker renames).
+- `domain/training.py`: `TrainingSegment`, `export_manifest` (consent required; corrected segments pass the threshold; seven fields).
+- `application/use_cases/save_correction.py`: `SaveCorrection` (optimistic concurrency; re-aligns changed segments only; source human).
+- Ports: `TranscriptVersions`, `SegmentAligner`; errors `StaleVersionError` (409), `TranscriptNotFoundError` (404).
+- Fakes: stub aligner (call log), in-memory version store.
+### How it works
+A save loads the latest version and refuses a stale base version. Edits replace words in the named segments. Each changed segment is re-aligned, and the words that did not change keep their old timing. The result is saved as the next version with source human. The training manifest only includes segments whose audio is consented.
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | 231f7dd docs(S22) Q1 (D-061) | editor client is the owner's choice | — |
+| 2 | 94df3ed test(S22) xfail | AC-1 to AC-6 | — |
+| 3 | 6294261 feat(S22) corrections, diff, manifest | AC-1 to AC-6 | all (unit) |
+### Verification
+- `make check`: 308 passed, 1 skipped (R-001). No S22 xfail left.
+- PR #48 CI: check, commits, integration, alerts all passed.
+- Security review not required for this step (no SQL, storage, upload, auth or webhook code). It is required once the SQL version store and the export endpoint land.
+### Decisions
+D-061 (editor is the owner's choice; pure logic and use case on fakes first).
+### Problems and fixes
+- The shell rejected a combined branch-switch and commit command, because the hook checked the branch before the switch. Split into separate calls.
+- A docstring reflow script stripped opening quotes; the affected files were rewritten in full.
+### Review findings
+- Not run for this step (see above).
+### Follow-ups
+- SQL version store (transcript versions with canonical JSON, RLS by tenant). Security review needed.
+- HTTP endpoint `POST /v1/transcriptions/{id}/versions`, with 409 on a stale base version (AC-3, API part).
+- Real segment aligner adapter behind `SegmentAligner` (needs R-005).
+- Re-index (S18) and the events (S20) after a new version.
+- Export use case that reads the consent flags from the database, and the training export endpoint.
+- Editor client: owner's choice (D-061).
