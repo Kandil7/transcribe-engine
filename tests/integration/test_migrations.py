@@ -12,7 +12,7 @@ from testcontainers.community.postgres import PostgresContainer
 pytestmark = pytest.mark.integration
 
 ROOT = Path(__file__).resolve().parents[2]
-HEAD = "0009_transcript_revisions"  # S22: moved from 0008 when versioned transcripts were added
+HEAD = "0010_job_prepared"  # S10 fence: moved from 0009 when jobs got a prepared mark
 
 
 def _alembic_config() -> Config:

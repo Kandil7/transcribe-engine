@@ -66,6 +66,7 @@ jobs = sa.Table(
     sa.Column("webhook_url", sa.Text, nullable=True),
     sa.Column("training_consent", sa.Boolean, nullable=False, server_default=sa.false()),
     sa.Column("audio_deleted_at", sa.DateTime(timezone=True), nullable=True),
+    sa.Column("prepared_at", sa.DateTime(timezone=True), nullable=True),
 )
 
 transcript_versions = sa.Table(
