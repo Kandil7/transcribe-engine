@@ -75,6 +75,10 @@ class ProcessJob:
         tenant = job.tenant_id
         async with self._make_uow(tenant) as uow:
             plan = await uow.chunks.plan(tenant, job.id)
+            if not plan and not await uow.chunks.is_prepared(tenant, job.id):
+                # The chunk plan is not committed yet: the cpu stage still runs.
+                # Completing now would store an empty transcript, so retry (S10 fence).
+                raise TransientError("chunk plan is not committed yet")
             stored = await uow.chunks.results(tenant, job.id)
         pending = [chunk for chunk in plan if chunk.chunk_id not in stored]
         failed: set[int] = set()

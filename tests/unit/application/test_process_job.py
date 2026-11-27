@@ -273,7 +273,6 @@ async def test_split_channels_skip_diarization() -> None:
     assert len(whole.calls) == 1
 
 
-@pytest.mark.xfail(strict=True, reason="S10")
 async def test_unprepared_job_is_retried_not_completed() -> None:
     """The fence (S10 race): a job whose plan was never committed must not complete empty.
 

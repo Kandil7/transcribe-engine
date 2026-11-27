@@ -151,6 +151,9 @@ class FakeChunkRepository:
         for chunk in chunks:
             plan.setdefault(chunk.chunk_id, chunk)
 
+    async def is_prepared(self, tenant_id: str, job_id: str) -> bool:
+        return (tenant_id, job_id) in self._store.chunk_plans
+
     async def plan(self, tenant_id: str, job_id: str) -> tuple[Chunk, ...]:
         stored = self._store.chunk_plans.get((tenant_id, job_id), {})
         return tuple(sorted(stored.values(), key=lambda chunk: chunk.idx))  # type: ignore[attr-defined]

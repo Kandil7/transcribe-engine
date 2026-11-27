@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Row, insert, select, update
+from sqlalchemy import Row, func, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncConnection
@@ -336,6 +336,20 @@ class SqlChunkRepository:
                 )
                 .on_conflict_do_nothing(index_elements=["chunk_id"])
             )
+        # The plan is committed with the job's prepared mark (S10 fence). An empty plan marks too.
+        await self._conn.execute(
+            update(jobs)
+            .where(jobs.c.id == job_id, jobs.c.tenant_id == tenant_id, jobs.c.prepared_at.is_(None))
+            .values(prepared_at=func.now())
+        )
+
+    async def is_prepared(self, tenant_id: str, job_id: str) -> bool:
+        prepared = (
+            await self._conn.execute(
+                select(jobs.c.prepared_at).where(jobs.c.id == job_id, jobs.c.tenant_id == tenant_id)
+            )
+        ).scalar_one_or_none()
+        return prepared is not None
 
     async def plan(self, tenant_id: str, job_id: str) -> tuple[Chunk, ...]:
         rows = (

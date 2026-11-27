@@ -19,6 +19,13 @@ class ChunkRepository(Protocol):
         """Store the plan. A chunk id that is already stored is left unchanged (idempotent)."""
         ...
 
+    async def is_prepared(self, tenant_id: str, job_id: str) -> bool:
+        """True once the plan was committed, even an empty one (a silent file).
+
+        The GPU stage waits for it (S10 fence).
+        """
+        ...
+
     async def plan(self, tenant_id: str, job_id: str) -> tuple[Chunk, ...]:
         """The plan in index order. Empty when none was stored."""
         ...
