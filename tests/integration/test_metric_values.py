@@ -57,7 +57,9 @@ async def test_first_claim_observes_queue_wait(pg_url: str) -> None:
         )
         if claimed is None:
             pytest.skip("no cpu job is queued in this database")
+        job, _lease = claimed
         after = _sample("transcribe_queue_wait_seconds_count", {"queue": "cpu"})
-        assert after == before + 1.0
+        # Only a first attempt is a queue wait; a retried job is not counted again.
+        assert after == before + (1.0 if job.attempt_count == 1 else 0.0)
     finally:
         await engine.dispose()
