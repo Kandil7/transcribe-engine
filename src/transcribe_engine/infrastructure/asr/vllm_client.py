@@ -98,7 +98,14 @@ class VllmASR:
         end = chunk.end_sample + chunk.pad_after
         wav = await self._window_as_wav(audio_key, start, end)
         body = await self._client.transcribe(wav, language=language, temperature=0.0)
-        return _words(body, chunk.sample_rate)
+        words = _words(body, chunk.sample_rate)
+        # Text with no word times cannot be placed in the file: refuse it, never return
+        # silence (D-067).
+        if not words and str(body.get("text", "")).strip():
+            raise PermanentError(
+                "vLLM returned text without word times; a forced aligner is required"
+            )
+        return words
 
     async def _window_as_wav(self, audio_key: str, start: int, end: int) -> bytes:
         pcm = await read_window_pcm(self._storage, audio_key, start, end)

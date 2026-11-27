@@ -69,7 +69,6 @@ async def _transcribe(body: dict[str, Any]) -> tuple[Any, ...]:
     )
 
 
-@pytest.mark.xfail(strict=True, reason="S12")
 async def test_text_without_word_times_is_refused() -> None:
     with pytest.raises(PermanentError):
         await _transcribe({"text": "مرحبا بكم", "words": []})
