@@ -30,10 +30,11 @@ from transcribe_engine.domain.jobs import (
     JobState,
     Transition,
     Warning,
+    alignment_fallback_warning,
     chunk_failed_warning,
     transition,
 )
-from transcribe_engine.domain.merge import ChunkResult, MergedWords, merge, validate_merge
+from transcribe_engine.domain.merge import ChunkResult, MergedWords, RawWord, merge, validate_merge
 from transcribe_engine.domain.speakers import assign_speakers
 from transcribe_engine.domain.storage_keys import work_key
 
@@ -136,6 +137,7 @@ class ProcessJob:
             await uow.chunks.save_transcript(tenant, job.id, merged)
             await uow.commit()
         warnings = [chunk_failed_warning(idx) for idx in sorted(failed)]
+        warnings += [alignment_fallback_warning(c.idx) for c in plan if _is_fallback(stored, c)]
         warnings += diarization_warnings
         warnings += validate_merge(merged, _duration_bound(plan))
         done = transition(
@@ -181,3 +183,8 @@ def _duration_bound(plan: tuple[Chunk, ...]) -> int:
         return 0
     last = plan[-1]
     return last.end_sample + last.pad_after
+
+
+def _is_fallback(stored: dict[str, tuple[RawWord, ...]], chunk: Chunk) -> bool:
+    """True when the chunk's words are segment times because alignment failed (S14, D-077)."""
+    return any(word.fallback for word in stored.get(chunk.chunk_id, ()))

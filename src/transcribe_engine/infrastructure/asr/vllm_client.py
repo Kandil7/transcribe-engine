@@ -20,6 +20,7 @@ from transcribe_engine.application.ports.storage import ObjectStorage
 from transcribe_engine.domain.chunks import NORMALIZED_SAMPLE_RATE, Chunk
 from transcribe_engine.domain.errors import PermanentError, TransientError
 from transcribe_engine.domain.merge import RawWord
+from transcribe_engine.infrastructure.alignment.fallback import align_or_fallback
 from transcribe_engine.infrastructure.asr.window import BYTES_PER_SAMPLE, read_window_pcm
 
 __all__ = ["VllmASR", "VllmClient"]
@@ -111,7 +112,7 @@ class VllmASR:
             raise PermanentError(
                 "vLLM returned text without word times; a forced aligner is required"
             )
-        return await self._aligner.align(audio_key, chunk, text, language=language)
+        return await align_or_fallback(self._aligner, audio_key, chunk, text, language=language)
 
     async def _window_as_wav(self, audio_key: str, start: int, end: int) -> bytes:
         pcm = await read_window_pcm(self._storage, audio_key, start, end)

@@ -380,7 +380,13 @@ class SqlChunkRepository:
         self, tenant_id: str, job_id: str, chunk_id: str, words: tuple[RawWord, ...]
     ) -> None:
         payload = [
-            {"text": w.text, "local_start": w.local_start, "local_end": w.local_end, "conf": w.conf}
+            {
+                "text": w.text,
+                "local_start": w.local_start,
+                "local_end": w.local_end,
+                "conf": w.conf,
+                "fallback": w.fallback,
+            }
             for w in words
         ]
         await self._conn.execute(
@@ -400,7 +406,14 @@ class SqlChunkRepository:
         ).all()
         return {
             row.chunk_id: tuple(
-                RawWord(w["text"], w["local_start"], w["local_end"], w["conf"]) for w in row.words
+                RawWord(
+                    w["text"],
+                    w["local_start"],
+                    w["local_end"],
+                    w["conf"],
+                    bool(w.get("fallback", False)),
+                )
+                for w in row.words
             )
             for row in rows
         }
