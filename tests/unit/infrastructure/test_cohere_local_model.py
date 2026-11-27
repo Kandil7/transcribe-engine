@@ -24,6 +24,11 @@ RATE = 16_000
 
 
 def _cached() -> bool:
+    """The model test runs only when torch (the ml extra) is installed and the model is cached."""
+    import importlib.util  # noqa: PLC0415 - stdlib, read here for the skip check only
+
+    if importlib.util.find_spec("torch") is None:
+        return False
     from huggingface_hub import snapshot_download  # noqa: PLC0415 - optional, as in the loader
 
     try:
