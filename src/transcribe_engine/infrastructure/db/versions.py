@@ -13,11 +13,13 @@ from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 
 from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from transcribe_engine.application.errors import StaleVersionError
 from transcribe_engine.application.ports.repositories import UnitOfWork
+from transcribe_engine.domain.errors import PermanentError
+from transcribe_engine.domain.jobs import Job
 from transcribe_engine.domain.transcript import (
     CanonicalTranscript,
     Provenance,
@@ -25,6 +27,7 @@ from transcribe_engine.domain.transcript import (
     to_json,
     transcript_from_merged,
 )
+from transcribe_engine.infrastructure.db.uow import translate_db_error
 
 __all__ = ["SqlTranscriptVersions"]
 
@@ -34,6 +37,7 @@ _LATEST = text(
     "SELECT canonical FROM transcript_revisions WHERE transcript_id = :tid "
     "ORDER BY version DESC LIMIT 1"
 )
+_PRIMARY_KEY = "pk_transcript_revisions"
 _INSERT = text(
     "INSERT INTO transcript_revisions (transcript_id, tenant_id, version, source, canonical) "
     "VALUES (:tid, :tenant, :version, :source, :canonical)"
@@ -46,10 +50,14 @@ class SqlTranscriptVersions:
         self._make_uow = make_uow
 
     async def latest(self, tenant_id: str, transcript_id: str) -> CanonicalTranscript | None:
+        # A deleted or unknown job has no transcript: nothing is read or written for it (S21).
+        job = await self._job(tenant_id, transcript_id)
+        if job is None:
+            return None
         stored = await self._latest_text(tenant_id, transcript_id)
         if stored is not None:
             return from_json(stored.encode("utf-8"))
-        base = await self._asr_version(tenant_id, transcript_id)
+        base = await self._asr_version(tenant_id, job)
         if base is None:
             return None
         try:
@@ -78,28 +86,40 @@ class SqlTranscriptVersions:
                     },
                 )
         except IntegrityError as exc:
-            raise StaleVersionError from exc
+            # Only the primary key means "another writer took this version" (AC-3). Other
+            # constraints are a bug in the caller, not a conflict.
+            if _PRIMARY_KEY in str(exc.orig):
+                raise StaleVersionError from exc
+            raise PermanentError("transcript version rejected") from exc
+        except SQLAlchemyError as exc:
+            # Translated as the unit of work does: no SQL text and no parameters, because
+            # the parameters hold transcript text.
+            raise translate_db_error(exc) from exc
+
+    async def _job(self, tenant_id: str, job_id: str) -> Job | None:
+        async with self._make_uow(tenant_id) as uow:
+            return await uow.jobs.get(tenant_id, job_id)
 
     async def _latest_text(self, tenant_id: str, transcript_id: str) -> str | None:
-        async with self._engine.begin() as conn:
-            await conn.execute(
-                text("SELECT set_config('app.tenant_id', :tenant, true)"), {"tenant": tenant_id}
-            )
-            return (await conn.execute(_LATEST, {"tid": transcript_id})).scalar_one_or_none()
+        try:
+            async with self._engine.begin() as conn:
+                await conn.execute(
+                    text("SELECT set_config('app.tenant_id', :tenant, true)"), {"tenant": tenant_id}
+                )
+                return (await conn.execute(_LATEST, {"tid": transcript_id})).scalar_one_or_none()
+        except SQLAlchemyError as exc:
+            raise translate_db_error(exc) from exc
 
-    async def _asr_version(self, tenant_id: str, job_id: str) -> CanonicalTranscript | None:
-        """Version 1 from the job's merged words. None when the job or its transcript is missing."""
+    async def _asr_version(self, tenant_id: str, job: Job) -> CanonicalTranscript | None:
+        """Version 1 from the job's merged words. None when the job has no transcript yet."""
         async with self._make_uow(tenant_id) as uow:
-            job = await uow.jobs.get(tenant_id, job_id)
-            if job is None:
-                return None
-            merged = await uow.chunks.transcript(tenant_id, job_id)
+            merged = await uow.chunks.transcript(tenant_id, job.id)
         if merged is None:
             return None
         config = job.config
         return transcript_from_merged(
             merged,
-            transcript_id=job_id,
+            transcript_id=job.id,
             media_id=job.media_id,
             language=config.language,
             provenance=Provenance(

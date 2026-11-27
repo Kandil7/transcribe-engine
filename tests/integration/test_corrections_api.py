@@ -192,3 +192,37 @@ async def test_unknown_transcript_is_404(app_url: str, minio: MinioContainer) ->
     finally:
         await owner.dispose()
         await app_engine.dispose()
+
+
+async def test_other_tenant_cannot_save_a_version(app_url: str, minio: MinioContainer) -> None:
+    """Tenant B cannot add a version to tenant A's job: 404, and no row is written.
+
+    Positive control: the owner's own save on the same job still returns 201.
+    """
+    owner_tenant = api_support.new_tenant()
+    other_tenant = api_support.new_tenant()
+    job = f"s22-x-{owner_tenant}"
+    engine = create_async_engine(app_url)
+    try:
+        await api_support.seed_tenant(engine, owner_tenant)
+        await api_support.seed_tenant(engine, other_tenant)
+        owner_token = await api_support.issue_key(engine, owner_tenant, ["transcribe:write"])
+        other_token = await api_support.issue_key(engine, other_tenant, ["transcribe:write"])
+        await _seed_completed_job(engine, owner_tenant, job)
+        aligner = _mod("tests.fakes.aligner").FakeAligner()
+        async with _client(engine, api_support.storage_for(minio), aligner) as client:
+            intruder = await client.post(
+                f"/v1/transcriptions/{job}/versions",
+                json={"base_version": 1, "edits": [_edit("gamma")], "speaker_renames": {}},
+                headers=api_support.auth(other_token),
+            )
+            assert intruder.status_code == 404
+            owner = await client.post(
+                f"/v1/transcriptions/{job}/versions",
+                json={"base_version": 1, "edits": [_edit("gamma")], "speaker_renames": {}},
+                headers=api_support.auth(owner_token),
+            )
+            assert owner.status_code == 201
+            assert owner.json()["version"] == 2
+    finally:
+        await engine.dispose()
