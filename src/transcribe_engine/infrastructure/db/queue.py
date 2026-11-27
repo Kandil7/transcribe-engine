@@ -18,7 +18,7 @@ from transcribe_engine.infrastructure.db.outbox import record_terminal_event
 from transcribe_engine.infrastructure.db.repositories import job_from_row
 from transcribe_engine.infrastructure.db.session import SYSTEM_SCOPE
 from transcribe_engine.infrastructure.db.uow import translate_db_error
-from transcribe_engine.infrastructure.observability.metrics import JOB_FAILURES
+from transcribe_engine.infrastructure.observability.metrics import JOB_FAILURES, QUEUE_WAIT_SECONDS
 
 __all__ = ["SqlJobQueue"]
 
@@ -45,7 +45,8 @@ _CLAIM = text(
         started_at = COALESCE(jobs.started_at, now())
     FROM picked
     WHERE jobs.id = picked.id
-    RETURNING jobs.*
+    RETURNING jobs.*,
+        EXTRACT(EPOCH FROM (now() - jobs.created_at)) AS queue_wait_seconds
     """
 )
 
@@ -134,6 +135,8 @@ class SqlJobQueue:
         if row is None:
             return None
         job = job_from_row(row)
+        if job.attempt_count == 1:  # only the first claim is a queue wait; a retry is not (S20)
+            QUEUE_WAIT_SECONDS.labels(queue=queue).observe(float(row.queue_wait_seconds))
         lease = Lease(job_id=job.id, owner=owner, attempt=job.attempt_count, until=row.lease_until)
         return job, lease
 
