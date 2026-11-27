@@ -1009,3 +1009,26 @@ would corrupt the training data (S22 AC-1).
 Reversibility: moderate (migration 0009 is on main).
 Confidence: medium.
 Applied in: 47312d7, f3968a5, 236cba7.
+
+## D-063 — Local ASR: openai/whisper-large-v3-turbo through transformers, from the local cache
+Date: 2026-11-27 · Slice: S12 (R-003) · Status: decided · Review: requested (production model, R-003 part b)
+Context: R-003 asked for faster-whisper and a production model. The owner asked for the best local choice.
+The machine has no converted CTranslate2 turbo model, but the Hugging Face cache (D:\AI\Models) holds
+openai/whisper-large-v3-turbo with full weights, and the cache has no faster-whisper turbo conversion.
+Options: A) faster-whisper with a CTranslate2 conversion of turbo (needs a conversion run and the faster-whisper
+dependency). B) whisper-large-v3-turbo through transformers, FP16 on CUDA and FP32 on CPU, from the local cache.
+C) faster-whisper-base (142 MB, CTranslate2, already converted), a weaker model.
+Decision: B. The adapter reads the model offline (local_files_only); it never downloads. Settings TE_ASR_ENGINE
+(default whisper_local), TE_ASR_MODEL_ID and TE_ASR_DEVICE select it. The plumbing engine stays selectable.
+Rationale: turbo is the best Whisper model present with complete weights, and it covers Arabic. A conversion (A)
+adds a step with no gain in accuracy. Measured on this machine (smoke test, two real Arabic clips of 2 s and 2.6 s,
+CPU FP32): model load 8 s after the first cache read, about 14 s of inference per clip. That is not real-time; the
+CUDA path (FP16, Quadro RTX 5000) is the fast path and needs a CUDA torch build, which is not installed (follow-up).
+Licences: transformers 5.24.1 is Apache-2.0 (read from its package metadata). Whisper weights are MIT as published
+upstream; the cache holds no model card to confirm it, so this is recorded as unverified in the cache.
+Dependency: transformers added to the project (uv add). torch stays the optional ml extra; the adapter imports torch
+and transformers lazily so CI, which does not install torch, still imports the module.
+Reversibility: easy (the adapter is behind the ASR port; the setting selects it).
+Confidence: medium. Accuracy is not measured: R-001 (the human reference hour) is still open, so only the
+smoke output is known, not a word error rate.
+Applied in: feat/R003-local-asr (adapter, settings, window refactor, tests).
