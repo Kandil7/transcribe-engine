@@ -928,3 +928,45 @@ D-058 (no LLM wired; pure analytics and snapping first; port and fake).
 - Questions per RAG chunk and chapters as RAG parent chunks (S18 level 2): not built.
 - LLM adapter: R-010 (owner decision on the model and where it runs).
 - Speaker-name suggestions and translation are out of scope (S19b).
+
+## S21 — Privacy, retention, deletion (partial)   (2026-11-27 → 2026-11-27)
+Branch: feat/S21-privacy-retention-deletion   Merged: PR #47   Tag: —
+### What was built
+- `application/use_cases/delete_job_data.py`: `DeleteJobData` (storage first inside the transaction, then the content-free audit row, then commit), `run_requested_deletions` (per-job isolation).
+- `application/use_cases/retention_sweeper.py`: `RetentionSweeper` (audio only; per tenant retention).
+- `infrastructure/db/deletion.py`: `SqlDeletionStore` on the unit-of-work connection; ownership checks under system scope.
+- Migration 0008: `audit_log` (tenant RLS, no content), `tenants.retention_days` (CHECK 1 to 3650), `tenants.training_consent`, `jobs.training_consent`, `jobs.audio_deleted_at`, `results.media_id` nullable.
+- Worker role `sweeper` (`worker.py`): requested deletions on every poll, the audio sweep at most once a day.
+- Storage port: `delete(key)` (fake, MinIO); `job_prefix` in the domain.
+### How it works
+A DELETE (S08) marks the job. The sweeper deletes each marked job in its own transaction: the job's prefix and unused upload go from storage, then its rows, then a result that nothing else points at, then the upload's media row if no job uses it. A content-free audit row records counts and flags. A failing job stays pending and does not stop the others.
+### Steps and commits
+| # | Commit | What changed | Tests turned green |
+|---|---|---|---|
+| 1 | b47e3f2 docs(S21) Q1, D-059, R-011 | legal question recorded, not decided | — |
+| 2 | 3fed1ab test(S21) xfail | AC-1 to AC-5 | — |
+| 3 | d451b55 build(S21) migration 0008 | audit, consent, retention columns | round trip |
+| 4 | 6a270f8 feat(S21) delete and sweep | AC-1 to AC-5 | AC-1 to AC-5 (integration), AC-4 (unit) |
+| 5 | 858eb58 feat(S21) worker and requested deletions | DELETE processed | requested-deletion test, Postgres retention test |
+| 6 | 0709541 fix(S21) per-job isolation (D-060) | isolation | isolation test |
+| 7 | 76ca636 fix(S21) ownership and shared audio (D-060) | system scope, audio not kept by results | shared-audio test |
+### Verification
+- `make check`: 302 passed, 1 skipped (R-001). No S21 xfail left.
+- `make itest`: 89 passed (deletion, retention, requested deletion, shared audio, migrations, SSE contract).
+- PR #47 CI: check, commits, integration, alerts (before the review fixes; re-run after push).
+- Security review (AUTOPILOT §2.4, SQL and storage): 7 findings; 1 to 3 and 5 fixed (76ca636, 0709541); 4 cross-tenant reuse and 6 and 7 recorded as follow-ups (D-060).
+### Decisions
+D-059 (storage first, one transaction; legal open), D-060 (isolation, system scope, audio not kept by results).
+### Problems and fixes
+- The sweep and the requested-deletion path found no rows: the retention query inner-joined tenants, so a job whose tenant row was missing was never swept. Changed to a left join with a 30-day default (858eb58).
+- A duplicate remote branch was pushed by mistake; fast-forwarded the slice branch and removed the duplicate.
+- A bulk line edit broke a test docstring; repaired before commit.
+### Review findings
+- Fixed: poison pill (D-060), RLS hiding ownership references (D-060), shared result keeping the producer's audio (D-060), retention CHECK.
+- Deferred: cross-tenant reuse of results by file sha256 (pre-existing, needs an isolation decision); embeddings are not in the schema yet; dead media rows after audio expiry (harmless).
+- Race: a new job for the same media created during a delete can still race the plan (D-059).
+### Follow-ups
+- R-011: legal review and region pinning before production.
+- Decide isolation scope for cached results across tenants (D-007).
+- Add embeddings to the deletion path when RAG storage lands (S18 AC-5 to AC-8).
+- Replace the 30-day default with the tenant setting in every path (currently default in SQL and tenant column).

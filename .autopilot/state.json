@@ -179,11 +179,11 @@
       "notes": "Merged via PR #35 (rebase). Outbox in terminal transactions (AC-1 integration), signed pinned delivery with SSRF guard and leases (D-053), retries to 24 h (AC-4), JSON logs (AC-5), metrics registered (AC-6), alert rules with promtool CI job (AC-7; promtool not run locally, R-006). Partial: per-stage spans not wired; metric values not written at call sites; secrets plaintext at rest (D-049); HTTP client not closed on shutdown."
     },
     "S21": {
-      "status": "todo",
+      "status": "partial",
       "branch": null,
-      "merged": null,
+      "merged": "(see PR #47)",
       "tag": null,
-      "notes": ""
+      "notes": "PR #47. DeleteJobData removes a job's audio, rows, unshared result and unused upload, with a content-free audit row (AC-1, AC-2, AC-3, AC-5 on Postgres and MinIO). Retention sweep per tenant (AC-4 on fakes and on Postgres). Sweeper worker role processes DELETE requests and the daily sweep. Per-job isolation (D-060). Legal review and region pinning open (R-011). Follow-ups: cross-tenant result reuse (pre-existing), embeddings deletion when RAG storage lands."
     },
     "S22": {
       "status": "todo",
