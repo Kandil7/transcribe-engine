@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     chunk_pad_ms: int = 500  # padding either side of a core, inside the file (S10)
     chunk_overlap_ms: int = 1_500  # context shared by fixed windows without silence (S11)
     asr_concurrency: int = 32  # chunks in flight per job (design: initial 32)
+    asr_engine: str = "whisper_local"  # "whisper_local" (D-063) or "plumbing" (no words, S10)
+    asr_model_id: str = "openai/whisper-large-v3-turbo"  # from the local Hugging Face cache
+    asr_device: str | None = None  # None: cuda when available, else cpu
     lease_seconds: int = 120  # design: 2-minute lease
     heartbeat_seconds: float = 30.0
     poll_seconds: float = 1.0  # idle wait between claim attempts
