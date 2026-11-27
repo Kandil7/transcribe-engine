@@ -18,6 +18,7 @@ from transcribe_engine.infrastructure.db.api_keys import (
     SqlIdempotencyRepository,
     SqlTenantRepository,
 )
+from transcribe_engine.infrastructure.db.deletion import SqlDeletionStore
 from transcribe_engine.infrastructure.db.repositories import (
     SqlChunkRepository,
     SqlJobRepository,
@@ -51,6 +52,7 @@ class SqlUnitOfWork:
         self.idempotency: SqlIdempotencyRepository
         self.api_keys: SqlApiKeyRepository
         self.chunks: SqlChunkRepository
+        self.deletions: SqlDeletionStore
 
     async def __aenter__(self) -> Self:
         self._conn = await self._engine.connect()
@@ -69,6 +71,7 @@ class SqlUnitOfWork:
         self.idempotency = SqlIdempotencyRepository(self._conn)
         self.api_keys = SqlApiKeyRepository(self._conn)
         self.chunks = SqlChunkRepository(self._conn)
+        self.deletions = SqlDeletionStore(self._conn)
         return self
 
     async def __aexit__(

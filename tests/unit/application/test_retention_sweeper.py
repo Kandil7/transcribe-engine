@@ -9,8 +9,6 @@ import importlib
 from datetime import timedelta
 from types import ModuleType
 
-import pytest
-
 from tests.fakes.clock import FakeClock
 from tests.fakes.storage import FakeObjectStorage
 
@@ -19,7 +17,6 @@ def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
 
 
-@pytest.mark.xfail(strict=True, reason="S21")
 async def test_expired_audio_removed_per_tenant_setting() -> None:
     """AC-4: a 40-day-old job of a 30-day tenant loses its audio; the same age under a 90-day tenant
     keeps it; a 10-day-old job keeps it. The sweep reports exactly one audio deletion."""
@@ -44,7 +41,7 @@ async def test_expired_audio_removed_per_tenant_setting() -> None:
     def make_uow(tenant_id: str | None = None) -> object:
         return store.uow()
 
-    sweeper = retention.RetentionSweeper(make_uow, storage, clock)
+    sweeper = retention.RetentionSweeper(make_uow, storage)
     report = await sweeper.run_once(now)
 
     assert report.audio_deleted == 1
