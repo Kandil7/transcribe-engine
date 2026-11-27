@@ -29,6 +29,7 @@ from transcribe_engine.infrastructure.clock import SystemClock
 from transcribe_engine.infrastructure.db.queue import SqlJobQueue
 from transcribe_engine.infrastructure.db.reconciler import SqlReconciler
 from transcribe_engine.infrastructure.db.session import make_engine
+from transcribe_engine.infrastructure.http.webhook_sender import HttpWebhookSender
 from transcribe_engine.infrastructure.observability.logging import configure_logging
 from transcribe_engine.infrastructure.settings import Settings
 
@@ -67,6 +68,16 @@ async def serve_publisher(publisher: OutboxPublisher, settings: Settings) -> Non
             await asyncio.sleep(settings.poll_seconds)
 
 
+async def run_publisher(
+    publisher: OutboxPublisher, sender: HttpWebhookSender, settings: Settings
+) -> None:
+    """Run the publisher, then close its webhook HTTP client however it stops (S20 review)."""
+    try:
+        await serve_publisher(publisher, settings)
+    finally:
+        await sender.aclose()
+
+
 async def serve_sweeper(
     make_uow: Callable[[str | None], AbstractAsyncContextManager[UnitOfWork]],
     storage: ObjectStorage,
@@ -100,7 +111,9 @@ def main(argv: list[str]) -> int:
         return 0
     if role == "publisher":
         owner = f"publisher-{os.getpid()}-{uuid.uuid4().hex[:8]}"
-        asyncio.run(serve_publisher(composition.build_publisher(engine, owner), settings))
+        sender = HttpWebhookSender()
+        publisher = composition.build_publisher(engine, owner, sender)
+        asyncio.run(run_publisher(publisher, sender, settings))
         return 0
     storage = composition.build_storage(settings)
     # Only the gpu worker runs ASR, so only it loads the model (D-063, review).
