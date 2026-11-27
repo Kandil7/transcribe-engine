@@ -1096,8 +1096,11 @@ Rationale: Apache-2.0 allows commercial use. Arabic is its target language. It i
 for use and documents vLLM serving. The priority order (safety and correctness first) rules out C and D as the default:
 C has no verified word path and D is the local profile. A is excluded by licence terms.
 Reversibility: easy (one settings value and one compose line; an evaluation report is required before a change, ADR-0007).
-Confidence: medium. Not measured on our data (R-001). The model card reports 2B parameters on one mirror and 5B on another;
-verify on the official card before deploy. --trust-remote-code is required by the model card; see R-014.
+Confidence: medium. Not measured on our data (R-001). Official card checked (2026-11-27): Apache-2.0 licence,
+2,065,804,048 parameters (the 5B figure came from a mirror), no word timestamps, and the vLLM serve command needs
+--trust-remote-code. The repo is gated (access needs accepted terms, an owner action, R-014). The API commit is
+c3e911b42149bf7a1e53d5cef9878aee87515a23; the card's citation names 0a8193c, which does not match. Pin the API commit
+after approval.
 Applied in: feat(S12) selection commit and build(S12) compose commit (see BUILD_LOG S12).
 
 ## D-068 — Licence of the local Whisper model is Apache-2.0 on its card, not MIT (correction of D-063)
