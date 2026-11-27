@@ -34,6 +34,7 @@ from transcribe_engine.infrastructure.http.webhook_sender import DnsResolver, Ht
 from transcribe_engine.infrastructure.media.ffmpeg import FfmpegNormalizer
 from transcribe_engine.infrastructure.media.ffprobe import FfprobeMediaProbe
 from transcribe_engine.infrastructure.ml.silero_vad import SileroVad
+from transcribe_engine.infrastructure.observability.tracing import LogTracer
 from transcribe_engine.infrastructure.settings import Settings
 from transcribe_engine.infrastructure.storage.s3 import S3ObjectStorage
 from transcribe_engine.presentation.api.app import create_app
@@ -146,5 +147,6 @@ def build_handlers(
         concurrency=settings.asr_concurrency,
         # A chunk the model cannot read fails the job, not a silent transcript with a gap (review).
         require_complete_text=settings.asr_engine == "whisper_local",
+        tracer=LogTracer(),
     )
     return ingest, process

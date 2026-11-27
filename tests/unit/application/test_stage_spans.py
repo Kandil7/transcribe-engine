@@ -8,8 +8,6 @@ Positive control: both spans close with status ok.
 import importlib
 from types import ModuleType
 
-import pytest
-
 from tests.fakes.tracing import FakeTracer
 
 
@@ -17,7 +15,6 @@ def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_process_job_opens_stage_spans() -> None:
     helpers = _mod("tests.unit.application.test_process_job")
     fakes_asr = _mod("tests.fakes.asr")
