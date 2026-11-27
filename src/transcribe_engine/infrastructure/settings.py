@@ -34,12 +34,19 @@ class Settings(BaseSettings):
     chunk_pad_ms: int = 500  # padding either side of a core, inside the file (S10)
     chunk_overlap_ms: int = 1_500  # context shared by fixed windows without silence (S11)
     asr_concurrency: int = 32  # chunks in flight per job (design: initial 32)
-    asr_engine: Literal["whisper_local", "plumbing"] = "whisper_local"  # D-063; plumbing is S10
+    asr_engine: Literal["whisper_local", "vllm", "plumbing"] = (
+        "whisper_local"  # D-063, D-067; plumbing S10
+    )
     asr_model_id: str = Field(
         default="openai/whisper-large-v3-turbo",
         pattern=r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",  # a repo id, never a local path (review)
     )
     asr_device: Literal["cuda", "cpu"] | None = None  # None: cuda when available, else cpu
+    vllm_url: str = "http://vllm:8000"  # the vLLM service in compose (ADR-0005, D-067)
+    vllm_model: str = Field(
+        default="CohereLabs/cohere-transcribe-arabic-07-2026",  # production default (D-067)
+        pattern=r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",  # a repo id, never a local path
+    )
     lease_seconds: int = 120  # design: 2-minute lease
     heartbeat_seconds: float = 30.0
     poll_seconds: float = 1.0  # idle wait between claim attempts
