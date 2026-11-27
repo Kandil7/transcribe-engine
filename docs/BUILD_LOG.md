@@ -1045,16 +1045,16 @@ D-063 (local ASR choice, licences), D-064 (the fence), D-065 (job-scoped chunk i
 - Midad lecture corpus (111 files in D:\AI\Projects\ibn_khaldon_LAB) is a candidate for real-speech evaluation once its licence and terms are checked; it stays outside the repo.
 
 ## S20 — Stage spans and metric values (partial)
-Branch: feat/S20-tracing-metrics   Merged: pending PR
+Branches: feat/S20-tracing-metrics, feat/S20-stage-spans-vad   Merged: PR #57, PR pending
 ### What was built
-- Tracer port (`application/ports/tracing.py`); the log tracer implements it (`infrastructure/observability/tracing.py`), wired in main.py.
-- ProcessJob opens spans for the ASR stage (chunk fan-out) and the PERSISTING stage (merged write), linked by job id. Without a tracer, no span.
-- Queue depth gauge is set per queue by the reconciler (was declared, never set).
-- Queue wait histogram observes the first claim of each job (a retry is not counted again; was never observed).
+- Tracer port (`application/ports/tracing.py`) with `open_span`, the one place that decides what a missing tracer means. The log tracer implements it (`infrastructure/observability/tracing.py`); main.py wires one tracer into all cpu and gpu stages.
+- Spans, linked by job id: VALIDATING (probe), NORMALIZING (conversion), VAD (speech analysis), ASR (chunk fan-out), PERSISTING (merged write).
+- Queue depth gauge set per queue by the reconciler (was declared, never set).
+- Queue wait histogram observes the first claim of each job; a retry is not counted again (was never observed).
 ### Verification
-- `make check`: 319 passed, 1 skipped. `make itest`: 95 passed.
+- `make check`: 321 passed, 1 skipped. `make itest`: 95 passed.
 - Metric value tests have a positive control: a seeded queued job, so a zero count cannot pass by accident.
 ### Not done (still open for S20)
-- Spans for VAD, PREPARING, and the other stages: only ASR and PERSISTING are spanned.
-- Cache hit counters and per-stage RTF: declared, not yet observed (no value source in the pipeline yet).
+- Cache lookup and hit counters: the lookup is in IngestJob, and the application layer cannot import the metrics module. A metrics port would need a fake and a real adapter for two counters, so it is deferred.
+- Per-stage RTF: the span knows the duration, not the audio length. Needs the audio duration passed into the span.
 - OpenTelemetry exporter (D-052): the log sink is the only tracer.
