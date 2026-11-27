@@ -62,7 +62,6 @@ async def _engine(runner: Any, aligner: Any, samples: np.ndarray) -> Any:
     return engine, storage
 
 
-@pytest.mark.xfail(strict=True, reason="S12")
 def test_text_is_placed_by_the_aligner() -> None:
     async def run() -> None:
         aligner = FakeWordAligner()
@@ -74,7 +73,6 @@ def test_text_is_placed_by_the_aligner() -> None:
     asyncio.run(run())
 
 
-@pytest.mark.xfail(strict=True, reason="S12")
 def test_silence_gives_no_words_and_no_alignment() -> None:
     async def run() -> None:
         aligner = FakeWordAligner()
@@ -85,7 +83,6 @@ def test_silence_gives_no_words_and_no_alignment() -> None:
     asyncio.run(run())
 
 
-@pytest.mark.xfail(strict=True, reason="S12")
 def test_text_without_an_aligner_is_refused() -> None:
     async def run() -> None:
         engine, _ = await _engine(lambda _s: "مرحبا", None, np.ones(RATE, dtype=np.int16))
@@ -95,7 +92,6 @@ def test_text_without_an_aligner_is_refused() -> None:
     asyncio.run(run())
 
 
-@pytest.mark.xfail(strict=True, reason="S12")
 def test_out_of_memory_is_transient_and_other_failures_are_permanent() -> None:
     async def run() -> None:
         def oom(_s: Any) -> str:
