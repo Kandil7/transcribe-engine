@@ -76,7 +76,6 @@ async def _vllm(aligner: Any) -> Any:
     )
 
 
-@pytest.mark.xfail(strict=True, reason="S14")
 async def test_permanent_aligner_failure_falls_back_to_segment_times() -> None:
     words = await _vllm(_Raising(PermanentError("aligner failed")))
     assert [w.text for w in words] == ["مرحبا", "بكم"]
@@ -85,13 +84,11 @@ async def test_permanent_aligner_failure_falls_back_to_segment_times() -> None:
     assert words[-1].local_end == RATE
 
 
-@pytest.mark.xfail(strict=True, reason="S14")
 async def test_transient_aligner_failure_is_not_a_fallback() -> None:
     with pytest.raises(TransientError):
         await _vllm(_Raising(TransientError("aligner busy")))
 
 
-@pytest.mark.xfail(strict=True, reason="S14")
 async def test_working_aligner_gives_words_without_fallback() -> None:
     words = await _vllm(FakeWordAligner())
     assert words

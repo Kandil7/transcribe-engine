@@ -40,6 +40,7 @@ class RawWord:
     local_start: int
     local_end: int
     conf: float | None
+    fallback: bool = False  # True when the times are segment times, not aligned (S14, D-077)
 
 
 @dataclass(frozen=True)

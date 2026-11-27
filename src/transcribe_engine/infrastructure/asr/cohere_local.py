@@ -23,6 +23,7 @@ from transcribe_engine.application.ports.storage import ObjectStorage
 from transcribe_engine.domain.chunks import Chunk
 from transcribe_engine.domain.errors import PermanentError, TransientError
 from transcribe_engine.domain.merge import RawWord
+from transcribe_engine.infrastructure.alignment.fallback import align_or_fallback
 from transcribe_engine.infrastructure.asr.window import read_window_pcm
 
 __all__ = ["DEFAULT_MODEL_ID", "DEFAULT_REVISION", "CohereLocalASR"]
@@ -87,7 +88,7 @@ class CohereLocalASR:
             raise PermanentError(
                 "cohere returned text without word times; a forced aligner is required"
             )
-        return await self._aligner.align(audio_key, chunk, text, language=language)
+        return await align_or_fallback(self._aligner, audio_key, chunk, text, language=language)
 
     async def _ensure_runner(self) -> Runner:
         async with self._load_lock:

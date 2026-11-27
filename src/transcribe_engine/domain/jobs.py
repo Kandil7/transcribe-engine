@@ -23,6 +23,7 @@ __all__ = [
     "Result",
     "Transition",
     "Warning",
+    "alignment_fallback_warning",
     "backoff",
     "chunk_failed_warning",
     "processing_timeout",
@@ -67,6 +68,13 @@ class Warning(StrEnum):
     DIARIZATION_FAILED = "diarization_failed"
     NO_SPEECH = "no_speech"
     LOW_SNR = "low_snr"
+
+
+def alignment_fallback_warning(index: int) -> str:
+    """Warning for a chunk whose words are segment times because alignment failed (S14, D-077)."""
+    if index < 0:
+        raise ValueError("chunk index must be non-negative")
+    return f"alignment_fallback:{index}"
 
 
 def chunk_failed_warning(index: int) -> str:

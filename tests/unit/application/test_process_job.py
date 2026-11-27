@@ -300,7 +300,6 @@ async def test_unprepared_job_is_retried_not_completed() -> None:
     assert result.to == _mod("transcribe_engine.domain.jobs").JobState.COMPLETED
 
 
-@pytest.mark.xfail(strict=True, reason="S14")
 async def test_fallback_chunks_are_reported_as_warnings() -> None:
     """A chunk whose words came from segment times (alignment failed) is reported as
     `alignment_fallback:<idx>`; the job still completes (D-077).
