@@ -14,6 +14,7 @@ from typing import Any
 
 import httpx
 
+from transcribe_engine.application.ports.aligner import Aligner
 from transcribe_engine.application.ports.asr import ASRCapabilities
 from transcribe_engine.application.ports.storage import ObjectStorage
 from transcribe_engine.domain.chunks import NORMALIZED_SAMPLE_RATE, Chunk
@@ -85,9 +86,11 @@ class VllmASR:
         *,
         name: str = "vllm",
         revision: str = "pending-s00",
+        aligner: Aligner | None = None,
     ) -> None:
         self._storage = storage
         self._client = client
+        self._aligner = aligner  # places text that has no word times (S14, D-070)
         self.name = name
         self.revision = revision
 
@@ -99,13 +102,16 @@ class VllmASR:
         wav = await self._window_as_wav(audio_key, start, end)
         body = await self._client.transcribe(wav, language=language, temperature=0.0)
         words = _words(body, chunk.sample_rate)
-        # Text with no word times cannot be placed in the file: refuse it, never return
-        # silence (D-067).
-        if not words and str(body.get("text", "")).strip():
+        text = str(body.get("text", "")).strip()
+        if words or not text:
+            return words
+        if self._aligner is None:
+            # Text with no word times cannot be placed in the file: refuse it, never return
+            # silence (D-067).
             raise PermanentError(
                 "vLLM returned text without word times; a forced aligner is required"
             )
-        return words
+        return await self._aligner.align(audio_key, chunk, text, language=language)
 
     async def _window_as_wav(self, audio_key: str, start: int, end: int) -> bytes:
         pcm = await read_window_pcm(self._storage, audio_key, start, end)
