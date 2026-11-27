@@ -8,11 +8,18 @@ can replace the log sink without changing callers (see D-052).
 import logging
 import time
 from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 
-__all__ = ["stage_span"]
+__all__ = ["LogTracer", "stage_span"]
 
 _log = logging.getLogger("transcribe_engine.trace")
+
+
+class LogTracer:
+    """The Tracer port over the log sink: one span per stage (S20)."""
+
+    def span(self, job_id: str, stage: str) -> AbstractContextManager[None]:
+        return stage_span(job_id, stage)
 
 
 @contextmanager
