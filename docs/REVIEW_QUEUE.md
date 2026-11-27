@@ -16,6 +16,7 @@ asking the next run to supersede the decision (add a line under "Instructions fo
 | R-011 | 2026-11-27 | S21 | Legal review of Egypt's Personal Data Protection Law (No. 151 of 2020) before production, and a decision on where GPUs and data run (region pinning per tenant) | Legal and residency questions are not the autopilot's to decide (AUTOPILOT §5) | Deletion, retention and audit are built and tested; no region pinning; production not enabled | D-059 |
 
 ## Instructions for the next run
+- The autopilot is blocked (state.blocked_reason): every slice has a first pass. Decide R-003 first; it unblocks the local demo, v0.3.0-local and final acceptance. Then R-004, R-005, R-008, R-009, R-010, R-011 in that order of impact.
 - S20 merged (PR #35). R-006: run promtool locally or accept the CI `alerts` job as the check. Follow-ups in BUILD_LOG S20: per-stage spans, metric call sites, secret encryption before S21.
 - PR #34 (S16) reviewed by the run: CI green, no xfail left, 23 evaluation tests pass. Not merged: it depends on partial S12. Decide the partial-dependency rule (D-054).
 - R-007 (next run): the autopilot is blocked because every remaining slice depends on a partial one (state.blocked_reason). Decide: may dependents proceed on partial dependencies, or do R-003/R-004/R-005 first?

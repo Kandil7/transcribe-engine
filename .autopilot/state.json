@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "status": "running",
+  "status": "blocked",
   "current": null,
   "remote": true,
   "iterations": 11,
@@ -194,5 +194,5 @@
     }
   },
   "statuses_help": "todo | in_progress | partial | blocked | done",
-  "blocked_reason": null
+  "blocked_reason": "Every slice S00-S22 has a merged first pass (PRs #1-#50). Remaining work needs owner decisions: R-003 (faster-whisper and model weights; production model; blocks the local demo and v0.3.0-local and final acceptance), R-004 and R-005 (licences, aligner model, viewer test; S13, S14, S15, S22 AC-2 real aligner), R-008 (default diarizer; S17 AC-4 and AC-5), R-009 (embedder and reranker; S18 AC-5 to AC-8), R-010 (LLM and where it runs; S19 real enricher and AC-6), R-011 (legal review; S21 production). Engineering follow-ups listed in BUILD_LOG (per-stage spans, metric values, DB-backed training export, re-index and events) do not unblock final acceptance, which needs a real ASR run on this machine."
 }
