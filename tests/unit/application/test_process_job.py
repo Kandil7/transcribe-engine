@@ -298,3 +298,27 @@ async def test_unprepared_job_is_retried_not_completed() -> None:
         await uow.commit()
     result = await helpers._process(make_uow, asr)(job)
     assert result.to == _mod("transcribe_engine.domain.jobs").JobState.COMPLETED
+
+
+@pytest.mark.xfail(strict=True, reason="S14")
+async def test_fallback_chunks_are_reported_as_warnings() -> None:
+    """A chunk whose words came from segment times (alignment failed) is reported as
+    `alignment_fallback:<idx>`; the job still completes (D-077).
+
+    Positive control: the same job with aligned words reports no fallback warning.
+    """
+    helpers = _mod("tests.unit.application.test_process_job")
+    fakes_asr = _mod("tests.fakes.asr")
+    merge = _mod("transcribe_engine.domain.merge")
+    job = helpers._job()
+    plan = helpers._plan(job)
+    _, make_uow = await helpers._seeded(job, plan)
+    fallback_script = {
+        chunk.chunk_id: (merge.RawWord("alpha", 10, 50, None, fallback=True),) for chunk in plan
+    }
+    result = await helpers._process(make_uow, fakes_asr.FakeASR(script=fallback_script))(job)
+    assert "alignment_fallback:0" in result.warnings
+
+    _, make_clean = await helpers._seeded(job, plan)
+    clean = await helpers._process(make_clean, fakes_asr.FakeASR(script=helpers._script(plan)))(job)
+    assert not [w for w in clean.warnings if w.startswith("alignment_fallback")]
