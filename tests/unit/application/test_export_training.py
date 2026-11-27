@@ -12,8 +12,6 @@ from dataclasses import asdict
 from types import ModuleType
 from typing import Any
 
-import pytest
-
 
 def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
@@ -51,7 +49,6 @@ def _items() -> list[Any]:
     ]
 
 
-@pytest.mark.xfail(strict=True, reason="S22")
 def test_consent_required() -> None:
     """AC-5: segments without consent are never exported.
 
@@ -67,7 +64,6 @@ def test_consent_required() -> None:
     assert all(line.audio != "audio/c.wav" for line in lines)
 
 
-@pytest.mark.xfail(strict=True, reason="S22")
 def test_manifest_fields() -> None:
     """AC-6: a line has exactly the spec's fields, and the values come from the segment and item."""
     training = _mod("transcribe_engine.domain.training")

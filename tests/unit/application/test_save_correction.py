@@ -57,7 +57,6 @@ def _edit() -> Any:
     return corrections.Edit(segment_id="s2", word_index_from=1, word_index_to=2, new_text="e")
 
 
-@pytest.mark.xfail(strict=True, reason="S22")
 async def test_unchanged_words_keep_times() -> None:
     """AC-1: after the save, every word that did not change keeps its old start and end.
 
@@ -79,7 +78,6 @@ async def test_unchanged_words_keep_times() -> None:
     assert words["e"] == (1010, 1020)  # new word, timed by the aligner
 
 
-@pytest.mark.xfail(strict=True, reason="S22")
 async def test_changed_segment_realigned_only() -> None:
     """AC-2: only the segment that changed is sent to the aligner.
 
@@ -93,7 +91,6 @@ async def test_changed_segment_realigned_only() -> None:
     assert aligner.calls == ["s2"]
 
 
-@pytest.mark.xfail(strict=True, reason="S22")
 async def test_stale_base_version_conflict() -> None:
     """AC-3: saving on a base version that is no longer the latest raises a conflict (409).
 

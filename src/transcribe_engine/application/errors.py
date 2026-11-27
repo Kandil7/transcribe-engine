@@ -13,7 +13,9 @@ __all__ = [
     "QuotaExceededError",
     "ResultNotAvailableError",
     "ResultNotReadyError",
+    "StaleVersionError",
     "TooManyActiveJobsError",
+    "TranscriptNotFoundError",
     "UnauthorizedError",
     "UnsupportedFeatureError",
     "UnsupportedLanguageError",
@@ -49,6 +51,20 @@ class JobNotFoundError(ApplicationError):
     status = 404
     code = "job_not_found"
     title = "Job not found"
+
+
+class TranscriptNotFoundError(ApplicationError):
+    status = 404
+    code = "transcript_not_found"
+    title = "Transcript not found"
+
+
+class StaleVersionError(ApplicationError):
+    """The base version is no longer the latest; the editor must reload and re-apply (S22 AC-3)."""
+
+    status = 409
+    code = "stale_version"
+    title = "The transcript changed since your base version"
 
 
 class ResultNotAvailableError(ApplicationError):
