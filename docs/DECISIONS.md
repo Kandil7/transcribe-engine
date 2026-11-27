@@ -1154,3 +1154,22 @@ Decision: A. Licences read from the installed package metadata: onnxruntime 'MIT
 Rationale: smallest runtime that runs the model; both licences are permissive.
 Reversibility: easy (a single adapter). Confidence: high.
 Applied in: feat(S14) commit 'add the aligner port and the wav2vec2 ONNX adapter'.
+
+## D-072 — Default diarizer: NVIDIA Sortformer v2 (CC-BY-4.0, ungated), adapter behind the port; NeMo not installed (R-008 a)
+Date: 2026-11-27 · Slice: S17 · Status: decided · Review: requested (R-008 b, c)
+Context: D-056 left the default unset until the owner approved a model. The owner asked for the best choice.
+Options: A) pyannote/speaker-diarization-3.1: MIT tag, but gated: two repos (3.1 and segmentation-3.0) need accepted terms
+and a token, and it runs on PyTorch. B) nvidia/diar_streaming_sortformer_4spk-v2 at 84edd514b8ef68004c10086918cd62f2148cbd59:
+CC-BY-4.0, not gated, runs on NeMo, limit 4 speakers. C) Sortformer v2.1: NVIDIA Open Model License, NeMo only, not
+checked for gating. D) Sortformer v1: CC-BY-NC-4.0, rejected (non-commercial).
+Decision: B. The adapter (infrastructure/diarization/sortformer.py) is behind the existing Diarizer port. NeMo is passed
+in; it is not added as a dependency in this change.
+Rationale: the only candidate that is both permissive and ungated, so no terms click or token is needed for it. Evidence
+for B, read from the official cards on 2026-11-27: licence cc-by-4.0 (card and API), gated false, speaker turns with times.
+The DER comparison that would decide between A and B needs the reference set (R-001), so this is a licence and access
+decision, not a quality one. It is provisional until R-001.
+Not done: the NeMo loader (a large dependency; its licence is not verified here), the gpu contract test (AC-5, DER), and
+the speaker count input (AC-4). These wait for owner approval of NeMo.
+Reversibility: easy (one adapter behind the port).
+Confidence: medium.
+Applied in: feat(S17) commits 3e95550 (tests) and b1bb63a (adapter).
