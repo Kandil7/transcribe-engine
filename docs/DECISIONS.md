@@ -1126,3 +1126,31 @@ Rationale: the owner accepted the remote-code risk on the GPU host. The pin make
 Reversibility: easy (one compose line).
 Confidence: medium. The vLLM endpoint has not been run; word times still depend on the aligner (R-005).
 Applied in: build(S12) commit on feat/R014-approved-vllm-pin.
+
+## D-070 — Forced aligner: parseh/aligner-ar (Apache-2.0, ONNX), pinned, with our own CTC Viterbi (R-005 part a)
+Date: 2026-11-27 · Slice: S14 · Status: decided · Review: none (chosen under the owner's direction: "implement the best choice")
+Context: D-067 chose Cohere Transcribe Arabic on vLLM, which returns no word timestamps. ADR-0007 makes forced alignment
+mandatory. R-005 asked the owner to choose the aligner and its licence.
+Options: A) torchaudio MMS_FA: CC-BY-NC-4.0, non-commercial, romanization needed. Rejected. B) parseh/aligner-ar: Apache-2.0
+(card and API tag), not gated, quantized ONNX (356 MB), derived from jonatasgrosman/wav2vec2-large-xlsr-53-arabic. C) An
+Arabic wav2vec2 CTC base without a clear licence. Rejected.
+Decision: B, pinned to 088bb8afed49b11e2a29a7a9b947b479e9ef3eaa. The CTC Viterbi that places characters is ours
+(domain/ctc.py, pure Python). The adapter (infrastructure/alignment/wav2vec2_aligner.py) runs the ONNX model.
+Rationale: the only candidate that is Apache-2.0 and not gated. ONNX avoids PyTorch. The model is public and not gated.
+Evidence checked on 2026-11-27: the card licence is apache-2.0; the API says gated false; vocab has <pad> (blank, id 0)
+and | (delimiter, id 4); input input_values, output logits [batch, frames, 51]. A real run on a 2.6 s clip placed five
+words in order inside the clip (smoke, not accuracy).
+Not measured: word-boundary error against a reference (AC-3 needs R-001). The base model's licence is unverified; the
+card says Apache-2.0 for the derivative only.
+Reversibility: easy (one settings pair and one adapter).
+Confidence: medium.
+Applied in: feat(S14) commits 4c658a2 .. 2c28fa1 on feat/S14-aligner-ctc-viterbi.
+
+## D-071 — Dependency: onnxruntime 1.32.0 (MIT) and protobuf 7.36.2 (BSD-3-Clause, transitive)
+Date: 2026-11-27 · Slice: S14 · Status: decided · Review: none
+Context: the aligner needs an ONNX runtime. S14 spec names the adapter. AUTOPILOT §5 requires a licence record for each dependency.
+Options: A) onnxruntime (CPU). B) torch with transformers for the same model (much larger). C) No aligner.
+Decision: A. Licences read from the installed package metadata: onnxruntime 'MIT License'; protobuf '3-Clause BSD License'.
+Rationale: smallest runtime that runs the model; both licences are permissive.
+Reversibility: easy (a single adapter). Confidence: high.
+Applied in: feat(S14) commit 'add the aligner port and the wav2vec2 ONNX adapter'.
