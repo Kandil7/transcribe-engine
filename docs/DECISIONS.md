@@ -1173,3 +1173,27 @@ the speaker count input (AC-4). These wait for owner approval of NeMo.
 Reversibility: easy (one adapter behind the port).
 Confidence: medium.
 Applied in: feat(S17) commits 3e95550 (tests) and b1bb63a (adapter).
+
+## D-073 — This machine's GPU: CUDA 12.6 torch 2.14.1, installed locally, not in the lock file
+Date: 2026-11-27 · Slice: repo · Status: decided · Review: none
+Context: the Quadro RTX 5000 (Turing, sm_75, driver 580) was unused: the locked torch is the CPU build. No CUDA
+build of the locked torch 2.15.0 exists on the PyTorch indexes checked (cu126, cu128, cu130).
+Options: A) Change the lock to a CUDA build for all platforms (CI would download CUDA libraries). B) Install a CUDA build
+locally only, as make targets. C) Keep CPU.
+Decision: B. make gpu-torch installs torch==2.14.1 from the cu126 index into the local environment; make gpu-check verifies.
+Rationale: CUDA 12.6 supports Turing; the driver runs it. The lock and CI stay unchanged.
+Verified 2026-11-27: torch 2.14.1+cu126 sees the Quadro RTX 5000; a half-precision product matches (float32 sum 262144).
+Reversibility: easy. Confidence: high.
+Applied in: build(repo) commit adding the make targets (PR #67).
+
+## D-074 — Packages for the Cohere ASR custom code: librosa, soundfile, sentencepiece (ml extra)
+Date: 2026-11-27 · Slice: S12 · Status: decided · Review: none
+Context: loading CohereLabs/cohere-transcribe-arabic-07-2026 runs the repo's own code, which imports librosa, soundfile and
+sentencepiece. The model's custom code is needed for the local load test.
+Options: A) Add the three to the ml extra. B) Leave them out and load without the processor (not possible for the card's API).
+Decision: A. Added to the ml extra only; CI does not install the ml extra. Lock refreshed.
+Licences read from installed metadata: librosa 1.0.1 ISC; soundfile 0.14.0 BSD-3-Clause; sentencepiece 0.2.3 Apache-2.0
+(License-Expression). Transitive: numba 0.68.1 BSD, soxr 1.1.0, threadpoolctl 3.8.0, pooch, lazy-loader, scikit-learn.
+Verified 2026-11-27: offline load of the processor, and the model (CohereAsrForConditionalGeneration, float16, GPU) from the
+hub cache at c3e911b…; the model transcribes the 2.64 s demo clip, 0.53 s on the second run. Accuracy not measured (R-001).
+Reversibility: easy. Confidence: high.
