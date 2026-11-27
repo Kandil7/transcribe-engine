@@ -23,6 +23,7 @@ from transcribe_engine.application.use_cases.process_job import ProcessJob
 from transcribe_engine.application.use_cases.publish_outbox import OutboxPublisher
 from transcribe_engine.application.use_cases.save_correction import SaveCorrection
 from transcribe_engine.domain.chunks import NORMALIZED_SAMPLE_RATE
+from transcribe_engine.infrastructure.alignment.load import load_wav2vec2_aligner
 from transcribe_engine.infrastructure.alignment.unavailable import UnavailableAligner
 from transcribe_engine.infrastructure.asr.plumbing import PlumbingASR
 from transcribe_engine.infrastructure.asr.vllm_client import VllmASR, VllmClient
@@ -108,7 +109,14 @@ def _asr_engine(storage: ObjectStorage, settings: Settings, *, load: bool) -> AS
         return PlumbingASR()
     if settings.asr_engine == "vllm":
         client = VllmClient(settings.vllm_url, settings.vllm_model)
-        return VllmASR(storage, client)
+        # The aligner places text that has no word times (D-067, D-070).
+        # Only the GPU worker loads it.
+        aligner = (
+            load_wav2vec2_aligner(storage, settings.aligner_model_id, settings.aligner_revision)
+            if load
+            else None
+        )
+        return VllmASR(storage, client, aligner=aligner)
     if settings.asr_engine == "whisper_local":
         engine = WhisperLocalASR(
             storage, model_id=settings.asr_model_id, device=settings.asr_device

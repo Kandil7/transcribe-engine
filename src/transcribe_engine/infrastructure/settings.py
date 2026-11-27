@@ -43,6 +43,14 @@ class Settings(BaseSettings):
     )
     asr_device: Literal["cuda", "cpu"] | None = None  # None: cuda when available, else cpu
     vllm_url: str = "http://vllm:8000"  # the vLLM service in compose (ADR-0005, D-067)
+    aligner_model_id: str = Field(
+        default="parseh/aligner-ar",  # Apache-2.0 Arabic CTC aligner (D-070)
+        pattern=r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",
+    )
+    aligner_revision: str = Field(
+        default="088bb8afed49b11e2a29a7a9b947b479e9ef3eaa",  # reviewed commit (D-070)
+        pattern=r"^[0-9a-f]{40}$",  # a full commit, never a branch name
+    )
     vllm_model: str = Field(
         default="CohereLabs/cohere-transcribe-arabic-07-2026",  # production default (D-067)
         pattern=r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",  # a repo id, never a local path
