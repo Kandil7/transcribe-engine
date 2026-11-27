@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "status": "blocked",
+  "status": "running",
   "current": null,
   "remote": true,
   "iterations": 11,
@@ -106,7 +106,7 @@
       "branch": "feat/S10-result-refs",
       "merged": null,
       "tag": null,
-      "notes": "Parts 1-3 done. Planner, merge, ports, persistence (0005, 0006), PrepareChunks, ProcessJob, worker runtime, result endpoint, make dev and demo verified on this machine (demo output empty by design: plumbing ASR and VAD, D-035). Tags: v0.2.0 is due after S10 per the autopilot table."
+      "notes": "Parts 1-3 done. Planner, merge, ports, persistence (0005, 0006), PrepareChunks, ProcessJob, worker runtime, result endpoint, make dev and demo verified on this machine (demo output empty by design: plumbing ASR and VAD, D-035). Tags: v0.2.0 is due after S10 per the autopilot table. Fixes merged: prepared fence (D-064) and job-scoped chunk ids (D-065), found by the local demo."
     },
     "S11": {
       "status": "done",
@@ -118,9 +118,9 @@
     "S12": {
       "status": "partial",
       "branch": "feat/S12-asr-adapters",
-      "merged": "d02504a",
+      "merged": "80e0ef3",
       "tag": null,
-      "notes": "Merged to main via PR #30 (partial). vLLM adapter, capabilities, hallucination filter. Deferred: faster-whisper adapter and deploy config (D-043, R-003), AC-2 gpu, AC-6, suspect flags on result. Integration tests passed in CI."
+      "notes": "Local ASR merged (PRs #53, #54): whisper-large-v3-turbo from the local cache (D-063). Local demo verified on a real Arabic clip. Deferred: CUDA torch build, production vLLM model (R-003 part b), accuracy measurement (R-001)."
     },
     "S13": {
       "status": "partial",
@@ -194,5 +194,5 @@
     }
   },
   "statuses_help": "todo | in_progress | partial | blocked | done",
-  "blocked_reason": "Every slice S00-S22 has a merged first pass (PRs #1-#50). Remaining work needs owner decisions: R-003 (faster-whisper and model weights; production model; blocks the local demo and v0.3.0-local and final acceptance), R-004 and R-005 (licences, aligner model, viewer test; S13, S14, S15, S22 AC-2 real aligner), R-008 (default diarizer; S17 AC-4 and AC-5), R-009 (embedder and reranker; S18 AC-5 to AC-8), R-010 (LLM and where it runs; S19 real enricher and AC-6), R-011 (legal review; S21 production). Engineering follow-ups listed in BUILD_LOG (per-stage spans, metric values, DB-backed training export, re-index and events) do not unblock final acceptance, which needs a real ASR run on this machine."
+  "blocked_reason": null
 }
