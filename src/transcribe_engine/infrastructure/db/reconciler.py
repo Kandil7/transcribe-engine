@@ -18,6 +18,7 @@ from transcribe_engine.infrastructure.db.session import SYSTEM_SCOPE
 from transcribe_engine.infrastructure.db.uow import translate_db_error
 from transcribe_engine.infrastructure.observability.metrics import (
     LEASE_EXPIRIES,
+    QUEUE_DEPTH_JOBS,
     QUEUE_OLDEST_JOB_SECONDS,
 )
 
@@ -51,7 +52,7 @@ _POISON = text(
 
 _OLDEST_QUEUED = text(
     """
-    SELECT queue, EXTRACT(EPOCH FROM now() - min(created_at)) AS age
+    SELECT queue, count(*) AS depth, EXTRACT(EPOCH FROM now() - min(created_at)) AS age
     FROM jobs WHERE state = 'QUEUED' GROUP BY queue
     """
 )
@@ -118,8 +119,11 @@ class SqlReconciler:
                     )
                 requeued = len((await conn.execute(_REQUEUE_DUE)).all())
                 LEASE_EXPIRIES.inc(len(expired))
-                oldest = {row.queue: float(row.age) for row in (await conn.execute(_OLDEST_QUEUED))}
+                queued = (await conn.execute(_OLDEST_QUEUED)).all()
+                oldest = {row.queue: float(row.age) for row in queued}
+                depth = {row.queue: int(row.depth) for row in queued}
             for queue in ("cpu", "gpu"):
+                QUEUE_DEPTH_JOBS.labels(queue=queue).set(depth.get(queue, 0))
                 QUEUE_OLDEST_JOB_SECONDS.labels(queue=queue).set(oldest.get(queue, 0.0))
         except SQLAlchemyError as exc:
             raise translate_db_error(exc) from exc
