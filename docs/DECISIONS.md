@@ -1114,3 +1114,15 @@ Rationale: the record must match the source; a wrong licence entry is a complian
 Reversibility: easy (documentation only).
 Confidence: medium (card metadata, not the legal text of the repository).
 Applied in: docs commit on feat/R003b-vllm-model.
+
+## D-069 — Owner approval of R-014: trust-remote-code and the pinned vLLM revision
+Date: 2026-11-27 · Slice: S12 · Status: decided · Review: none (owner decision recorded)
+Context: D-067 chose Cohere Transcribe Arabic 07-2026 on vLLM. Its card requires --trust-remote-code, and the repo is
+gated. R-014 asked the owner to approve both and to pin a reviewed revision.
+Decision (owner, 2026-11-27): approved. The compose service pins --revision c3e911b42149bf7a1e53d5cef9878aee87515a23 and
+passes HF_TOKEN from the environment. The owner must accept the model's terms on Hugging Face before the first run; this
+was not done by the agent.
+Rationale: the owner accepted the remote-code risk on the GPU host. The pin makes the loaded code the reviewed code.
+Reversibility: easy (one compose line).
+Confidence: medium. The vLLM endpoint has not been run; word times still depend on the aligner (R-005).
+Applied in: build(S12) commit on feat/R014-approved-vllm-pin.
