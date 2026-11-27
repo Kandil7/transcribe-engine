@@ -1064,3 +1064,12 @@ Branch: fix/S20-publisher-shutdown   Merged: pending PR
 - The publisher worker never closed its webhook HTTP client. `run_publisher` now closes the sender in a finally block in the same event loop. A new unit test (tests/unit/test_worker_publisher.py) checks the close, with a positive control that the loop ran.
 - Webhook secret encryption was checked: no code writes webhook_secrets, so nothing is stored in plaintext today. Recorded as a precondition of the writer (D-066, R-012).
 - Verification: make check 322 passed, 1 skipped; make itest 95 passed.
+
+## S12 — production ASR default (R-003 part b), 2026-11-27
+Branch: feat/R003b-vllm-model   Merged: PR pending
+- Chose the production model with D-067 after checking the candidates' licences and runtimes on their public pages (Audar: community licence with commercial limits, GGUF runtime; Cohere Transcribe Arabic: Apache-2.0, vLLM documented, no word timestamps; Whisper on vLLM: word timestamps unverified).
+- The vLLM engine is selectable with TE_ASR_ENGINE=vllm (TE_VLLM_URL, TE_VLLM_MODEL). It refuses text without word times (test_vllm_words), and it requires complete text like the local engine.
+- Compose: vllm service under --profile asr-gpu (host 8001). Validated with docker compose config in both profiles. NOT run: no Ampere-class GPU here, and the image tag and model revision are unverified.
+- D-068 corrects the Whisper licence record to Apache-2.0 on its card.
+- Verification: make check 326 passed, 1 skipped; make itest 95 passed.
+- Open: R-005 (the aligner) is now needed for production word times; R-014 (trust-remote-code approval and revision pin).
