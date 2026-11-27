@@ -22,7 +22,6 @@ def _settings(**overrides: Any) -> Any:
     return _mod("transcribe_engine.infrastructure.settings").Settings(**overrides)
 
 
-@pytest.mark.xfail(strict=True, reason="S12")
 def test_vllm_engine_is_selected_by_configuration() -> None:
     main = _mod("transcribe_engine.main")
     vllm = _mod("transcribe_engine.infrastructure.asr.vllm_client")

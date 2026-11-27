@@ -25,6 +25,7 @@ from transcribe_engine.application.use_cases.save_correction import SaveCorrecti
 from transcribe_engine.domain.chunks import NORMALIZED_SAMPLE_RATE
 from transcribe_engine.infrastructure.alignment.unavailable import UnavailableAligner
 from transcribe_engine.infrastructure.asr.plumbing import PlumbingASR
+from transcribe_engine.infrastructure.asr.vllm_client import VllmASR, VllmClient
 from transcribe_engine.infrastructure.asr.whisper_local import WhisperLocalASR
 from transcribe_engine.infrastructure.clock import SystemClock
 from transcribe_engine.infrastructure.db.outbox import SqlOutboxStore, SqlWebhookSecrets
@@ -105,6 +106,9 @@ def _asr_engine(storage: ObjectStorage, settings: Settings, *, load: bool) -> AS
     The plumbing engine returns no words; use it only to test the pipeline itself (D-035)."""
     if settings.asr_engine == "plumbing":
         return PlumbingASR()
+    if settings.asr_engine == "vllm":
+        client = VllmClient(settings.vllm_url, settings.vllm_model)
+        return VllmASR(storage, client)
     if settings.asr_engine == "whisper_local":
         engine = WhisperLocalASR(
             storage, model_id=settings.asr_model_id, device=settings.asr_device
@@ -150,7 +154,7 @@ def build_handlers(
         language="ar",
         concurrency=settings.asr_concurrency,
         # A chunk the model cannot read fails the job, not a silent transcript with a gap (review).
-        require_complete_text=settings.asr_engine == "whisper_local",
+        require_complete_text=settings.asr_engine in ("whisper_local", "vllm"),
         tracer=tracer,
     )
     return ingest, process
