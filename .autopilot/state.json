@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "status": "running",
+  "status": "blocked",
   "current": null,
   "remote": true,
   "iterations": 11,
@@ -194,5 +194,5 @@
     }
   },
   "statuses_help": "todo | in_progress | partial | blocked | done",
-  "blocked_reason": null
+  "blocked_reason": "No eligible slice remains without an owner decision. Open: R-001 (human reference hour), R-003 (b) production vLLM model, R-004 and R-005 (licences, aligner model), R-008 (diarizer, gated terms), R-009 and R-010 (embedder, reranker, LLM), R-011 (Egyptian data protection review and GPU residency), R-012 (webhook secret master key source), R-013 (privacy rules for the training export). Engineering that does not need a decision is done: S20 publisher shutdown (PR #59)."
 }

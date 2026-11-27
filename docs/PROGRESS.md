@@ -2,7 +2,7 @@
 
 Kept in sync with `.autopilot/state.json` by the autopilot. Status: `todo` · `in_progress` · `partial` · `blocked` · `done`.
 
-**Autopilot status:** running   **Current slice:** —   **Last update:** 2026-11-27 (state synced after the local ASR and S10 fixes)
+**Autopilot status:** blocked on owner decisions (see docs/REVIEW_QUEUE.md)   **Last update:** 2026-11-27
 
 | Order | Slice | Title | Status | Branch | Merged (main) | Tag | Notes |
 |---|---|---|---|---|---|---|---|
