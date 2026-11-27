@@ -211,7 +211,7 @@ Defaults suit local development.
 | `TE_DATABASE_URL` | local Postgres | Owner connection (migrations and workers). |
 | `TE_S3_ENDPOINT_URL`, `TE_S3_ACCESS_KEY`, `TE_S3_SECRET_KEY`, `TE_S3_BUCKET` | local MinIO | Object storage. Local values are throwaway. |
 | `TE_SCRATCH_DIR` | `.scratch` | Ingest and FFmpeg work files (git-ignored). |
-| `TE_ASR_ENGINE` | `whisper_local` | `whisper_local`, `vllm` or `plumbing` (tests only). |
+| `TE_ASR_ENGINE` | `whisper_local` | `whisper_local`, `cohere_local`, `vllm` or `plumbing` (tests only). |
 | `TE_ASR_MODEL_ID` | `openai/whisper-large-v3-turbo` | Local Whisper model (repository id, never a path). |
 | `TE_ASR_DEVICE` | unset | `cuda` or `cpu`. Unset: CUDA when torch sees a GPU. |
 | `TE_VLLM_URL` | `http://vllm:8000` | The vLLM service (compose profile `asr-gpu`). |
@@ -235,6 +235,7 @@ Every engine implements the same port. Choosing one is configuration, never a co
 | Engine | Where it runs | Word times | Status |
 |---|---|---|---|
 | `whisper_local`: `openai/whisper-large-v3-turbo` via transformers | This machine (CPU, or CUDA when available) | Native | Default locally. Verified on a real clip. About 14 s per 2 s clip on CPU, so use the GPU for real volumes. |
+| `cohere_local`: `CohereLabs/cohere-transcribe-arabic-07-2026` via transformers, pinned to `c3e911b…` | This machine (CUDA float16 when available) | None; placed by the aligner | Verified to load offline and transcribe on the GPU (D-076). Accuracy unmeasured (D-075). |
 | `vllm`: `CohereLabs/cohere-transcribe-arabic-07-2026` | vLLM service, compose profile `asr-gpu`, BF16 on Ampere or newer | None; placed by the aligner | Production default (D-067). Needs an accepted model licence and a token. Not run here yet. |
 | `plumbing` | Nowhere | None | Tests of the pipeline only. Produces no words. |
 
