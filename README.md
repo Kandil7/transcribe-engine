@@ -114,6 +114,7 @@ main.py: the only composition root ─────┘
 
 ```bash
 make setup        # uv sync and git hooks
+make setup-ml     # the ML extra (torch and friends): needed by the gpu worker in make dev
 make up           # Postgres (pgvector) and MinIO in Docker
 make check        # the gate: lint, types, import rules, unit tests
 make migrate      # apply database migrations
