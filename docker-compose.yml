@@ -29,12 +29,16 @@ services:
       retries: 30
 
   # Production-like ASR on a GPU (ADR-0005, D-067). Only with `--profile asr-gpu`: it needs an NVIDIA
-  # GPU with BF16 (Ampere or newer). The model is pinned by repo id; add a revision when it is verified.
+  # GPU with BF16 (Ampere or newer).
   # --trust-remote-code runs code from the model repo; review it before enabling (REVIEW_QUEUE R-014).
   vllm:
     profiles: ["asr-gpu"]
     image: vllm/vllm-openai:v0.19.0
-    command: ["--model", "CohereLabs/cohere-transcribe-arabic-07-2026", "--dtype", "bfloat16", "--trust-remote-code", "--port", "8000"]
+    # Model pinned to the reviewed commit (R-014, approved 2026-11-27). The model is gated: the access
+    # token is read from the environment at run time and is never written here.
+    command: ["--model", "CohereLabs/cohere-transcribe-arabic-07-2026", "--revision", "c3e911b42149bf7a1e53d5cef9878aee87515a23", "--dtype", "bfloat16", "--trust-remote-code", "--port", "8000"]
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
     ports: ["8001:8000"]  # host 8001: the dev API uses host 8000
     volumes: [hfcache:/root/.cache/huggingface]
     deploy:
