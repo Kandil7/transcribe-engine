@@ -59,6 +59,9 @@ class WhisperLocalASR:
         self._device = device
         self._pipeline = pipeline
         self._load_lock = asyncio.Lock()
+        self._load_error: PermanentError | None = (
+            None  # a failed load is remembered, not retried (review)
+        )
         self.revision = revision or _cached_revision(model_id)
 
     async def transcribe(
@@ -77,14 +80,28 @@ class WhisperLocalASR:
             samples,
             _LANGUAGE_NAMES.get(language, language),
         )
-        return words_from_output(output, chunk.sample_rate)
+        try:
+            return words_from_output(output, chunk.sample_rate)
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise PermanentError("the model returned an unreadable word") from exc
+
+    def load(self) -> None:
+        """Load the model now, so a missing or broken cache stops the worker at startup (D-063)."""
+        if self._pipeline is None:
+            self._pipeline = _load_pipeline(self._model_id, self._device, self.revision)
 
     async def _ensure_pipeline(self) -> Pipeline:
         async with self._load_lock:
             if self._pipeline is None:
-                self._pipeline = await asyncio.to_thread(
-                    _load_pipeline, self._model_id, self._device
-                )
+                if self._load_error is not None:
+                    raise self._load_error
+                try:
+                    self._pipeline = await asyncio.to_thread(
+                        _load_pipeline, self._model_id, self._device, self.revision
+                    )
+                except PermanentError as exc:
+                    self._load_error = exc
+                    raise
             return self._pipeline
 
 
@@ -143,7 +160,9 @@ def _cached_revision(model_id: str) -> str:
         raise PermanentError(f"model {model_id} is not in the local cache") from exc
 
 
-def _load_pipeline(model_id: str, device: str | None) -> Pipeline:
+def _load_pipeline(model_id: str, device: str | None, revision: str) -> Pipeline:
+    if device not in (None, "cuda", "cpu"):
+        raise PermanentError("device must be cuda, cpu or unset")
     import torch  # noqa: PLC0415 - lazy: torch is an optional extra, absent in CI (D-063)
     from transformers import (  # noqa: PLC0415 - lazy, same reason as torch
         WhisperForConditionalGeneration,
@@ -155,9 +174,15 @@ def _load_pipeline(model_id: str, device: str | None) -> Pipeline:
     target = "cuda" if use_cuda else "cpu"
     dtype = torch.float16 if use_cuda else torch.float32
     try:
-        processor = WhisperProcessor.from_pretrained(model_id, local_files_only=True)
+        processor = WhisperProcessor.from_pretrained(
+            model_id, revision=revision, local_files_only=True
+        )
         model = WhisperForConditionalGeneration.from_pretrained(
-            model_id, local_files_only=True, dtype=dtype
+            model_id,
+            revision=revision,
+            local_files_only=True,
+            use_safetensors=True,  # no pickle: only safetensors weights are loaded (review)
+            dtype=dtype,
         )
         model = model.to(target)  # type: ignore[arg-type]  # transformers types .to loosely
     except OSError as exc:

@@ -104,7 +104,11 @@ def _asr_engine(storage: ObjectStorage, settings: Settings) -> ASREngine:
     if settings.asr_engine == "plumbing":
         return PlumbingASR()
     if settings.asr_engine == "whisper_local":
-        return WhisperLocalASR(storage, model_id=settings.asr_model_id, device=settings.asr_device)
+        engine = WhisperLocalASR(
+            storage, model_id=settings.asr_model_id, device=settings.asr_device
+        )
+        engine.load()  # a missing or broken model stops the worker here, not per chunk (review)
+        return engine
     raise ValueError(f"unknown TE_ASR_ENGINE: {settings.asr_engine}")
 
 
@@ -139,5 +143,7 @@ def build_handlers(
         _asr_engine(storage, settings),
         language="ar",
         concurrency=settings.asr_concurrency,
+        # A chunk the model cannot read fails the job, not a silent transcript with a gap (review).
+        require_complete_text=settings.asr_engine == "whisper_local",
     )
     return ingest, process
