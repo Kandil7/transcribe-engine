@@ -12,7 +12,7 @@ from testcontainers.community.postgres import PostgresContainer
 pytestmark = pytest.mark.integration
 
 ROOT = Path(__file__).resolve().parents[2]
-HEAD = "0007_webhooks_outbox"  # D-049: moved from 0006 when S20 added webhook columns
+HEAD = "0008_deletion_retention_audit"  # D-059: moved from 0007 when S21 added audit and consent
 
 
 def _alembic_config() -> Config:
