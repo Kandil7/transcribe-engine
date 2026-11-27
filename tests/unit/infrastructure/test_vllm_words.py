@@ -18,8 +18,8 @@ import httpx
 import numpy as np
 import pytest
 
-from tests.fakes.aligner import FakeAligner
 from tests.fakes.storage import FakeObjectStorage
+from tests.fakes.word_aligner import FakeWordAligner
 from transcribe_engine.domain.chunks import Chunk
 from transcribe_engine.domain.errors import PermanentError
 
@@ -99,7 +99,7 @@ async def test_text_without_word_times_is_aligned_when_an_aligner_is_wired() -> 
             lambda _r: httpx.Response(200, json={"text": "مرحبا بكم", "words": []})
         ),
     )
-    aligner = FakeAligner()
+    aligner = FakeWordAligner()
     words = await vllm.VllmASR(storage, client, aligner=aligner).transcribe(
         "work/t/j/audio.wav", _chunk(), language="ar"
     )
