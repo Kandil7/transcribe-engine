@@ -6,6 +6,8 @@ from types import ModuleType
 
 import pytest
 
+from transcribe_engine.domain.chunks import SpeechRegion, plan_chunks
+
 
 def _mod(name: str) -> ModuleType:
     return importlib.import_module(f"transcribe_engine.domain.{name}")
@@ -124,3 +126,32 @@ def test_rejects_float_ids_and_positions() -> None:
         keys.chunk_id("a" * 64, "b" * 64, 3, 16_000.0, 32_000)
     with pytest.raises(TypeError):
         keys.rag_chunk_id("tr", 1, 1000.0, 4500)
+
+
+@pytest.mark.xfail(strict=True, reason="S10")
+def test_chunk_ids_are_job_scoped() -> None:
+    """The same audio processed by two jobs gets each job its own chunk ids.
+
+    A content-only id let the second job's chunk rows collide with the first job's, so they were
+    dropped and the transcript came back empty. Positive control: the same job and the same inputs
+    give the same id, so a re-run skips saved chunks.
+    """
+
+    def plan(job_id: str) -> tuple[str, ...]:
+        chunks = plan_chunks(
+            [SpeechRegion(544, 42_240)],
+            max_samples=480_000,
+            pad=8_000,
+            total_samples=42_240,
+            sample_rate=16_000,
+            media_sha256="a" * 64,
+            config_hash="b" * 64,
+            job_id=job_id,
+        )
+        return tuple(c.chunk_id for c in chunks)
+
+    first, second = plan("job-a"), plan("job-b")
+    assert first
+    assert second
+    assert set(first).isdisjoint(second)
+    assert plan("job-a") == first
