@@ -83,7 +83,6 @@ async def test_positive_controls_words_and_silence() -> None:
     assert await _transcribe({"text": "", "words": []}) == ()
 
 
-@pytest.mark.xfail(strict=True, reason="S14")
 async def test_text_without_word_times_is_aligned_when_an_aligner_is_wired() -> None:
     """With an aligner, the text is placed on the audio and gets word times (S14, D-070).
 
