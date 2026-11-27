@@ -1062,3 +1062,18 @@ Rationale: A is the smallest change that makes the id unique per job; B changes 
 Reversibility: easy (ids are recomputed; no stored ids outlive a plan).
 Confidence: high.
 Applied in: the feat(S10) job-scoped chunk id commit.
+
+## D-066 — S20 webhook secrets: encryption at rest is a precondition for the writer, not a fix now
+Date: 2026-11-27 · Slice: S20 · Status: decided · Review: requested
+Context: the S20 notes say "secrets plaintext at rest (D-049), encrypt before S21". Checking the code: nothing writes
+to webhook_secrets. The table is only read (outbox.py). So no secret is stored today, and there is no plaintext to
+protect. Neither the spec nor the design requires encryption at rest.
+Options: A) Add AES-GCM now with a new dependency (cryptography) and a master key from an env var. B) Keep the table
+read-only and record encryption as a requirement of the secret writer, built with its key source. C) Build the writer now.
+Decision: B. The writer is not built, so encrypting now would protect nothing and add a dependency the spec does not
+need. The writer, when built, must store only ciphertext. The master key source (environment variable or a KMS) is a
+deployment decision and is requested from the owner (REVIEW_QUEUE R-012).
+Rationale: AUTOPILOT §1 (safety first) is met because no secret exists to leak. §5: the dependency is not needed by
+any spec yet, so it is not added. Reversible: moderate (the writer is not built).
+Confidence: high.
+Applied in: docs commit on fix/S20-publisher-shutdown.
