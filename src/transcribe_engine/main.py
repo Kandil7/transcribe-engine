@@ -4,6 +4,7 @@ Wires Ports to Adapters. The API app (S08) and the worker handlers (S10) are bui
 entry point in `worker.py` calls these builders and runs the loops.
 """
 
+from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from pathlib import Path
 from typing import cast
@@ -31,7 +32,7 @@ from transcribe_engine.infrastructure.settings import Settings
 from transcribe_engine.infrastructure.storage.s3 import S3ObjectStorage
 from transcribe_engine.presentation.api.app import create_app
 
-__all__ = ["build_app", "build_handlers", "build_publisher", "build_storage"]
+__all__ = ["build_app", "build_handlers", "build_make_uow", "build_publisher", "build_storage"]
 
 
 def _uow(engine: AsyncEngine, tenant_id: str | None) -> AbstractAsyncContextManager[UnitOfWork]:
@@ -45,6 +46,17 @@ def build_app(engine: AsyncEngine, storage: ObjectStorage) -> FastAPI:
         return _uow(engine, tenant_id)
 
     return create_app(make_uow, storage, SystemClock())
+
+
+def build_make_uow(
+    engine: AsyncEngine,
+) -> Callable[[str | None], AbstractAsyncContextManager[UnitOfWork]]:
+    """The unit-of-work factory for the worker processes (S21 sweeper, S20 publisher)."""
+
+    def make_uow(tenant_id: str | None) -> AbstractAsyncContextManager[UnitOfWork]:
+        return _uow(engine, tenant_id)
+
+    return make_uow
 
 
 def build_publisher(engine: AsyncEngine, owner: str) -> OutboxPublisher:

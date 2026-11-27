@@ -39,6 +39,10 @@ class DeletionStore(Protocol):
         """One audit row. `detail` holds counts and flags only, never content (AC-3)."""
         ...
 
+    async def requested_deletions(self) -> tuple[tuple[str, str], ...]:
+        """(tenant, job) pairs marked by DELETE and not yet removed."""
+        ...
+
     async def expired_audio(self, now: datetime) -> tuple[tuple[str, str], ...]:
         """(tenant, job) pairs whose audio is past the tenant's retention and not yet removed."""
         ...

@@ -12,7 +12,7 @@ from transcribe_engine.application.ports.clock import Clock
 from transcribe_engine.application.ports.repositories import UnitOfWork
 from transcribe_engine.application.ports.storage import ObjectStorage
 
-__all__ = ["DeleteJobData", "DeletionReport"]
+__all__ = ["DeleteJobData", "DeletionReport", "run_requested_deletions"]
 
 MakeUow = Callable[[str | None], AbstractAsyncContextManager[UnitOfWork]]
 EVENT = "job.deleted"
@@ -56,6 +56,17 @@ class DeleteJobData:
             rows_deleted=dict(outcome.rows_deleted),
             result_released=outcome.result_released,
         )
+
+
+async def run_requested_deletions(make_uow: MakeUow, storage: ObjectStorage, clock: Clock) -> int:
+    """Delete every job whose DELETE was requested (S08 marks, S21 removes). Returns how many were
+    processed. A job already removed is a no-op (AC-5)."""
+    async with make_uow(None) as uow:
+        pending = await uow.deletions.requested_deletions()
+    deleter = DeleteJobData(make_uow, storage, clock)
+    for tenant_id, job_id in pending:
+        await deleter(tenant_id, job_id)
+    return len(pending)
 
 
 async def delete_storage(storage: ObjectStorage, keys: tuple[str, ...]) -> int:

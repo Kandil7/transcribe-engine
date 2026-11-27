@@ -309,3 +309,70 @@ async def test_delete_is_idempotent(pg_url: str, minio: MinioContainer) -> None:
         assert second.result_released is False
     finally:
         await engine.dispose()
+
+
+async def test_requested_deletion_is_processed(pg_url: str, minio: MinioContainer) -> None:
+    """S08 DELETE marks a job; the sweeper's requested-deletion run removes it and its audio (S21).
+    Positive control: the job and its audio exist after the mark and before the run."""
+    request = _mod("transcribe_engine.application.use_cases.request_deletion")
+    deletion = _mod("transcribe_engine.application.use_cases.delete_job_data")
+    keys = _mod("transcribe_engine.domain.storage_keys")
+    engine = create_async_engine(pg_url)
+    storage = _storage(minio)
+    make_uow = _make_uow(engine)
+    job = "s21-requested"
+    try:
+        await _seed(
+            engine, storage, tenant=TENANT_A, job_id=job, sha="f6" * 32, result_key="rk-req"
+        )
+        await request.RequestDeletion(make_uow, _clock())(TENANT_A, job)
+        assert await _count(engine, "jobs", job) == 1
+        assert await storage.head(keys.work_key(TENANT_A, job, "audio.wav")) is not None
+
+        await deletion.run_requested_deletions(make_uow, storage, _clock())
+
+        assert await _count(engine, "jobs", job) == 0
+        assert await storage.head(keys.work_key(TENANT_A, job, "audio.wav")) is None
+    finally:
+        await engine.dispose()
+
+
+async def test_retention_sweep_on_postgres(pg_url: str, minio: MinioContainer) -> None:
+    """Expired audio is removed on real Postgres.
+
+    A job older than its tenant's 30 days loses its audio and gets audio_deleted_at; its transcript
+    stays. Positive control: a fresh job keeps its audio."""
+    sweeper = _mod("transcribe_engine.application.use_cases.retention_sweeper")
+    keys = _mod("transcribe_engine.domain.storage_keys")
+    engine = create_async_engine(pg_url)
+    storage = _storage(minio)
+    old, fresh = "s21-sweep-old", "s21-sweep-fresh"
+    try:
+        await _seed(
+            engine, storage, tenant=TENANT_B, job_id=old, sha="a7" * 32, result_key="rk-sw1"
+        )
+        await _seed(
+            engine, storage, tenant=TENANT_B, job_id=fresh, sha="b8" * 32, result_key="rk-sw2"
+        )
+        async with engine.begin() as conn:
+            await conn.execute(
+                text("UPDATE jobs SET created_at = now() - interval '40 days' WHERE id = :job"),
+                {"job": old},
+            )
+        now = _clock().now()  # type: ignore[attr-defined]
+        report = await sweeper.RetentionSweeper(_make_uow(engine), storage).run_once(now)
+
+        assert report.audio_deleted >= 1
+        assert await storage.head(keys.work_key(TENANT_B, old, "audio.wav")) is None
+        assert await storage.head(keys.work_key(TENANT_B, fresh, "audio.wav")) is not None
+        assert await _count(engine, "transcripts", old) == 1
+        async with engine.connect() as conn:
+            marked = (
+                await conn.execute(
+                    text("SELECT audio_deleted_at IS NOT NULL FROM jobs WHERE id = :job"),
+                    {"job": old},
+                )
+            ).scalar_one()
+        assert marked is True
+    finally:
+        await engine.dispose()
