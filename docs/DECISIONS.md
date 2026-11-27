@@ -958,3 +958,24 @@ residency, not the deletion mechanics.
 Reversibility: moderate (schema changes for audit and consent).
 Confidence: medium.
 Applied in: docs(S21) resolve Q1.
+
+## D-060 — S21 review fixes: per-job isolation, system-scope ownership checks, audio not kept by results
+Date: 2026-11-27 · Slice: S21 · Status: decided · Supersedes: the results part of D-059 · Review: requested (R-011)
+Context: the S21 security review found that one failing job stopped the runner and the sweep for every later job,
+that ownership checks ran under tenant RLS (other tenants' jobs were invisible), and that a cached result kept
+the producer's original upload, so DELETE left the audio in place for shared results.
+Options: A) Keep the blanket runner; log and retry later. B) Isolate each job; log its id and error class; leave it
+pending. For ownership: A) keep RLS scope. B) run the checks under system scope in the same transaction. For audio:
+A) keep the upload while any result points at it. B) decouple: a cached transcript does not need the audio; clear
+results.media_id and delete the upload when no job uses it.
+Decision: B for all three. Migration 0008 (unmerged) makes results.media_id nullable and adds a CHECK on
+retention_days (1 to 3650).
+Rationale: a poison job must not block deletion of every later job (safety and data). Tenant RLS must not hide
+references that protect shared rows. The original upload is the most sensitive object; the cached transcript
+does not need it. Legal review (R-011) still applies before production.
+Reversibility: moderate (schema nullability, two code paths).
+Confidence: medium.
+Known follow-ups, not changed here: cross-tenant reuse of results by file sha256 with no isolation scope
+(pre-existing, D-007; needs a decision on isolation); the expire_audio path leaves a media row whose object is gone
+(harmless, cleaned at delete); no embeddings table yet, so the deletion path has nothing to remove for embeddings.
+Applied in: 0709541 (isolation), 76ca636 (ownership and audio).
