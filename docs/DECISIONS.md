@@ -1032,3 +1032,33 @@ Reversibility: easy (the adapter is behind the ASR port; the setting selects it)
 Confidence: medium. Accuracy is not measured: R-001 (the human reference hour) is still open, so only the
 smoke output is known, not a word error rate.
 Applied in: feat/R003-local-asr (adapter, settings, window refactor, tests).
+
+## D-064 — S10 fence: a job completes only after its chunk plan is prepared
+Date: 2026-11-27 · Slice: S10 · Status: decided · Review: none
+Context: a local demo produced COMPLETED jobs with empty transcripts. A cpu ingest that outlives its lease can be
+overtaken by the GPU stage, which then completes the job before the chunk plan is written.
+Options: A) Fence the plan write to the lease. B) Refuse to complete a job whose plan is missing and not prepared,
+and retry. C) Leave it.
+Decision: B. The plan write and a prepared mark (jobs.prepared_at, migration 0010) commit in one transaction. An
+empty plan for a silent file is prepared too, so silence still completes. ProcessJob raises TransientError while the
+job is not prepared.
+Rationale: B needs no change to the lease protocol and fails safe: the job is retried, never completed empty.
+Reversibility: easy (one column, one check).
+Confidence: high.
+Applied in: 6723249.
+
+## D-065 — S10 chunk ids are job-scoped; the AC-4 golden value changes
+Date: 2026-11-27 · Slice: S10 · Status: decided · Review: none
+Context: chunk ids were a hash of the media sha, config and sample range, with no job id. The same audio processed by
+a second job (a re-upload of the same file) produced the same ids. The chunk table's primary key is the chunk id, so
+the second job's chunk rows were dropped by ON CONFLICT DO NOTHING, and its plan read returned no chunks: a
+COMPLETED job with an empty transcript. This is why every re-run of the same clip came back empty.
+Options: A) Job-scoped ids (the job id joins the hash). B) Primary key on (job id, chunk id) with a foreign key change.
+C) Keep content ids and key the plan by content.
+Decision: A. chunk_id(job_id, media_sha256, config_hash, idx, start, end). The golden value in the AC-4 test changes
+to the new formula, because the id format changed by design. Re-runs of the same job still give the same ids, so
+resume is unchanged.
+Rationale: A is the smallest change that makes the id unique per job; B changes the key of chunk_results too.
+Reversibility: easy (ids are recomputed; no stored ids outlive a plan).
+Confidence: high.
+Applied in: the feat(S10) job-scoped chunk id commit.
