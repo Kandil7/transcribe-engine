@@ -25,6 +25,7 @@ from transcribe_engine.application.use_cases.save_correction import SaveCorrecti
 from transcribe_engine.domain.chunks import NORMALIZED_SAMPLE_RATE
 from transcribe_engine.infrastructure.alignment.load import load_wav2vec2_aligner
 from transcribe_engine.infrastructure.alignment.unavailable import UnavailableAligner
+from transcribe_engine.infrastructure.asr.cohere_local import CohereLocalASR
 from transcribe_engine.infrastructure.asr.plumbing import PlumbingASR
 from transcribe_engine.infrastructure.asr.vllm_client import VllmASR, VllmClient
 from transcribe_engine.infrastructure.asr.whisper_local import WhisperLocalASR
@@ -107,6 +108,17 @@ def _asr_engine(storage: ObjectStorage, settings: Settings, *, load: bool) -> AS
     The plumbing engine returns no words; use it only to test the pipeline itself (D-035)."""
     if settings.asr_engine == "plumbing":
         return PlumbingASR()
+    if settings.asr_engine == "cohere_local":
+        # Local Cohere model: text from the model, word times from the aligner (D-074, D-070).
+        aligner = (
+            load_wav2vec2_aligner(storage, settings.aligner_model_id, settings.aligner_revision)
+            if load
+            else None
+        )
+        cohere = CohereLocalASR(storage, device=settings.asr_device, aligner=aligner)
+        if load:  # only the GPU worker runs chunks; a broken model stops it at startup
+            cohere.load()
+        return cohere
     if settings.asr_engine == "vllm":
         client = VllmClient(settings.vllm_url, settings.vllm_model)
         # The aligner places text that has no word times (D-067, D-070).
@@ -162,7 +174,7 @@ def build_handlers(
         language="ar",
         concurrency=settings.asr_concurrency,
         # A chunk the model cannot read fails the job, not a silent transcript with a gap (review).
-        require_complete_text=settings.asr_engine in ("whisper_local", "vllm"),
+        require_complete_text=settings.asr_engine in ("whisper_local", "cohere_local", "vllm"),
         tracer=tracer,
     )
     return ingest, process
