@@ -96,16 +96,27 @@ class SqlDeletionStore:
             },
         )
 
+    async def requested_deletions(self) -> tuple[tuple[str, str], ...]:
+        rows = (
+            await self._conn.execute(
+                text(
+                    "SELECT tenant_id AS tenant, id AS job FROM jobs "
+                    "WHERE deletion_requested_at IS NOT NULL ORDER BY id"
+                )
+            )
+        ).all()
+        return tuple((row.tenant, row.job) for row in rows)
+
     async def expired_audio(self, now: datetime) -> tuple[tuple[str, str], ...]:
         rows = (
             await self._conn.execute(
                 text(
                     "SELECT j.tenant_id AS tenant, j.id AS job FROM jobs j "
-                    "JOIN tenants t ON t.id = j.tenant_id "
+                    "LEFT JOIN tenants t ON t.id = j.tenant_id "
                     "WHERE j.audio_deleted_at IS NULL AND j.deletion_requested_at IS NULL "
                     "AND j.state IN ('COMPLETED', 'FAILED', 'CANCELLED') "
                     "AND j.created_at < CAST(:now AS timestamptz) "
-                    "- make_interval(days => t.retention_days) "
+                    "- make_interval(days => COALESCE(t.retention_days, 30)) "
                     "ORDER BY j.id"
                 ),
                 {"now": now},

@@ -1,6 +1,7 @@
 """Worker entry point (S10): `python -m transcribe_engine.worker cpu|gpu|publisher`.
 
-`publisher` runs the webhook outbox loop (S20) instead of claiming jobs.
+`publisher` runs the webhook outbox loop (S20). `sweeper` runs requested deletions and the daily
+audio retention sweep (S21). Neither claims jobs.
 
 Each process claims jobs from one queue, runs the handler, and writes the outcome through the fenced
 queue. The reconciler runs between polls, so a crashed worker's lease is reclaimed. Handlers and
@@ -11,12 +12,20 @@ import asyncio
 import os
 import sys
 import uuid
-from datetime import timedelta
+from collections.abc import Callable
+from contextlib import AbstractAsyncContextManager
+from datetime import datetime, timedelta
 
 from transcribe_engine import main as composition
+from transcribe_engine.application.ports.clock import Clock
 from transcribe_engine.application.ports.queue import JobQueue
+from transcribe_engine.application.ports.repositories import UnitOfWork
+from transcribe_engine.application.ports.storage import ObjectStorage
+from transcribe_engine.application.use_cases.delete_job_data import run_requested_deletions
 from transcribe_engine.application.use_cases.publish_outbox import OutboxPublisher
+from transcribe_engine.application.use_cases.retention_sweeper import RetentionSweeper
 from transcribe_engine.application.worker_loop import Handler, WorkerSettings, run_once
+from transcribe_engine.infrastructure.clock import SystemClock
 from transcribe_engine.infrastructure.db.queue import SqlJobQueue
 from transcribe_engine.infrastructure.db.reconciler import SqlReconciler
 from transcribe_engine.infrastructure.db.session import make_engine
@@ -25,7 +34,7 @@ from transcribe_engine.infrastructure.settings import Settings
 
 __all__ = ["main", "serve"]
 
-ROLES = ("cpu", "gpu", "publisher")
+ROLES = ("cpu", "gpu", "publisher", "sweeper")
 
 
 async def serve(
@@ -58,14 +67,37 @@ async def serve_publisher(publisher: OutboxPublisher, settings: Settings) -> Non
             await asyncio.sleep(settings.poll_seconds)
 
 
+async def serve_sweeper(
+    make_uow: Callable[[str | None], AbstractAsyncContextManager[UnitOfWork]],
+    storage: ObjectStorage,
+    settings: Settings,
+    clock: Clock,
+) -> None:
+    """Process requested deletions on every poll; sweep expired audio at most once a day (S21)."""
+    sweeper = RetentionSweeper(make_uow, storage)
+    last_sweep: datetime | None = None
+    while True:
+        await run_requested_deletions(make_uow, storage, clock)
+        now = clock.now()
+        if last_sweep is None or now - last_sweep >= timedelta(days=1):
+            await sweeper.run_once(now)
+            last_sweep = now
+        await asyncio.sleep(settings.poll_seconds)
+
+
 def main(argv: list[str]) -> int:
     if len(argv) != 2 or argv[1] not in ROLES:
-        sys.stderr.write("usage: python -m transcribe_engine.worker cpu|gpu|publisher\n")
+        sys.stderr.write("usage: python -m transcribe_engine.worker cpu|gpu|publisher|sweeper\n")
         return 2
     role = argv[1]
     configure_logging()
     settings = Settings()
     engine = make_engine(settings.database_url)
+    if role == "sweeper":
+        make_uow = composition.build_make_uow(engine)
+        storage = composition.build_storage(settings)
+        asyncio.run(serve_sweeper(make_uow, storage, settings, SystemClock()))
+        return 0
     if role == "publisher":
         owner = f"publisher-{os.getpid()}-{uuid.uuid4().hex[:8]}"
         asyncio.run(serve_publisher(composition.build_publisher(engine, owner), settings))
