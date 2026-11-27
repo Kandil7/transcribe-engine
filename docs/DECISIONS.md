@@ -993,3 +993,19 @@ ports without changing the rules.
 Reversibility: easy.
 Confidence: medium.
 Applied in: docs(S22) resolve Q1.
+
+## D-062 — S22 versions over HTTP: SQL store with the primary key as the guard; no invented alignment
+Date: 2026-11-27 · Slice: S22 · Status: decided · Review: requested (R-005)
+Context: S22 needs a versioned transcript store, an endpoint, and alignment for changed words. Completed jobs
+store only merged words, and no aligner adapter exists (R-005).
+Options: A) Store canonical JSON per version, the primary key as the concurrency guard, the ASR version built on
+first read. B) A mutable transcript row with a version counter (lost-update risk). C) Invent word times when no
+aligner is configured.
+Decision: A. An edit that needs new word times is refused with 503 (alignment_unavailable) until an aligner is
+configured. Speaker-only and no-timing changes still save. Other integrity errors are permanent, not conflicts.
+A deleted job's versions are deleted with the job, and a save on a deleted job reads and writes nothing (S21).
+Rationale: the primary key makes a lost update impossible without a lock; refusing beats inventing times, which
+would corrupt the training data (S22 AC-1).
+Reversibility: moderate (migration 0009 is on main).
+Confidence: medium.
+Applied in: 47312d7, f3968a5, 236cba7.

@@ -190,7 +190,7 @@
       "branch": null,
       "merged": "(see PR #48)",
       "tag": null,
-      "notes": "PR #48. Pure edit model, timing merge (AC-1), re-alignment of changed segments only (AC-2), stale base version refused with 409 (AC-3), version diff (AC-4), consent-gated manifest with seven fields (AC-5, AC-6). Deferred: SQL version store, HTTP endpoint (409 in API), real aligner (R-005), re-index and events. Editor client is the owner's choice (D-061)."
+      "notes": "Merged via PR #48 (rules) and PR #50 (version store, endpoint). Done: edit model, timing merge, diff, consented manifest (AC-1 to AC-6 on fakes); SQL version store with PK guard (migration 0009), POST /v1/transcriptions/{id}/versions (201, 409 stale, 503 without aligner, 422, 404), cross-tenant 404, deletion removes versions (S21). Deferred: real aligner (R-005), re-index (S18) and events (S20), training export reading consent from the database. Security review: 3 important fixed, 2 nits fixed."
     }
   },
   "statuses_help": "todo | in_progress | partial | blocked | done",

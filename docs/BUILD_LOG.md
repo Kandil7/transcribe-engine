@@ -1006,3 +1006,12 @@ D-061 (editor is the owner's choice; pure logic and use case on fakes first).
 - Re-index (S18) and the events (S20) after a new version.
 - Export use case that reads the consent flags from the database, and the training export endpoint.
 - Editor client: owner's choice (D-061).
+
+### S22 endpoint and version store (PR #50)
+- `infrastructure/db/versions.py`: `SqlTranscriptVersions`. Version 1 built from merged words on first read; versions stored as canonical JSON; primary key (transcript_id, version) is the guard (409 only on that key); SQL errors translated without parameters.
+- `infrastructure/alignment/unavailable.py`: `UnavailableAligner` refuses (503) instead of inventing word times (R-005).
+- `presentation/api/routes_corrections.py`: `POST /v1/transcriptions/{id}/versions` (201, 409 stale_version, 422 invalid_edit, 503 alignment_unavailable, 404 transcript_not_found). Scope transcribe:write. Request bounds: 500 edits, 20,000 characters of new text, 64 speaker renames.
+- Migration 0009 (transcript_revisions, RLS). Round-trip head moves to 0009.
+- Security review (SQL, auth, data): 3 important findings fixed in f3968a5 (deleted job kept versions; SQL errors could log transcript text; request bounds); 2 nits fixed (integrity error mapping, cross-tenant test). OpenAPI snapshot regenerated (236cba7).
+- Verification: make check 308 passed; make itest 93 passed (includes the HTTP correction tests and the cross-tenant test).
+- Follow-ups: real aligner (R-005); re-index (S18) and events (S20) after a save; the training export reading the consent flag from the database; the editor client (D-061).
