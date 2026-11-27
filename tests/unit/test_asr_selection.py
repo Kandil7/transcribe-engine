@@ -42,7 +42,6 @@ def test_positive_controls_existing_engines_and_unknown_names() -> None:
         main._asr_engine(FakeObjectStorage(), unknown, load=False)
 
 
-@pytest.mark.xfail(strict=True, reason="S12")
 def test_cohere_local_engine_is_selected_by_configuration() -> None:
     """TE_ASR_ENGINE=cohere_local builds the local Cohere adapter with the pinned model (D-074).
 

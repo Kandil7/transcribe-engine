@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     chunk_pad_ms: int = 500  # padding either side of a core, inside the file (S10)
     chunk_overlap_ms: int = 1_500  # context shared by fixed windows without silence (S11)
     asr_concurrency: int = 32  # chunks in flight per job (design: initial 32)
-    asr_engine: Literal["whisper_local", "vllm", "plumbing"] = (
+    asr_engine: Literal["whisper_local", "cohere_local", "vllm", "plumbing"] = (
         "whisper_local"  # D-063, D-067; plumbing S10
     )
     asr_model_id: str = Field(
