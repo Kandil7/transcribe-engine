@@ -18,6 +18,7 @@ import httpx
 import numpy as np
 import pytest
 
+from tests.fakes.aligner import FakeAligner
 from tests.fakes.storage import FakeObjectStorage
 from transcribe_engine.domain.chunks import Chunk
 from transcribe_engine.domain.errors import PermanentError
@@ -80,3 +81,27 @@ async def test_positive_controls_words_and_silence() -> None:
     )
     assert [w.text for w in words] == ["مرحبا"]
     assert await _transcribe({"text": "", "words": []}) == ()
+
+
+@pytest.mark.xfail(strict=True, reason="S14")
+async def test_text_without_word_times_is_aligned_when_an_aligner_is_wired() -> None:
+    """With an aligner, the text is placed on the audio and gets word times (S14, D-070).
+
+    Positive control: the aligner was asked for exactly the text the model returned.
+    """
+    vllm = _mod("transcribe_engine.infrastructure.asr.vllm_client")
+    storage = FakeObjectStorage()
+    await storage.put("work/t/j/audio.wav", _wav(np.zeros(RATE, dtype=np.int16)))
+    client = vllm.VllmClient(
+        "http://vllm.test",
+        "model-x",
+        transport=httpx.MockTransport(
+            lambda _r: httpx.Response(200, json={"text": "مرحبا بكم", "words": []})
+        ),
+    )
+    aligner = FakeAligner()
+    words = await vllm.VllmASR(storage, client, aligner=aligner).transcribe(
+        "work/t/j/audio.wav", _chunk(), language="ar"
+    )
+    assert aligner.calls == ["مرحبا بكم"]
+    assert [w.text for w in words] == ["مرحبا", "بكم"]

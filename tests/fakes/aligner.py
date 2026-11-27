@@ -1,35 +1,27 @@
-"""Stub segment aligner for the S22 tests.
+"""Fake aligner for the S14 tests.
 
-It gives each word of the new text a fixed 10 ms slot from the segment start, and records every
-segment it was asked to re-align. S22 AC-2 checks that call log.
-"""
+Returns one word per whitespace-separated token, evenly spaced."""
 
-from dataclasses import dataclass, field
-
-from transcribe_engine.domain.transcript import Word
+from transcribe_engine.domain.chunks import Chunk
+from transcribe_engine.domain.merge import RawWord
 
 
-@dataclass
 class FakeAligner:
-    calls: list[str] = field(default_factory=list)
+    def __init__(self) -> None:
+        self.calls: list[str] = []
 
-    async def realign(
-        self,
-        transcript_id: str,
-        segment_id: str,
-        start_ms: int,
-        end_ms: int,
-        text: str,
-    ) -> tuple[Word, ...]:
-        del transcript_id, end_ms
-        self.calls.append(segment_id)
+    async def align(
+        self, audio_key: str, chunk: Chunk, text: str, *, language: str
+    ) -> tuple[RawWord, ...]:
+        self.calls.append(text)
+        tokens = text.split()
+        span = max(1, chunk.end_sample - chunk.start_sample) // max(1, len(tokens))
         return tuple(
-            Word(
-                text=word,
-                start_ms=start_ms + i * 10,
-                end_ms=start_ms + i * 10 + 10,
-                lang="ar",
+            RawWord(
+                text=token,
+                local_start=i * span,
+                local_end=(i + 1) * span,
                 conf=None,
             )
-            for i, word in enumerate(text.split())
+            for i, token in enumerate(tokens)
         )
