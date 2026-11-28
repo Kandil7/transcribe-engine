@@ -140,6 +140,8 @@ class ProcessJob:
         warnings += [alignment_fallback_warning(c.idx) for c in plan if _is_fallback(stored, c)]
         warnings += diarization_warnings
         warnings += validate_merge(merged, _duration_bound(plan))
+        if not plan:  # VAD found no speech: the job completes with no ASR call (S13 AC-3, D-093)
+            warnings.append(Warning.NO_SPEECH.value)
         done = transition(
             JobState.PROCESSING,
             JobEvent.SUCCEEDED,
