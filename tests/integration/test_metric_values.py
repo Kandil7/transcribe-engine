@@ -76,6 +76,18 @@ async def _seed_queued_job(engine: object, queue: str) -> None:
         await uow.commit()
 
 
+async def _clear_metric_jobs(pg_url: str) -> None:
+    """Remove the jobs this module queued. The queue contract shares this database and claims any
+    queued job on its queue, so a leftover QUEUED row would be someone else's job to it."""
+    engine = create_async_engine(pg_url)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("DELETE FROM jobs WHERE id LIKE 'job-metric-%'"))
+            await conn.execute(text("DELETE FROM media WHERE id = 'media-metric'"))
+    finally:
+        await engine.dispose()
+
+
 async def test_queue_depth_gauge_matches_queued_jobs(pg_url: str) -> None:
     engine = create_async_engine(pg_url)
     try:
@@ -93,6 +105,7 @@ async def test_queue_depth_gauge_matches_queued_jobs(pg_url: str) -> None:
         assert _sample("transcribe_queue_depth_jobs", {"queue": "gpu"}) == float(queued)
     finally:
         await engine.dispose()
+        await _clear_metric_jobs(pg_url)
 
 
 async def test_first_claim_observes_queue_wait(pg_url: str) -> None:
@@ -111,3 +124,4 @@ async def test_first_claim_observes_queue_wait(pg_url: str) -> None:
         assert after == before + (1.0 if job.attempt_count == 1 else 0.0)
     finally:
         await engine.dispose()
+        await _clear_metric_jobs(pg_url)
