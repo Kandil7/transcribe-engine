@@ -100,3 +100,49 @@ def test_build_rag_chunks_splits_at_a_boundary_it_is_given() -> None:
         boundary_below=0.5,
     )
     assert [c.segment_ids for c in chunks] == [("seg-0",), ("seg-1", "seg-2")]
+
+
+def test_chunk_metadata_is_exact() -> None:
+    """AC-3 with exact values, not truthiness. Two segments with confidences 0.5 and 0.9, and one
+    English word. Checked: the span, the segments, the mean confidence, the code switch, the ACL,
+    the language, the version and the media. Positive control: the English word is what sets
+    has_code_switch, so a chunk without it would fail."""
+    merge = _mod("transcribe_engine.domain.merge")
+    transcript = _mod("transcribe_engine.domain.transcript")
+    rag = _mod("transcribe_engine.domain.rag")
+    words = []
+    for i in range(4):
+        words.append(merge.Word(f"w{i}", i * 1000, i * 1000 + 900, 0.5, 0))
+    for i in range(4, 8):
+        words.append(merge.Word(f"w{i}", i * 1000, i * 1000 + 900, 0.9, 1))
+    merged = merge.MergedWords(words=tuple(words), sample_rate=16_000)
+    provenance = transcript.Provenance(
+        engine="whisper-local", revision="rev", pipeline_version="1.0.0", config_hash="c" * 64
+    )
+    built = transcript.transcript_from_merged(
+        merged,
+        transcript_id="job-meta",
+        media_id="media-meta",
+        language="ar",
+        provenance=provenance,
+    )
+    first = built.segments[0]
+    english = replace(first.words[0], lang="en")
+    first = replace(first, words=(english, *first.words[1:]))
+    built = replace(built, version=4, segments=(first, *built.segments[1:]))
+    chunks = rag.build_rag_chunks(
+        built, tenant_id="tenant-a", tokenize=lambda t: 100, cfg=RagChunkConfig()
+    )
+    assert len(chunks) == 1
+    chunk = chunks[0]
+    assert chunk.tenant_id == "tenant-a"
+    assert chunk.acl == ("tenant-a",)
+    assert chunk.transcript_id == "job-meta"
+    assert chunk.transcript_version == 4
+    assert chunk.media_id == "media-meta"
+    assert chunk.lang == "ar"
+    assert chunk.start_ms == 0
+    assert chunk.end_ms == 7_900
+    assert chunk.segment_ids == ("seg-0", "seg-1"), chunk.segment_ids
+    assert abs(chunk.confidence - 0.7) < 1e-9, chunk.confidence
+    assert chunk.has_code_switch is True
