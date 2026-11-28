@@ -10,8 +10,6 @@ import importlib
 from types import ModuleType
 from typing import Any
 
-import pytest
-
 from tests.unit.application.test_ingest_job import _config, _ingest, _job, _world
 
 
@@ -19,7 +17,6 @@ def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_a_stored_result_counts_one_lookup_and_one_hit(tmp_path: Any) -> None:
     jobs = _mod("transcribe_engine.domain.jobs")
     keys = _mod("transcribe_engine.domain.keys")
@@ -36,7 +33,6 @@ async def test_a_stored_result_counts_one_lookup_and_one_hit(tmp_path: Any) -> N
     assert (fake_metrics.cache_lookups, fake_metrics.cache_hits) == (1, 1)
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_a_new_file_counts_one_lookup_and_no_hit(tmp_path: Any) -> None:
     fake_metrics = _mod("tests.fakes.metrics").FakeMetrics()
     _store, _inner, storage, probe, normalizer, make_uow = await _world(b"RIFF-new-bytes")
