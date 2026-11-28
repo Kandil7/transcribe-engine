@@ -58,7 +58,7 @@ class Enhancer(Protocol):
 ## Acceptance criteria
 - **AC-1** `[D: 1.5]` — `test_routing.py::test_policy_table` (unit): one parametrized case per table row.
 - **AC-2** `[D: 1.5]` — `::test_clean_audio_has_no_steps` (unit).
-- **AC-3** `[D: 1.5]` — `test_prepare_chunks.py::test_no_speech_completes_without_gpu` (unit, fakes).
+- **AC-3** `[D: 1.5]` — `tests/unit/application/test_no_speech.py::test_no_speech_completes_without_asr_calls` (unit, fakes; the rule is no speech region, D-093).
 - **AC-4** — `test_profiler_contract.py::test_snr_ordering` (contract, ml): mixes at 20/10/0 dB give
   decreasing SNR estimates.
 - **AC-5** `[D: 1.5]` — `test_process_job.py::test_feed_asr_original_for_medium_noise` (unit).

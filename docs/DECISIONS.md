@@ -1417,6 +1417,22 @@ POSTs the index route (D-085). Events (S20) stay unwired.
 Rationale: the owner decides when the API process may carry the aligner (memory); re-index cost is the caller's choice (D-085).
 Reversibility: easy. Confidence: medium.
 
+## D-093 — S13 scope: no-speech by VAD region; profiler and channel split deferred
+Date: 2026-11-28 · Slice: S13 · Status: decided · Review: requested
+Context: S13's routing table marks a file with less than 2 percent speech as no-speech. The spec's AC-3 says such a job
+completes without the GPU. Applied to the VAD output, a 2 percent ratio would drop real speech from a long file that has
+little of it (for example 11 seconds of speech in ten minutes).
+Decision: AC-3 is implemented as "VAD finds no speech region": the chunk plan is empty, the job completes without an ASR
+call, and it records the no_speech warning. The 2 percent threshold stays in RoutingPolicy for the day a profiler is wired.
+AC-4 (profiler contract, ml) and AC-5 (feed the original audio for medium noise) wait for profiler adapters: the licences
+are open (R-004), and without an adapter the production path always gets the clean default, so a fake-only test of the
+wiring would prove nothing about production. AC-6 (split a stereo file into two tracks) needs a stereo path in
+normalization; the normalizer writes mono today, so that is not built.
+Rationale: an empty transcript for a silent file is correct; dropping speech is not. Building unused adapters or a
+stereo path now would add code that nothing exercises.
+Reversibility: easy. Confidence: medium.
+Review: the owner decides the profiler licences (R-004); the 2 percent rule needs a decision on how to apply it.
+
 ## Blocked by the owner (not decided by the autopilot)
 - R-001 (human reference hour): S14 AC-3, S16 measurements, S17 AC-5 DER test stay open. No ground truth exists.
 - R-004 (routing-model licences, singing classifier scope): S13 stays partial.
