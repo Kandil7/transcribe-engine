@@ -1397,6 +1397,26 @@ Rationale: a rule the owner can read is safer than a model whose output is not m
 rule version from changing an old answer under the same key.
 Reversibility: easy (a new model version is a new row). Confidence: medium.
 
+## D-091 — S14 AC-5 is checked at the adapter boundary, not in ProcessJob
+Date: 2026-11-28 · Slice: S14 · Status: decided · Review: none
+Context: S14 AC-5 names a ProcessJob test ("alignment mandatory without native timestamps"). ProcessJob receives only word
+times from the ASR port, never the chunk's text, so it cannot tell whether a word list came from native timestamps.
+Decision: the rule is enforced where the text is known: the vLLM adapter refuses text without word times when no aligner is
+configured (test_vllm_words), and the aligned path is tested at adapter level. The spec's test pointer is updated to that test.
+Rationale: a ProcessJob test that passes a fake ASR would check the fake, not the rule.
+Reversibility: easy. Confidence: high.
+
+## D-092 — Corrections: real realignment behind a switch; no automatic re-index
+Date: 2026-11-28 · Slice: S22 · Status: decided · Review: none
+Context: S22 corrections refused every edit that needed new word times (503), because the loaded aligner had no realign method.
+The deferred list also named re-index (S18) and events (S20).
+Decision: a SegmentRealigner cuts the segment's span from the job's audio and aligns the corrected text (the same forced
+aligner as the chunks). It is built only when TE_REALIGN_ENABLED is set, so the API process loads no model by default. A
+model failure or missing audio is 503, never invented times. A corrected version is not indexed automatically: the caller
+POSTs the index route (D-085). Events (S20) stay unwired.
+Rationale: the owner decides when the API process may carry the aligner (memory); re-index cost is the caller's choice (D-085).
+Reversibility: easy. Confidence: medium.
+
 ## Blocked by the owner (not decided by the autopilot)
 - R-001 (human reference hour): S14 AC-3, S16 measurements, S17 AC-5 DER test stay open. No ground truth exists.
 - R-004 (routing-model licences, singing classifier scope): S13 stays partial.
