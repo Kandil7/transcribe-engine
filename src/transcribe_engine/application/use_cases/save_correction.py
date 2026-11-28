@@ -50,6 +50,7 @@ class SaveCorrection:
                 continue
             text = " ".join(word.text for word in edited_segment.words)
             aligned = await self._aligner.realign(
+                tenant_id,
                 transcript_id,
                 edited_segment.id,
                 edited_segment.start_ms,

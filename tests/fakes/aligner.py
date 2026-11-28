@@ -15,13 +15,14 @@ class FakeAligner:
 
     async def realign(
         self,
+        tenant_id: str,
         transcript_id: str,
         segment_id: str,
         start_ms: int,
         end_ms: int,
         text: str,
     ) -> tuple[Word, ...]:
-        del transcript_id, end_ms
+        del tenant_id, transcript_id, end_ms
         self.calls.append(segment_id)
         return tuple(
             Word(
