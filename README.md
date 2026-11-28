@@ -234,6 +234,7 @@ Defaults suit local development.
 | `TE_CHUNK_OVERLAP_MS` | `1500` | Context shared by fixed windows. |
 | `TE_ASR_CONCURRENCY` | `32` | Chunks in flight per job. |
 | `TE_SECRET_KEY` | unset | Base64 of 32 random bytes. Seals webhook signing secrets (D-082). Without it, no webhook is delivered. |
+| `TE_SEARCH_ENABLED` | `false` | Turns on search: loads the bge-m3 embedder from the local cache (D-079). Off, the search routes answer 503. |
 | `TE_LEASE_SECONDS` | `120` | Job lease length. |
 | `TE_POLL_SECONDS` | `1.0` | Idle wait between claim attempts. |
 

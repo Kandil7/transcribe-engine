@@ -39,6 +39,7 @@ from transcribe_engine.infrastructure.media.ffmpeg import FfmpegNormalizer
 from transcribe_engine.infrastructure.media.ffprobe import FfprobeMediaProbe
 from transcribe_engine.infrastructure.ml.silero_vad import SileroVad
 from transcribe_engine.infrastructure.observability.tracing import LogTracer
+from transcribe_engine.infrastructure.search.embedder_bge import BgeM3Embedder
 from transcribe_engine.infrastructure.search.pg_index import SqlSearchIndex
 from transcribe_engine.infrastructure.settings import Settings
 from transcribe_engine.infrastructure.storage.s3 import S3ObjectStorage
@@ -52,6 +53,15 @@ def _uow(engine: AsyncEngine, tenant_id: str | None) -> AbstractAsyncContextMana
     # SqlUnitOfWork.__aenter__ returns Self, which mypy cannot match to the protocol's Self (D-036).
     # The adapter is the port's implementation; the cast only restates that for the checker.
     return cast(AbstractAsyncContextManager[UnitOfWork], SqlUnitOfWork(engine, tenant_id=tenant_id))
+
+
+def build_embedder(settings: Settings) -> Embedder | None:
+    """The search embedder, or None when search is off on this deployment (S18, D-079).
+
+    Off by default: loading the model costs memory, and the routes then answer 503."""
+    if not settings.search_enabled:
+        return None
+    return BgeM3Embedder()
 
 
 def build_app(
