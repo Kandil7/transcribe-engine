@@ -111,7 +111,35 @@ def split_sentences(
         tokens += size
         index += 1
     spans.append((start, count))
-    return tuple(spans)
+    return _backfill_undersized(tuple(spans), sentences, boundary_before, cfg)
+
+
+def _backfill_undersized(
+    spans: tuple[tuple[int, int], ...],
+    sentences: Sequence[RagSentence],
+    boundary_before: Callable[[int], bool],
+    cfg: RagChunkConfig,
+) -> tuple[tuple[int, int], ...]:
+    """Extend a span below `min_tokens` backwards over the sentences before it, while the span
+    stays within `max_tokens` and no topic boundary is crossed. The extension overlaps the previous
+    span, which the design allows (overlap, D-088). A span that cannot reach the minimum without
+    passing the maximum or a boundary stays as it is: a short tail is kept, not dropped."""
+    items = list(spans)
+
+    def tokens(a: int, b: int) -> int:
+        return sum(sentences[k].tokens for k in range(a, b))
+
+    for idx, (a, b) in enumerate(items):
+        start = a
+        while (
+            tokens(start, b) < cfg.min_tokens
+            and start > 0
+            and not boundary_before(start)
+            and tokens(start - 1, b) <= cfg.max_tokens
+        ):
+            start -= 1
+        items[idx] = (start, b)
+    return tuple(items)
 
 
 def rrf(rankings: Sequence[Sequence[str]], k: int = RRF_K) -> tuple[tuple[str, float], ...]:
@@ -132,11 +160,15 @@ def build_rag_chunks(
     tokenize: Callable[[str], int],
     cfg: RagChunkConfig,
     similarities: Sequence[float] | None = None,
+    boundary_below: float = 0.0,
 ) -> tuple[RagChunk, ...]:
-    """Small-level chunks for one transcript version, with the metadata the source provides."""
+    """Small-level chunks for one transcript version, with the metadata the source provides.
+
+    `similarities[i]` between sentence i and i+1 below `boundary_below` is a topic boundary. Without
+    similarities no boundary is found (D-088)."""
     sentences = [_sentence(segment, tokenize) for segment in transcript.segments]
     sims = list(similarities) if similarities is not None else [1.0] * max(0, len(sentences) - 1)
-    spans = split_sentences(sentences, sims, boundary_below=0.0, cfg=cfg)
+    spans = split_sentences(sentences, sims, boundary_below=boundary_below, cfg=cfg)
     chunks: list[RagChunk] = []
     for start, end in spans:
         segments = transcript.segments[start:end]
