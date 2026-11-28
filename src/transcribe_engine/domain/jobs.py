@@ -66,6 +66,8 @@ class Warning(StrEnum):
     """Non-fatal conditions recorded on a job. Warnings never change state."""
 
     DIARIZATION_FAILED = "diarization_failed"
+    DIARIZATION_UNAVAILABLE = "diarization_unavailable"  # D-084
+    SPEAKERS_ABOVE_LIMIT = "speakers_above_limit"  # D-083
     NO_SPEECH = "no_speech"
     LOW_SNR = "low_snr"
 

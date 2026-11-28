@@ -28,7 +28,6 @@ def _config(**extra: object) -> object:
     )
 
 
-@pytest.mark.xfail(strict=True, reason="S17")
 def test_unset_speakers_keep_the_hash_and_set_speakers_change_it() -> None:
     unset = _config()
     assert "speakers" not in unset.canonical_json()
@@ -36,7 +35,6 @@ def test_unset_speakers_keep_the_hash_and_set_speakers_change_it() -> None:
     assert _config(speakers=3).config_hash() != unset.config_hash()
 
 
-@pytest.mark.xfail(strict=True, reason="S17")
 def test_speakers_outside_one_to_ten_are_refused() -> None:
     with pytest.raises(ValueError, match="speakers"):
         _config(speakers=0)

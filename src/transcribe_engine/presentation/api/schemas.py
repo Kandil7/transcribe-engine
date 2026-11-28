@@ -18,6 +18,7 @@ class CreateTranscriptionIn(BaseModel):
     language: str
     engine: str | None = None
     diarization: bool = False
+    speakers: int | None = Field(default=None, ge=1, le=10)  # D-083
     webhook_url: str | None = None
 
 

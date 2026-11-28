@@ -33,6 +33,7 @@ async def create_transcription(
             language=body.language,
             engine=body.engine,
             diarization=body.diarization,
+            speakers=body.speakers,
             webhook_url=body.webhook_url,
             idempotency_key=idempotency_key,
         )

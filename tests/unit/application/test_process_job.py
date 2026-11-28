@@ -323,7 +323,6 @@ async def test_fallback_chunks_are_reported_as_warnings() -> None:
     assert not [w for w in clean.warnings if w.startswith("alignment_fallback")]
 
 
-@pytest.mark.xfail(strict=True, reason="S17")
 async def test_diarization_requested_without_diarizer_warns() -> None:
     """D-084 (S17): a job that asks for speakers with no diarizer wired completes with the
     warning `diarization_unavailable`. Positive control: the same job without the request has no
@@ -344,7 +343,6 @@ async def test_diarization_requested_without_diarizer_warns() -> None:
     assert jobs.Warning.DIARIZATION_UNAVAILABLE.value not in plain.warnings
 
 
-@pytest.mark.xfail(strict=True, reason="S17")
 async def test_speakers_above_limit_clamps_and_warns() -> None:
     """D-083 (S17 AC-4): a speaker count above the diarizer's limit is clamped to the limit and
     reported as `speakers_above_limit`. Positive control: a count within the limit is passed as

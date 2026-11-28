@@ -151,19 +151,29 @@ class ProcessJob:
     async def _diarize(self, job: Job, merged: MergedWords) -> tuple[MergedWords, list[str]]:
         """Assign speakers over the whole file (S17).
 
-        A failure keeps the transcript without speakers and adds `diarization_failed`; the job
-        still completes (design: partial state)."""
-        if self._diarization is None or not job.config.diarization_enabled:
+        A job that asks for speakers with no diarizer wired gets `diarization_unavailable` (D-084).
+        A count above the diarizer's limit is clamped and reported as `speakers_above_limit`
+        (D-083). A failure keeps the transcript without speakers and adds `diarization_failed`;
+        the job still completes (design: partial state)."""
+        if not job.config.diarization_enabled:
             return merged, []
+        if self._diarization is None:
+            return merged, [Warning.DIARIZATION_UNAVAILABLE.value]
         if self._diarization.split_channels:  # S13: a channel-split file's channel is its speaker
             return merged, []
+        diarizer = self._diarization.diarizer
+        warnings: list[str] = []
+        count = job.config.speakers
+        limit = diarizer.max_speakers
+        if count is not None and limit is not None and count > limit:
+            count = limit
+            warnings.append(Warning.SPEAKERS_ABOVE_LIMIT.value)
         try:
-            diarizer = self._diarization.diarizer
-            turns = await diarizer.diarize(work_key(job.tenant_id, job.id, WAV), None)
+            turns = await diarizer.diarize(work_key(job.tenant_id, job.id, WAV), count)
         except (TransientError, PermanentError):
             _log.warning("diarization failed", extra=_fields(job, -1))
-            return merged, [Warning.DIARIZATION_FAILED.value]
-        return replace(merged, words=assign_speakers(merged.words, turns)), []
+            return merged, [Warning.DIARIZATION_FAILED.value, *warnings]
+        return replace(merged, words=assign_speakers(merged.words, turns)), warnings
 
 
 def _fields(job: Job, chunk_idx: int) -> dict[str, object]:
