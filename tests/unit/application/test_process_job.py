@@ -321,3 +321,54 @@ async def test_fallback_chunks_are_reported_as_warnings() -> None:
     _, make_clean = await helpers._seeded(job, plan)
     clean = await helpers._process(make_clean, fakes_asr.FakeASR(script=helpers._script(plan)))(job)
     assert not [w for w in clean.warnings if w.startswith("alignment_fallback")]
+
+
+@pytest.mark.xfail(strict=True, reason="S17")
+async def test_diarization_requested_without_diarizer_warns() -> None:
+    """D-084 (S17): a job that asks for speakers with no diarizer wired completes with the
+    warning `diarization_unavailable`. Positive control: the same job without the request has no
+    such warning."""
+    helpers = _mod("tests.unit.application.test_process_job")
+    jobs = _mod("transcribe_engine.domain.jobs")
+    fakes_asr = _mod("tests.fakes.asr")
+    base = helpers._job()
+    job = replace(base, config=replace(base.config, diarization_enabled=True))
+    plan = helpers._plan(job)
+    _, make_uow = await helpers._seeded(job, plan)
+    asr = fakes_asr.FakeASR(script=helpers._script(plan))
+    result = await helpers._process(make_uow, asr)(job)
+    assert result.to is jobs.JobState.COMPLETED
+    assert jobs.Warning.DIARIZATION_UNAVAILABLE.value in result.warnings
+
+    plain = await helpers._process(make_uow, fakes_asr.FakeASR(script=helpers._script(plan)))(base)
+    assert jobs.Warning.DIARIZATION_UNAVAILABLE.value not in plain.warnings
+
+
+@pytest.mark.xfail(strict=True, reason="S17")
+async def test_speakers_above_limit_clamps_and_warns() -> None:
+    """D-083 (S17 AC-4): a speaker count above the diarizer's limit is clamped to the limit and
+    reported as `speakers_above_limit`. Positive control: a count within the limit is passed as
+    asked, with no warning."""
+    helpers = _mod("tests.unit.application.test_process_job")
+    jobs = _mod("transcribe_engine.domain.jobs")
+    fakes_asr = _mod("tests.fakes.asr")
+    fakes_dia = _mod("tests.fakes.diarizer")
+    base = helpers._job()
+    job = replace(base, config=replace(base.config, diarization_enabled=True, speakers=6))
+    plan = helpers._plan(job)
+    _, make_uow = await helpers._seeded(job, plan)
+    asr = fakes_asr.FakeASR(script=helpers._script(plan))
+    diarizer = fakes_dia.FakeDiarizer(max_speakers=4)
+    result = await helpers._process(make_uow, asr, diarization=_dia(diarizer))(job)
+    assert diarizer.speaker_counts == [4]
+    assert "speakers_above_limit" in result.warnings
+
+    within = replace(base, config=replace(base.config, diarization_enabled=True, speakers=2))
+    _, make_ok = await helpers._seeded(within, plan)
+    ok_diarizer = fakes_dia.FakeDiarizer(max_speakers=4)
+    ok = await helpers._process(
+        make_ok, fakes_asr.FakeASR(script=helpers._script(plan)), diarization=_dia(ok_diarizer)
+    )(within)
+    assert ok_diarizer.speaker_counts == [2]
+    assert "speakers_above_limit" not in ok.warnings
+    assert jobs.JobState.COMPLETED is ok.to
