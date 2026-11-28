@@ -1081,3 +1081,25 @@ Branch: feat/S18-rag-indexing-search   Merged: PR pending
 - Corrected: the AC-5 fixture gave the transcript one ASR chunk, so it could not show a partial edit. It now has 20 chunks of 50 words (before any implementation passed).
 - Verification: make check 359 passed, 2 skipped; make itest 101 passed (before the last settings change, which make check covers).
 - Not done: the spec's HTTP embedder adapter (D-079 chose local ONNX); a reranker (D-080); the R-009 model comparison on real Arabic questions; automatic indexing on completion (D-085).
+
+## S18 — RAG search (merged PR #80), 2026-11-28
+Branch: feat/S18-rag-indexing-search   Merged: 6dcb2df (PR #80)
+- Built: search port and Postgres index (migration 0011, RLS on the three tables); bge-m3 embedder run as ONNX (D-079, ADR-0009); index and search use cases; routes behind TE_SEARCH_ENABLED.
+- Review fixes (security, architecture and test reviews): deleting a job removes its search text (D-087); index writes refused for a deleted job; activation monotonic; query strings out of the access log; chunk tails back-filled (D-088); the embedder identity includes its revision; lazy imports.
+- Contract suites for the search port and the embedder (fake and real adapter). API tests run through the RLS-enforced role.
+- Verification: make check 365 passed; make itest 128 passed (local, before the merge).
+- Not done: retrieval quality on real Arabic questions (R-009); topic boundaries (D-088); background indexing (D-089, R-016).
+
+## S19 — Enrichment: chapters by rule (merged PR #81), 2026-11-28
+Branch: feat/S19-enrichment   Merged: 8086ae8 (PR #81)
+- Built: chapters by rule at the pauses (D-081); artifacts table (migration 0012) with its store and contract; GET /v1/transcriptions/{job_id}/chapters with json and youtube formats (D-090).
+- Verification: make check 377 passed; make itest 128 passed (local). Two test-tier fixes found in the full run: the model-loading embedder check moved out of the unit gate; the metric tests remove the queued jobs they create.
+- Not done: summaries, entities and questions need an LLM (D-081, R-010).
+
+## S22 — Corrections: real re-alignment (merged PR #82), 2026-11-28
+Branch: feat/S22-realign-corrections   Merged: a45c267 (PR #82)
+- Built: SegmentRealigner cuts the segment's audio, aligns the corrected text with the wav2vec2 aligner, and returns absolute times; failures are 503, never invented times. Behind TE_REALIGN_ENABLED (D-092).
+- D-091: the S14 AC-5 rule is tested at the adapter boundary.
+- Verification: make check 381 passed; the integration suite ran in CI on the PR (passed).
+- Not done: events (S20); training export (R-013).
+
