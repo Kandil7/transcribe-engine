@@ -647,6 +647,57 @@
         "summary": "Get Transcription"
       }
     },
+    "/v1/transcriptions/{job_id}/chapters": {
+      "get": {
+        "operationId": "get_chapters_v1_transcriptions__job_id__chapters_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "enum": [
+                "json",
+                "youtube"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Chapters"
+      }
+    },
     "/v1/transcriptions/{job_id}/rag-chunks": {
       "get": {
         "operationId": "list_rag_chunks_v1_transcriptions__job_id__rag_chunks_get",

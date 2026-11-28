@@ -99,3 +99,15 @@ class RagChunkOut(BaseModel):
 class RagChunksOut(BaseModel):
     job_id: str
     chunks: list[RagChunkOut]
+
+
+class ChapterOut(BaseModel):
+    title: str
+    start_ms: int
+    end_ms: int
+
+
+class ChaptersOut(BaseModel):
+    job_id: str
+    version: int
+    chapters: list[ChapterOut]

@@ -151,3 +151,17 @@ class SearchUnavailableError(ApplicationError):
 
     status = 503
     code = "search_unavailable"
+
+
+class ChaptersUnavailableError(ApplicationError):
+    """The chapters route is not wired on this deployment (S19)."""
+
+    status = 503
+    code = "chapters_unavailable"
+
+
+class ChaptersTooFewError(ApplicationError):
+    """YouTube needs at least three chapters (its own rule), and this transcript has fewer (S19)."""
+
+    status = 422
+    code = "chapters_too_few_for_youtube"
