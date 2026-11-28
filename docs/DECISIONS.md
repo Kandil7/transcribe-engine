@@ -1278,6 +1278,9 @@ this is a provisional default, recorded as such. A new model is a new embedding_
 Reversibility: easy (a new model id plus a re-index).
 Confidence: medium.
 Applied in: feat(S18) commits (embedder adapter).
+Amended (S18 review, 2026-11-28): the runtime is ONNX Runtime on the pinned export (`onnx/model.onnx`),
+not transformers models. The model identity is `BAAI/bge-m3@<revision>`, so a new pin is a new identity
+and its vectors are never mixed with the old ones. Replaced by ADR-0009.
 
 ## D-080 — S18 reranker: none in v1 (R-009 reranker)
 Date: 2026-11-28 · Slice: S18 · Status: decided · Review: none
@@ -1339,6 +1342,47 @@ Rationale: precision first. Synonym recall would need a reviewed similarity thre
 Reversibility: easy (add a vector-only candidate source behind a threshold once data exists). Confidence: medium.
 Note: the test fixture for AC-5 gave the transcript one ASR chunk, so it had one segment and could not show a partial edit.
 It now has 20 chunks of 50 words. This is a correction of a test written in this slice before any implementation passed.
+
+## D-087 — Search data follows its job: deletion, refused writes, no query logs, monotonic activation
+Date: 2026-11-28 · Slice: S18 · Status: decided · Review: none
+Context: the S18 security review found that a deleted job's text stayed searchable (the deletion path did not touch the RAG
+tables); an index run could finish after its job was deleted; a slow older version could replace a newer one; and uvicorn's
+access log writes the full query string, so user words from transcripts reached the log sink.
+Decision: (1) deleting a job removes its rag_chunks and rag_active rows and the embeddings no other chunk uses; (2) index
+writes hold the job row for share, so a write for a deleted job is refused (TranscriptNotFoundError), and a delete waits
+for a write in progress; (3) activation moves forward only, and then drops the other versions' chunks and their unused
+embeddings; (4) the dev server and the documented run command turn the access log off. The latest-version lookup also
+filters by tenant, not only by row-level security.
+Rationale: S21 promises removal of a job's data, and a search index is data. The job lock is the smallest rule that closes
+both races without a queue. Query text is user content and must not reach logs (CLAUDE.md: never log transcript text).
+Reversibility: easy. Confidence: high.
+
+## D-088 — Chunking in v1: size bounds with back-fill; no topic boundary detected yet
+Date: 2026-11-28 · Slice: S18 · Status: decided · Review: none
+Context: AC-1 wants 200 to 400 tokens; AC-2 wants no chunk across a topic boundary. The indexing path passes no sentence
+similarities, so the splitter never finds a topic boundary, and a short final chunk could fall below 200 tokens.
+Decision: a span below min_tokens is extended backwards over the previous sentences while it stays within max_tokens and no
+boundary is crossed (the extension overlaps the previous chunk, which the design allows). A tail that cannot reach the
+minimum without passing the maximum stays short: a transcript's last chunk is kept, not dropped. Topic boundaries are found
+only when similarities are supplied (build_rag_chunks takes the threshold). v1 indexing supplies none, so AC-2 holds for the
+domain rule and is not yet exercised on real topics. Sentence similarities need an embedding pass per sentence and a
+threshold measured on real Arabic (R-009), so they wait for that data.
+Rationale: an undersized tail is a weaker chunk, not a wrong one; dropping it would lose words. Overlap is the design's own
+answer to split context.
+Reversibility: easy (similarities can be passed when measured). Confidence: medium.
+
+## D-089 — Indexing runs in the request in v1
+Date: 2026-11-28 · Slice: S18 · Status: decided · Review: requested
+Context: the design describes background indexing. The S18 slice needs a working search first, and the job queue is built
+for transcription stages.
+Decision: POST /v1/transcriptions/{job_id}:index runs the index in the request and returns 202 with the counts. Concurrent
+runs for one job are safe: chunk and embedding writes are upserts keyed by content, activation is monotonic, and the job
+lock serialises a run with its delete. A long file can exceed the request timeout; the caller then retries, and the retry
+finds the work done (embeddings are reused, the version is already active).
+Rationale: correctness does not depend on the caller waiting. A background stage belongs with the queue stages, which is a
+larger change than this slice.
+Reversibility: moderate (the route keeps its contract when a worker runs the same use case). Confidence: medium.
+Review: the owner should decide whether indexing moves to a worker before long files are common (R-016, REVIEW_QUEUE).
 
 ## Blocked by the owner (not decided by the autopilot)
 - R-001 (human reference hour): S14 AC-3, S16 measurements, S17 AC-5 DER test stay open. No ground truth exists.
