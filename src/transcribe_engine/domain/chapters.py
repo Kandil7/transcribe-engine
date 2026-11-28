@@ -9,10 +9,11 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from itertools import pairwise
 
 from transcribe_engine.domain.transcript import Segment
 
-__all__ = ["Chapter", "TimedEntity", "snap_chapters", "verify_entities"]
+__all__ = ["Chapter", "TimedEntity", "rule_chapters", "snap_chapters", "verify_entities"]
 
 
 @dataclass(frozen=True)
@@ -52,3 +53,30 @@ def verify_entities(
 
 def _nearest(values: Sequence[int], target: int) -> int:
     return min(values, key=lambda value: (abs(value - target), value))
+
+
+def rule_chapters(
+    segments: Sequence[Segment], *, min_gap_ms: int = 2_000, min_chapter_ms: int = 30_000
+) -> tuple[Chapter, ...]:
+    """Chapters at the long pauses of a transcript, by rule (D-081: no LLM in v1).
+
+    A chapter closes when the pause before the next segment is at least `min_gap_ms` and the chapter
+    so far is at least `min_chapter_ms` long. The first chapter starts at 0, as YouTube requires.
+    Each title is the first six words of the chapter, taken from the transcript itself."""
+    if not segments:
+        return ()
+    groups: list[list[Segment]] = [[segments[0]]]
+    for previous, segment in pairwise(segments):
+        current = groups[-1]
+        length = previous.end_ms - current[0].start_ms
+        gap = segment.start_ms - previous.end_ms
+        if gap >= min_gap_ms and length >= min_chapter_ms:
+            groups.append([segment])
+        else:
+            current.append(segment)
+    chapters: list[Chapter] = []
+    for index, group in enumerate(groups):
+        start = 0 if index == 0 else group[0].start_ms
+        words = [word.text for segment in group for word in segment.words][:6]
+        chapters.append(Chapter(" ".join(words), start, group[-1].end_ms))
+    return tuple(chapters)
