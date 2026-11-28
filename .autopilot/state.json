@@ -159,17 +159,17 @@
     },
     "S18": {
       "status": "done",
-      "branch": "feat/S18-rag-indexing-search",
-      "merged": null,
+      "branch": null,
+      "merged": "6dcb2df (PR #80)",
       "tag": null,
-      "notes": "Done on the branch: AC-1 to AC-8 pass (domain, unit, Postgres, API). Embedder is the local bge-m3 ONNX adapter (D-079), not the HTTP adapter the plan named. No reranker (D-080). Real-model test runs when the snapshot is cached. Not measured: retrieval quality on real Arabic questions (R-009 comparison not run); the reference data is owner-blocked (R-001)."
+      "notes": "Search port and Postgres index (migration 0011, RLS), bge-m3 embedder (D-079), index and search use cases, routes behind TE_SEARCH_ENABLED. Chunk tails back-filled (D-088). Index is manual and in the request (D-085, D-089). Model choice provisional (R-009, ADR-0009); reranker none (D-080, ADR-0010). Retrieval quality on real Arabic unmeasured."
     },
     "S19": {
       "status": "partial",
       "branch": null,
-      "merged": "(see PR #45)",
+      "merged": "8086ae8 (PR #81)",
       "tag": null,
-      "notes": "Merged via PR #45. Speaker analytics (AC-1), chapter snapping (AC-2), entities verified against text (AC-3, domain and use case), transcript unchanged (AC-4), per-artifact failure isolation (AC-5). Deferred: AC-6 (YouTube chapters endpoint) and the artifacts table (need API and persistence). LLM adapter waits for R-010 (D-058)."
+      "notes": "Speaker analytics, snapping, verified entities, failure isolation (AC-1 to AC-5, earlier). Chapters by rule at the pauses, artifacts table (migration 0012), GET chapters with a YouTube format (AC-6, D-090). Summaries, entities and questions need an LLM, not built (D-081, R-010); the Enricher port stays unwired."
     },
     "S20": {
       "status": "partial",
@@ -188,9 +188,9 @@
     "S22": {
       "status": "partial",
       "branch": null,
-      "merged": "(see PR #48)",
+      "merged": "a45c267 (PR #82)",
       "tag": null,
-      "notes": "Merged via PR #48 (rules) and PR #50 (version store, endpoint). Done: edit model, timing merge, diff, consented manifest (AC-1 to AC-6 on fakes); SQL version store with PK guard (migration 0009), POST /v1/transcriptions/{id}/versions (201, 409 stale, 503 without aligner, 422, 404), cross-tenant 404, deletion removes versions (S21). Deferred: real aligner (R-005), re-index (S18) and events (S20), training export reading consent from the database. Security review: 3 important fixed, 2 nits fixed."
+      "notes": "Edit model, timing merge, diff, consented manifest, SQL versions and endpoint (earlier). Segment re-alignment with the wav2vec2 aligner behind TE_REALIGN_ENABLED (R-005, D-092). A corrected version is re-indexed by the caller (D-085). Events (S20) not wired. Training export waits for the privacy decision (R-013)."
     }
   },
   "statuses_help": "todo | in_progress | partial | blocked | done",

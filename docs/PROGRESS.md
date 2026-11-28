@@ -2,31 +2,30 @@
 
 Kept in sync with `.autopilot/state.json` by the autopilot. Status: `todo` · `in_progress` · `partial` · `blocked` · `done`.
 
-**Autopilot status:** blocked on owner decisions (see docs/REVIEW_QUEUE.md)   **Last update:** 2026-11-27
+**Autopilot status:** blocked on owner decisions (see docs/REVIEW_QUEUE.md)   **Last update:** 2026-11-28
 
 | Order | Slice | Title | Status | Branch | Merged (main) | Tag | Notes |
 |---|---|---|---|---|---|---|---|
-| 1 | S01 | Repo foundation and CI | done | — | 2985206 | v0.1.0 | PR #1 merged (rebase) |
-| 2 | S00 | Model selection spike | partial | spike/S00-model-selection | 6a2aae9 (PR #19) | — | guidelines + validator + ADR-0007 (provisional); R-001 open |
-| 3 | S02 | Job state machine | done | — | 714136b | — | PR #5 merged (rebase) |
-| 4 | S03 | Pipeline config, keys, time units | done | — | eb5dd15 | — | PR #7 merged (rebase) |
-| 5 | S04 | Arabic text normalization | done | — | c909f6c | — | PR #9 merged (rebase) |
-| 6 | S07 | Object storage and presigned uploads | done | — | a29dd33 | — | PR #11 merged (rebase) |
-| 7 | S05 | Schema, repositories, unit of work | done | — | 2af874b | — | PR #13 merged (rebase) |
-| 8 | S06 | Postgres job queue, lease, fencing, reconciler | done | — | f216ccd | — | PR #15 merged (rebase) |
-| 9 | S08 | API, auth, job endpoints | done | — | f9eeca3 | — | PR #17 merged (rebase) |
-| 10 | S09 | Ingest: probe, hash, dedupe, normalize | done | feat/S09-ingest-validation | 8e24311 (PRs #21, #23) | — | D-030, D-031: fenced ref increment and worker wiring deferred to S10 |
-| 11 | S10 | Chunk plan, fan-out, merge | done | feat/S10-result-refs | pending | v0.2.0 | make dev and make demo on this machine; plumbing ASR/VAD (D-035) |
-| 12 | S11 | VAD with cut and merge | done | fix/S11-mypy-numpy (PR #29) | | | |
-| 13 | S12 | ASR adapters (local Whisper turbo) | partial | feat/R003-local-asr | 80e0ef3 (PR #53) | — | local demo verified; CUDA and vLLM model open (R-003 b) |
-| 14 | S15 | Canonical transcript and renderers | todo | | | v0.3.0-local | **local demo** |
-| 15 | S13 | Audio profiling and routing | todo | | | | |
-| 16 | S14 | Forced alignment | todo | | | | |
-| 17 | S16 | Evaluation harness | partial | — | 09d77ce (PR #39) | v0.4.0 pending | metrics, SNR mix, gate; accuracy unmeasured (R-001) |
-| 18 | S17 | Speaker diarization | partial | — | PR #41 | — | assignment, port, wiring; AC-4/AC-5 deferred (R-008) |
-| - | S18 | RAG chunks, embeddings, hybrid search | partial | — | PR #43 | — | chunks, boundaries, RRF (AC-1 to AC-4); index, pgvector, API deferred (R-009) |
-| 20 | S20 | Outbox, webhooks, observability | partial | — | 7b8c5dc (PR #35) | — | delivery, logs, metrics, alerts; spans and metric values not wired (follow-up) |
-| - | S19 | Enrichment | partial | — | PR #45 | — | analytics, snapping, verified entities; API and LLM deferred (R-010) |
-| 22 | S21 | Privacy, retention, deletion | todo | | | | |
-| - | S22 | Corrections and training export | partial | — | PR #48, #50 | — | save, diff, consented manifest, SQL versions, endpoint; aligner (R-005), re-index, DB-backed export deferred |
-| — | Final acceptance | | todo | | | v1.0.0-local | `docs/FINAL_REPORT.md` |
+| 1 | S01 | Repo foundation and CI | done | — | 2985206 | v0.1.0 | Merged via PR #1 (rebase). CI green on check+integration. R-002 resolved by force-with-lease push. |
+| 2 | S00 | Model selection spike | partial | spike/S00-model-selection | 6a2aae9 | — | Partial: guidelines (AC-1) and manifest validator + coverage gate done; no human reference hour (R-001), no audio in repo, no model runs. ADR-0007 Provisional. Dependents may proceed on partial. |
+| 3 | S02 | Job state machine | done | — | 714136b | — | Merged via PR #5 (rebase). 35 unit tests; reviews applied (b264ac1). |
+| 4 | S03 | Pipeline config, keys, time units | done | — | eb5dd15 | — | Merged via PR #7 (rebase). 71 unit tests; reviews applied (c395a56). |
+| 5 | S04 | Arabic text normalization | done | — | c909f6c | — | Merged via PR #9 (rebase). 138 unit tests; reviews applied (646c856). |
+| 6 | S07 | Object storage and presigned uploads | done | — | a29dd33 | — | Merged via PR #11 (rebase). 145 unit tests, 9 itest against MinIO; reviews applied (07b3904). |
+| 7 | S05 | Schema, repositories, unit of work | done | — | 2af874b | — | Merged via PR #13 (rebase). 145 unit tests, 24 itest; reviews applied (4999a6e). |
+| 8 | S06 | Postgres job queue, lease, fencing, reconciler | done | — | f216ccd | — | Merged via PR #15 (rebase). 150 unit tests, 40 itest incl. chaos; reviews applied (e10ecbd). |
+| 9 | S08 | API, auth, job endpoints | done | — | f9eeca3 | — | Merged via PR #17 (rebase). 158 unit, 57 itest; reviews applied (150ac9b). |
+| 10 | S09 | Ingest: probe, hash, dedupe, normalize | done | feat/S09-ingest-validation | 8e24311 | — | Merged via PR #21 and round-2 fixes PR #23 (rebase). make check 199 passed; make itest 64 passed. Architecture and test reviewers ran; findings fixed or listed in D-031 (fenced ref increment, worker wiring) for S10. |
+| 11 | S10 | Chunk plan, fan-out, merge | done | feat/S10-result-refs | — | — | Parts 1-3 done. Planner, merge, ports, persistence (0005, 0006), PrepareChunks, ProcessJob, worker runtime, result endpoint, make dev and demo verified on this machine (demo output empty by design: plumbing ASR and VAD, D-035). Tags: v0.2.0 is due after S10 per the autopilot table. Fixes merged: prepared fence (D-064) and job-scoped chunk ids (D-065), found by the local demo. |
+| 12 | S11 | VAD with cut and merge | done | feat/S11-vad-cut-merge | a8ad150 | — | Done and merged (PR #29 for the mypy fix). Cut and merge, Silero adapter, PrepareChunks wiring (D-039, D-040). Real speech check pending (R-001). |
+| 13 | S12 | ASR adapters (local Whisper turbo) | partial | feat/S12-asr-adapters | 80e0ef3 | — | Local ASR merged (PRs #53, #54): whisper-large-v3-turbo from the local cache (D-063). Local demo verified on a real Arabic clip. Deferred: CUDA torch build, production vLLM model (R-003 part b), accuracy measurement (R-001). Production default chosen (D-067): Cohere Transcribe Arabic 07-2026 on vLLM; vLLM engine selectable (TE_ASR_ENGINE=vllm), refuses text without word times, compose service under asr-gpu. Not run on a GPU here. Word times need the aligner (R-005). Cohere model verified loading offline from the hub cache at the pinned revision and transcribing on the GPU (D-074); the vLLM service and the production adapter still need a run on a BF16-capable GPU; Cohere's own vLLM path is unverified here. Local Cohere engine (TE_ASR_ENGINE=cohere_local) built, aligned by the aligner; verified end to end on the GPU (D-076). |
+| 14 | S15 | Canonical transcript and renderers | partial | feat/S15-canonical-transcript-renderers | — | — | Canonical JSON and schema, derived text, cues, SRT and VTT (RTL, BOM, golden), TXT, MD, CSV, result formats and /subtitles with profiles (D-045, D-046). Unit tests pass locally; integration AC-8 test runs in CI (Docker not available here). Pending: render cache (D-046), viewer test for cps (Q1), v0.3.0-local needs a real ASR (R-003). |
+| 15 | S13 | Audio profiling and routing | partial | feat/S13-audio-profiling-routing | — | — | Routing domain done (AC-1, AC-2, D-044). Profiler and enhancer adapters blocked on licenses (R-004, Q2). Wiring (AC-3, AC-5, AC-6) not started. |
+| 16 | S14 | Forced alignment | partial | — | — | — | Partial. Verbalizer (D-047). CTC Viterbi forced alignment in the domain (D-070). Aligner port and wav2vec2 ONNX adapter for parseh/aligner-ar (Apache-2.0, pinned), wired into the vLLM engine (GPU worker only). Not built: AC-4 segment fallback, AC-5 mandatory-alignment test in ProcessJob. AC-3 needs the reference set (R-001). Fallback (AC-4) built: segment times on aligner failure, reported as alignment_fallback:<idx> (D-077). AC-5 covered at adapter and job level; the exact-name ProcessJob test is not added. |
+| 17 | S16 | Evaluation harness | partial | — | 09d77ce | — | Merged via PR #39 (replaces #34, rebased without force). Metrics, SNR mixing, regression gate. Partial: needs S12 (partial, D-055) and the dev human reference hour (R-001); absolute accuracy unmeasured. |
+| 18 | S17 | Speaker diarization | partial | — | (see PR #41) | — | Partial. Routing (earlier), assignment and wiring (D-056). Sortformer v2 adapter behind the Diarizer port (D-072): segment parsing and the file handling are tested with a fake model. NeMo not installed. Not built: the NeMo loader (needs approval), AC-4 speaker-count input, AC-5 DER test (needs R-001). |
+| 19 | S18 | RAG chunks, embeddings, hybrid search | done | — | 6dcb2df (PR #80) | — | Search port and Postgres index (migration 0011, RLS), bge-m3 embedder (D-079), index and search use cases, routes behind TE_SEARCH_ENABLED. Chunk tails back-filled (D-088). Index is manual and in the request (D-085, D-089). Model choice provisional (R-009, ADR-0009); reranker none (D-080, ADR-0010). Retrieval quality on real Arabic unmeasured. |
+| 20 | S20 | Outbox, webhooks, observability | partial | — | 7b8c5dc | — | Merged via PR #35 (rebase). Outbox in terminal transactions (AC-1 integration), signed pinned delivery with SSRF guard and leases (D-053), retries to 24 h (AC-4), JSON logs (AC-5), metrics registered (AC-6), alert rules with promtool CI job (AC-7; promtool not run locally, R-006). Partial: cache counters and per-stage RTF not wired (see BUILD_LOG S20); OpenTelemetry exporter not built (D-052). Secret encryption is a precondition of the writer, not built (D-066, R-012). Publisher HTTP client now closed on shutdown. |
+| 21 | S19 | Enrichment | partial | — | 8086ae8 (PR #81) | — | Speaker analytics, snapping, verified entities, failure isolation (AC-1 to AC-5, earlier). Chapters by rule at the pauses, artifacts table (migration 0012), GET chapters with a YouTube format (AC-6, D-090). Summaries, entities and questions need an LLM, not built (D-081, R-010); the Enricher port stays unwired. |
+| 22 | S21 | Privacy, retention, deletion | partial | — | (see PR #47) | — | PR #47. DeleteJobData removes a job's audio, rows, unshared result and unused upload, with a content-free audit row (AC-1, AC-2, AC-3, AC-5 on Postgres and MinIO). Retention sweep per tenant (AC-4 on fakes and on Postgres). Sweeper worker role processes DELETE requests and the daily sweep. Per-job isolation (D-060). Legal review and region pinning open (R-011). Follow-ups: cross-tenant result reuse (pre-existing), embeddings deletion when RAG storage lands. |
+| 23 | S22 | Corrections and training export | partial | — | a45c267 (PR #82) | — | Edit model, timing merge, diff, consented manifest, SQL versions and endpoint (earlier). Segment re-alignment with the wav2vec2 aligner behind TE_REALIGN_ENABLED (R-005, D-092). A corrected version is re-indexed by the caller (D-085). Events (S20) not wired. Training export waits for the privacy decision (R-013). |
