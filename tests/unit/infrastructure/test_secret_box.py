@@ -18,7 +18,6 @@ def _mod() -> ModuleType:
 KEY = bytes(range(32))
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 def test_round_trip_and_no_plaintext_in_the_sealed_bytes() -> None:
     box = _mod()
     secret = b"whsec-plain-value-0123456789"
@@ -27,7 +26,6 @@ def test_round_trip_and_no_plaintext_in_the_sealed_bytes() -> None:
     assert secret not in sealed
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 def test_wrong_key_is_refused() -> None:
     box = _mod()
     sealed = box.seal(KEY, b"s")
@@ -35,7 +33,6 @@ def test_wrong_key_is_refused() -> None:
         box.open_sealed(bytes(32), sealed)
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 def test_tampered_bytes_are_refused() -> None:
     box = _mod()
     sealed = bytearray(box.seal(KEY, b"s"))
@@ -44,7 +41,6 @@ def test_tampered_bytes_are_refused() -> None:
         box.open_sealed(KEY, bytes(sealed))
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 def test_key_must_be_32_bytes_from_base64() -> None:
     box = _mod()
     assert box.parse_key(base64.b64encode(KEY).decode()) == KEY

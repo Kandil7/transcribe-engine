@@ -77,13 +77,15 @@ def build_make_uow(
     return make_uow
 
 
-def build_publisher(engine: AsyncEngine, owner: str, sender: HttpWebhookSender) -> OutboxPublisher:
+def build_publisher(
+    engine: AsyncEngine, owner: str, sender: HttpWebhookSender, secret_key: bytes | None
+) -> OutboxPublisher:
     """The webhook publisher (S20): outbox rows to signed HTTPS deliveries, with the SSRF check.
     `owner` names this process in the outbox leases (D-053). The caller owns `sender`
     and closes it."""
     return OutboxPublisher(
         SqlOutboxStore(engine),
-        SqlWebhookSecrets(engine),
+        SqlWebhookSecrets(engine, key=secret_key),
         sender,
         SystemClock(),
         DnsResolver(),
