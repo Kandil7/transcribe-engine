@@ -1433,6 +1433,20 @@ stereo path now would add code that nothing exercises.
 Reversibility: easy. Confidence: medium.
 Review: the owner decides the profiler licences (R-004); the 2 percent rule needs a decision on how to apply it.
 
+## D-094 — Pipeline metrics through a port; what is measured and what is not
+Date: 2026-11-28 · Slice: S20 · Status: decided · Review: none
+Context: the design names metrics for segments, stage real-time factor (RTF), cache hits and suspect segments. The counters
+were registered, but nothing incremented the cache, RTF or segment counters.
+Decision: the use cases report through a PipelineMetrics port (count_segments, count_cache_lookup, observe_rtf), so the
+application layer does not import prometheus. A Prometheus adapter maps the port onto the counters. Measured: segments of
+every finished transcript (a segment is the run of words from one chunk); result-cache lookups and hits at ingest; the ASR
+stage's time over the audio it covered, using the system clock. Not measured: the RTF of the other stages (they have spans,
+not timings yet), and suspect segments, because the hallucination rules in the domain are not called anywhere in the
+pipeline. Wiring them is a decision on what counts as suspect, which waits for the accuracy data (R-001).
+Rationale: a port keeps the layer rules and gives a fake for the tests. Reporting only what the pipeline really computes
+avoids a metric that is always zero.
+Reversibility: easy. Confidence: medium.
+
 ## Blocked by the owner (not decided by the autopilot)
 - R-001 (human reference hour): S14 AC-3, S16 measurements, S17 AC-5 DER test stay open. No ground truth exists.
 - R-004 (routing-model licences, singing classifier scope): S13 stays partial.
