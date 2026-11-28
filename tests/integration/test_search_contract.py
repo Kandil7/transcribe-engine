@@ -36,7 +36,6 @@ def _chunk(chunk_id: str, embedding_id: str, body: str) -> object:
     )
 
 
-@pytest.mark.xfail(strict=True, reason="S18")
 async def test_atomic_version_switch(pg_url: str) -> None:
     index_mod = _mod("transcribe_engine.infrastructure.search.pg_index")
     engine = create_async_engine(pg_url)
@@ -75,7 +74,6 @@ async def test_atomic_version_switch(pg_url: str) -> None:
         await engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S18")
 async def test_tenant_isolation(pg_url: str) -> None:
     index_mod = _mod("transcribe_engine.infrastructure.search.pg_index")
     engine = create_async_engine(pg_url)
@@ -96,6 +94,6 @@ async def test_tenant_isolation(pg_url: str) -> None:
         own = await index.search("tenant-s18-b", "fake-embed", "secret", VECTOR, 10)
         assert [h.chunk_id for h in own] == ["ch-iso"]
         other = await index.search("tenant-s18-c", "fake-embed", "secret", VECTOR, 10)
-        assert other == []
+        assert len(other) == 0
     finally:
         await engine.dispose()
