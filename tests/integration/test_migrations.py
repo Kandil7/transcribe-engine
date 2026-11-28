@@ -12,7 +12,7 @@ from testcontainers.community.postgres import PostgresContainer
 pytestmark = pytest.mark.integration
 
 ROOT = Path(__file__).resolve().parents[2]
-HEAD = "0011_rag_tables"  # S18: RAG tables; moved from 0010 with the migration
+HEAD = "0012_artifacts"  # S19: artifacts table; moved from 0011 with the migration
 
 
 def _alembic_config() -> Config:
