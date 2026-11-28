@@ -36,8 +36,11 @@ delivery. Everything runs locally on one machine; no cloud account is needed.
 - **Word-level transcripts:** every word has integer millisecond times and, when diarization is on, a speaker.
 - **Subtitles:** SRT and VTT with right-to-left marks and a byte-order mark, in broadcast, YouTube and
   social-vertical profiles, with Arabic or Western numerals.
-- **Other outputs:** canonical JSON, plain text, Markdown and CSV. Chapters and entity checks exist as domain
-  logic; they have no API route yet.
+- **Other outputs:** canonical JSON, plain text, Markdown and CSV. Chapters by rule (the pauses in the
+  transcript) are served as JSON or as YouTube chapter lines.
+- **Search (off by default):** a hybrid search over indexed transcripts: full-text on normalized Arabic plus
+  bge-m3 vectors, fused by reciprocal rank. Each hit carries the media id, the span and a player deep link.
+  Enable with `TE_SEARCH_ENABLED`.
 - **Versioned transcripts:** human corrections are saved as new versions with optimistic concurrency
   (a stale edit gets `409`). Versions can be deleted.
 - **Webhooks:** outbox-based delivery, HMAC-SHA256 signed, to HTTPS destinations only, with an SSRF guard,
@@ -64,10 +67,11 @@ Each slice (S00–S22) is in [`specs/`](specs/). The tracked state is in
 | Subtitles, formats, profiles (S15) | Done except the render cache and a viewer test of reading speed |
 | Accuracy evaluation (S16) | Harness built; **no human reference transcripts yet**, so accuracy is unmeasured |
 | Diarization (S17) | Port, assignment and Sortformer adapter built; NeMo not installed; accuracy unmeasured |
-| RAG (S18), analytics and chapters (S19) | Pure domain and use cases; no embedder or LLM wired |
+| RAG search (S18) | Built and tested on Postgres (pgvector, RLS). Embedder bge-m3 runs locally behind `TE_SEARCH_ENABLED`; retrieval quality on real Arabic questions is unmeasured (R-009) |
+| Analytics and chapters (S19) | Speaker analytics and chapters by rule served by the API. Summaries, entities and questions need an LLM, which is not built (D-081) |
 | Outbox, webhooks, observability (S20) | Done, with stage spans for the main stages |
 | Deletion and retention (S21) | Built and tested; legal review and region pinning open |
-| Corrections and versions (S22) | API built; training export waits for a privacy decision |
+| Corrections and versions (S22) | API built. Edits that change a segment are re-aligned with the wav2vec2 aligner behind `TE_REALIGN_ENABLED` (off by default). Training export waits for a privacy decision |
 
 Open decisions are in [`docs/REVIEW_QUEUE.md`](docs/REVIEW_QUEUE.md). The most important ones: a human reference
 hour to measure accuracy (R-001), the Egyptian data protection review (R-011), the privacy rules for the
@@ -171,7 +175,11 @@ All routes need an API key in the `Authorization` header: `Authorization: Bearer
 | `GET /v1/transcriptions/{job_id}/subtitles` | Subtitles. `format`: `srt` (default) or `vtt`. `profile`, `numerals`. |
 | `POST /v1/transcriptions/{job_id}:cancel` | Cancel a queued or running job (`202`). |
 | `POST /v1/transcriptions/{job_id}/versions` | Save a corrected version. Send the base version; stale bases get `409` (`201` on success). |
-| `DELETE /v1/transcriptions/{job_id}` | Request deletion of the job's data (`202`). |
+| `GET /v1/transcriptions/{job_id}/chapters` | Chapters by rule. `format`: `json` (default) or `youtube` (`mm:ss title` lines; YouTube needs at least three, else `422`). |
+| `POST /v1/transcriptions/{job_id}:index` | Index the job's latest version for search (`202`, manual; re-index after a correction). Needs `TE_SEARCH_ENABLED`, else `503`. |
+| `GET /v1/search?q=` | Search the active versions of the tenant. `limit` up to 50. Each hit: `media_id`, `start_ms`, `end_ms`, `deeplink`. Needs `TE_SEARCH_ENABLED`. |
+| `GET /v1/transcriptions/{job_id}/rag-chunks` | The indexed chunks of the active version, in time order. |
+| `DELETE /v1/transcriptions/{job_id}` | Request deletion of the job's data (`202`). Deleting also removes the job's search text. |
 
 Example, with the key in `$TE_API_KEY`:
 
@@ -235,6 +243,7 @@ Defaults suit local development.
 | `TE_ASR_CONCURRENCY` | `32` | Chunks in flight per job. |
 | `TE_SECRET_KEY` | unset | Base64 of 32 random bytes. Seals webhook signing secrets (D-082). Without it, no webhook is delivered. |
 | `TE_SEARCH_ENABLED` | `false` | Turns on search: loads the bge-m3 embedder from the local cache (D-079). Off, the search routes answer 503. |
+| `TE_REALIGN_ENABLED` | `false` | The API loads the wav2vec2 aligner so a correction that changes a segment gets real word times (D-092). Off, such edits answer 503. |
 | `TE_LEASE_SECONDS` | `120` | Job lease length. |
 | `TE_POLL_SECONDS` | `1.0` | Idle wait between claim attempts. |
 
@@ -359,7 +368,10 @@ Excluded on purpose: torchaudio MMS_FA (CC-BY-NC, non-commercial, D-070) and Sor
 - **Diarization** has a port, assignment and an adapter, but no NeMo loader, no speaker-count input and no
   accuracy check.
 - **Local speed:** about 14 seconds per two-second clip on CPU.
-- **RAG and analytics** (S18, S19): pure logic only. No embedder, reranker or LLM is wired.
+- **Search** (S18): no reranker (D-080). Ranking needs the query's words to match, and vectors only reorder those
+  matches (D-086), so a synonym with no shared word is not found. Topic boundaries are not detected in v1 (D-088).
+  Indexing runs in the request (D-089). Retrieval quality is unmeasured (R-009).
+- **Enrichment** (S19): summaries, entities and questions need an LLM, which is not built (D-081, R-010).
 - **Render cache** for subtitles is not built; renders are computed on request.
 
 ## Contributing and workflow
