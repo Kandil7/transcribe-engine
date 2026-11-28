@@ -157,22 +157,36 @@ class SqlSearchIndex:
                     {"t": tenant_id, "m": model, "q": query, "k": _CANDIDATES},
                 )
             ).all()
+            # D-086: a hit must match the query's words. Vectors only reorder those matches, so a
+            # query with no matching word returns nothing, whatever the nearest neighbours are.
+            matched = [row.chunk_id for row in lexical]
             dense = (
-                await conn.execute(
-                    text(
-                        f"SELECT {_ACTIVE_CHUNK_COLUMNS} {_ACTIVE_JOIN} "
-                        "JOIN rag_embeddings e ON e.tenant_id = c.tenant_id "
-                        "AND e.embedding_id = c.embedding_id "
-                        "WHERE c.tenant_id = :t AND c.embedding_model = :m "
-                        "ORDER BY e.vector <=> CAST(:v AS vector), c.chunk_id LIMIT :k"
-                    ),
-                    {"t": tenant_id, "m": model, "v": _vector_literal(vector), "k": _CANDIDATES},
-                )
-            ).all()
+                (
+                    await conn.execute(
+                        text(
+                            f"SELECT {_ACTIVE_CHUNK_COLUMNS} {_ACTIVE_JOIN} "
+                            "JOIN rag_embeddings e ON e.tenant_id = c.tenant_id "
+                            "AND e.embedding_id = c.embedding_id "
+                            "WHERE c.tenant_id = :t AND c.embedding_model = :m "
+                            "AND c.chunk_id = ANY(:ids) "
+                            "ORDER BY e.vector <=> CAST(:v AS vector), c.chunk_id LIMIT :k"
+                        ),
+                        {
+                            "t": tenant_id,
+                            "m": model,
+                            "ids": matched,
+                            "v": _vector_literal(vector),
+                            "k": _CANDIDATES,
+                        },
+                    )
+                ).all()
+                if matched
+                else []
+            )
         by_id: dict[str, SearchHit] = {}
         for row in [*lexical, *dense]:
             by_id.setdefault(row.chunk_id, _hit(row))
-        fused = rrf([[row.chunk_id for row in lexical], [row.chunk_id for row in dense]])
+        fused = rrf([matched, [row.chunk_id for row in dense]])
         return tuple(replace(by_id[chunk_id], score=score) for chunk_id, score in fused[:limit])
 
     async def chunks_of(self, tenant_id: str, transcript_id: str) -> tuple[SearchHit, ...]:

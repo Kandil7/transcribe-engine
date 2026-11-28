@@ -144,3 +144,10 @@ class QuotaExceededError(ApplicationError):
     status = 429
     code = "quota_exceeded"
     title = "The tenant's audio quota is used up"
+
+
+class SearchUnavailableError(ApplicationError):
+    """No embedder is configured on this deployment (S18, D-079)."""
+
+    status = 503
+    code = "search_unavailable"
