@@ -233,8 +233,12 @@ Defaults suit local development.
 | `TE_CHUNK_PAD_MS` | `500` | Padding either side of a chunk. |
 | `TE_CHUNK_OVERLAP_MS` | `1500` | Context shared by fixed windows. |
 | `TE_ASR_CONCURRENCY` | `32` | Chunks in flight per job. |
+| `TE_SECRET_KEY` | unset | Base64 of 32 random bytes. Seals webhook signing secrets (D-082). Without it, no webhook is delivered. |
 | `TE_LEASE_SECONDS` | `120` | Job lease length. |
 | `TE_POLL_SECONDS` | `1.0` | Idle wait between claim attempts. |
+
+Create a webhook signing secret for a tenant with `uv run python scripts/webhook_secret.py <tenant_id>`; it prints the
+secret once. Generate the key once, for example `python -c "import secrets,base64;print(base64.b64encode(secrets.token_bytes(32)).decode())"`.
 
 Never commit `.env`, `.env.local` or any key. The model access token for gated repositories is read from
 `HF_TOKEN` in the environment.
