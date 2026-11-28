@@ -1073,3 +1073,11 @@ Branch: feat/R003b-vllm-model   Merged: PR pending
 - D-068 corrects the Whisper licence record to Apache-2.0 on its card.
 - Verification: make check 326 passed, 1 skipped; make itest 95 passed.
 - Open: R-005 (the aligner) is now needed for production word times; R-014 (trust-remote-code approval and revision pin).
+
+## S18 — RAG indexing and search, 2026-11-28
+Branch: feat/S18-rag-indexing-search   Merged: PR pending
+- Built: the search port and Postgres index with migration 0011 (pgvector, RLS on all three tables); the bge-m3 ONNX embedder (D-079); the index use case (AC-5, embeds only new text) and the search use case; the routes POST /v1/transcriptions/{job_id}:index, GET /v1/search, GET /v1/transcriptions/{job_id}/rag-chunks; TE_SEARCH_ENABLED (off by default).
+- Decided: D-085 (manual index trigger), D-086 (a hit must match the query's words; vectors only reorder). The negative control showed pure vector ranking returned hits for any query.
+- Corrected: the AC-5 fixture gave the transcript one ASR chunk, so it could not show a partial edit. It now has 20 chunks of 50 words (before any implementation passed).
+- Verification: make check 359 passed, 2 skipped; make itest 101 passed (before the last settings change, which make check covers).
+- Not done: the spec's HTTP embedder adapter (D-079 chose local ONNX); a reranker (D-080); the R-009 model comparison on real Arabic questions; automatic indexing on completion (D-085).
