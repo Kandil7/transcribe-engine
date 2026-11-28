@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     asr_device: Literal["cuda", "cpu"] | None = None  # None: cuda when available, else cpu
     vllm_url: str = "http://vllm:8000"  # the vLLM service in compose (ADR-0005, D-067)
     search_enabled: bool = False  # TE_SEARCH_ENABLED: bge-m3 search on this deployment (S18, D-079)
+    realign_enabled: bool = (
+        False  # TE_REALIGN_ENABLED: the API loads the aligner for corrections (S22)
+    )
     aligner_model_id: str = Field(
         default="parseh/aligner-ar",  # Apache-2.0 Arabic CTC aligner (D-070)
         pattern=r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",
