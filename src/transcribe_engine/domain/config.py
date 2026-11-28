@@ -41,6 +41,9 @@ class PipelineConfig:
     vad_params: Mapping[str, ParamValue]
     diarization_enabled: bool
     pipeline_version: str
+    speakers: int | None = (
+        None  # requested speaker count, 1 to 10; part of the hash only when set (D-083)
+    )
 
     def __post_init__(self) -> None:
         if self.language.strip().lower() in ("", "auto"):
@@ -49,6 +52,8 @@ class PipelineConfig:
             self, "decoding_params", _check_flat("decoding_params", self.decoding_params)
         )
         object.__setattr__(self, "vad_params", _check_flat("vad_params", self.vad_params))
+        if self.speakers is not None and not 1 <= self.speakers <= 10:
+            raise ValueError("speakers must be between 1 and 10")
 
     def canonical_json(self) -> str:
         payload = {
@@ -60,6 +65,10 @@ class PipelineConfig:
             "diarization_enabled": self.diarization_enabled,
             "pipeline_version": self.pipeline_version,
         }
+        if (
+            self.speakers is not None
+        ):  # left out when unset, so existing hashes do not change (D-083)
+            payload["speakers"] = self.speakers
         return json.dumps(
             payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
         )

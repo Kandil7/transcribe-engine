@@ -50,6 +50,7 @@ class CreateJobCommand:
     diarization: bool
     webhook_url: str | None
     idempotency_key: str | None
+    speakers: int | None = None
 
 
 @dataclass(frozen=True)
@@ -106,7 +107,7 @@ class CreateTranscriptionJob:
                 attempt_count=0,
                 max_attempts=3,
                 queue="cpu",
-                config=_config(cmd.language, cmd.diarization),
+                config=_config(cmd.language, cmd.diarization, cmd.speakers),
                 result_id=None,
                 error_code=None,
                 warnings=(),
@@ -159,8 +160,9 @@ async def _check_limits(uow: UnitOfWork, tenant_id: str) -> None:
         raise QuotaExceededError
 
 
-def _config(language: str, diarization: bool) -> PipelineConfig:
+def _config(language: str, diarization: bool, speakers: int | None = None) -> PipelineConfig:
     return PipelineConfig(
+        speakers=speakers,
         engine=DEFAULT_ENGINE,
         model_revision=DEFAULT_MODEL_REVISION,
         language=language,
