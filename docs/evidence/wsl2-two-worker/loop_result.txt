@@ -1,0 +1,4 @@
+round 1: gpu_fatal=0 cpu_fatal=0 persisted=2 chunk_failed=0
+round 2: gpu_fatal=0 cpu_fatal=0 persisted=2 chunk_failed=0
+round 3: gpu_fatal=0 cpu_fatal=0 persisted=2 chunk_failed=0
+LOOP_DONE
