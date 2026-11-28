@@ -34,7 +34,8 @@ __all__ = ["SqlTranscriptVersions"]
 MakeUow = Callable[[str | None], AbstractAsyncContextManager[UnitOfWork]]
 
 _LATEST = text(
-    "SELECT canonical FROM transcript_revisions WHERE transcript_id = :tid "
+    "SELECT canonical FROM transcript_revisions "
+    "WHERE transcript_id = :tid AND tenant_id = :tenant "
     "ORDER BY version DESC LIMIT 1"
 )
 _PRIMARY_KEY = "pk_transcript_revisions"
@@ -106,7 +107,9 @@ class SqlTranscriptVersions:
                 await conn.execute(
                     text("SELECT set_config('app.tenant_id', :tenant, true)"), {"tenant": tenant_id}
                 )
-                return (await conn.execute(_LATEST, {"tid": transcript_id})).scalar_one_or_none()
+                return (
+                    await conn.execute(_LATEST, {"tid": transcript_id, "tenant": tenant_id})
+                ).scalar_one_or_none()
         except SQLAlchemyError as exc:
             raise translate_db_error(exc) from exc
 

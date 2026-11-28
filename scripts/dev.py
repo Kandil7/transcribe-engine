@@ -74,6 +74,9 @@ def main() -> int:
                 "127.0.0.1",
                 "--port",
                 str(API_PORT),
+                # The access log would write search queries (user words from transcripts) into
+                # the log sink. Search queries are not logged (S18, D-087).
+                "--no-access-log",
             ],
         ),
         "cpu": _start("cpu", [sys.executable, "-m", "transcribe_engine.worker", "cpu"]),

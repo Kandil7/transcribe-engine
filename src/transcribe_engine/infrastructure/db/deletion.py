@@ -63,6 +63,7 @@ class SqlDeletionStore:
         rows["idempotency_keys"] = await self._delete("idempotency_keys", job_id)
         rows["transcript_revisions"] = await self._delete("transcript_revisions", job_id)
         rows["jobs"] = await self._delete("jobs", job_id)
+        await self._delete_search_index(tenant_id, job_id, rows)
 
         result_released = False
         if job.result_id is not None:
@@ -175,6 +176,55 @@ class SqlDeletionStore:
         }[table]
         result = await self._conn.execute(text(statement), {"job": job_id})
         return int(result.rowcount)
+
+    async def _delete_search_index(self, tenant_id: str, job_id: str, rows: dict[str, int]) -> None:
+        """Remove the job's searchable text and the embeddings only it used (S18, D-087).
+
+        Runs after the job row is deleted: an index write that committed before this point is seen
+        here, and one that starts later is refused by its job lock (see pg_index._lock_job)."""
+        ids = (
+            (
+                await self._conn.execute(
+                    text(
+                        "SELECT DISTINCT embedding_id FROM rag_chunks "
+                        "WHERE tenant_id = :t AND transcript_id = :job"
+                    ),
+                    {"t": tenant_id, "job": job_id},
+                )
+            )
+            .scalars()
+            .all()
+        )
+        rows["rag_chunks"] = int(
+            (
+                await self._conn.execute(
+                    text("DELETE FROM rag_chunks WHERE tenant_id = :t AND transcript_id = :job"),
+                    {"t": tenant_id, "job": job_id},
+                )
+            ).rowcount
+        )
+        rows["rag_active"] = int(
+            (
+                await self._conn.execute(
+                    text("DELETE FROM rag_active WHERE tenant_id = :t AND transcript_id = :job"),
+                    {"t": tenant_id, "job": job_id},
+                )
+            ).rowcount
+        )
+        if ids:
+            rows["rag_embeddings"] = int(
+                (
+                    await self._conn.execute(
+                        text(
+                            "DELETE FROM rag_embeddings e WHERE e.tenant_id = :t "
+                            "AND e.embedding_id = ANY(:ids) "
+                            "AND NOT EXISTS (SELECT 1 FROM rag_chunks c "
+                            "WHERE c.tenant_id = e.tenant_id AND c.embedding_id = e.embedding_id)"
+                        ),
+                        {"t": tenant_id, "ids": list(ids)},
+                    )
+                ).rowcount
+            )
 
     async def _release_result(self, result_id: str, rows: dict[str, int]) -> bool:
         still_used = (
