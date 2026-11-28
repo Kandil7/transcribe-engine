@@ -12,7 +12,7 @@ from testcontainers.community.postgres import PostgresContainer
 pytestmark = pytest.mark.integration
 
 ROOT = Path(__file__).resolve().parents[2]
-HEAD = "0010_job_prepared"  # S10 fence: moved from 0009 when jobs got a prepared mark
+HEAD = "0011_rag_tables"  # S18: RAG tables; moved from 0010 with the migration
 
 
 def _alembic_config() -> Config:
