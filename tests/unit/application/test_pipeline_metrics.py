@@ -9,8 +9,6 @@ file. Negative control: an empty file records no segments.
 import importlib
 from types import ModuleType
 
-import pytest
-
 from tests.unit.application.test_process_job import _job, _plan, _process, _script, _seeded
 
 
@@ -18,7 +16,6 @@ def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_segments_are_counted_for_a_speech_file() -> None:
     fake_metrics = _mod("tests.fakes.metrics").FakeMetrics()
     fakes_asr = _mod("tests.fakes.asr")
@@ -32,7 +29,6 @@ async def test_segments_are_counted_for_a_speech_file() -> None:
     assert fake_metrics.segments > 0
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_an_empty_file_records_no_segments() -> None:
     fake_metrics = _mod("tests.fakes.metrics").FakeMetrics()
     fakes_asr = _mod("tests.fakes.asr")
@@ -44,7 +40,6 @@ async def test_an_empty_file_records_no_segments() -> None:
     assert fake_metrics.segments == 0
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_the_asr_stage_time_is_observed_once() -> None:
     fake_metrics = _mod("tests.fakes.metrics").FakeMetrics()
     fakes_asr = _mod("tests.fakes.asr")
