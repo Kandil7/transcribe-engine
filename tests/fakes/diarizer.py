@@ -15,9 +15,11 @@ class FakeDiarizer:
     revision: str = "fake-1"
     max_speakers: int | None = 4
     calls: list[str] = field(default_factory=list)
+    speaker_counts: list[int | None] = field(default_factory=list)
 
     async def diarize(self, audio_key: str, num_speakers: int | None) -> tuple[SpeakerTurn, ...]:
         self.calls.append(audio_key)
+        self.speaker_counts.append(num_speakers)
         if self.error is not None:
             raise self.error
         return self.turns
