@@ -30,7 +30,6 @@ def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
 
 
-@pytest.mark.xfail(strict=True, reason="S18")
 async def test_hit_has_deeplink(app_url: str, minio: object) -> None:
     main = _mod("transcribe_engine.main")
     uow_mod = _mod("transcribe_engine.infrastructure.db.uow")

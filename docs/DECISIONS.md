@@ -1320,6 +1320,26 @@ Context: a job with diarization on and no diarizer wired completed with no speak
 Decision: add the warning diarization_unavailable. The job still completes (partial-state rule, design: partial state).
 Reversibility: easy. Confidence: high.
 
+## D-085 — Indexing is a manual trigger in v1
+Date: 2026-11-28 · Slice: S18 · Status: decided · Review: none
+Context: the spec names the indexing trigger as open (automatic on completion, or on request).
+Decision: indexing runs on request, POST /v1/transcriptions/{job_id}:index, for the job's latest version. Search and the
+chunk list read only the active version. Automatic indexing on completion comes later, once the search cost is measured.
+Rationale: an explicit call keeps the embedding cost under the tenant's control, and the active-version switch (AC-6) means a
+re-index cannot show a half-built version.
+Reversibility: easy (a publisher or job hook can call the same use case). Confidence: medium.
+
+## D-086 — A search hit must match the query's words; vectors only reorder
+Date: 2026-11-28 · Slice: S18 · Status: decided · Review: none
+Context: with pure vector ranking, every query returned its nearest chunks, so a word that was never said still gave hits
+(the AC-8 negative control failed).
+Decision: the candidate set is the full-text match on the normalized query (domain.text.normalize, D-057). The vector ranking
+only orders those candidates, fused with the lexical rank by RRF. No query with no matching word returns hits.
+Rationale: precision first. Synonym recall would need a reviewed similarity threshold, which needs real Arabic data (R-001).
+Reversibility: easy (add a vector-only candidate source behind a threshold once data exists). Confidence: medium.
+Note: the test fixture for AC-5 gave the transcript one ASR chunk, so it had one segment and could not show a partial edit.
+It now has 20 chunks of 50 words. This is a correction of a test written in this slice before any implementation passed.
+
 ## Blocked by the owner (not decided by the autopilot)
 - R-001 (human reference hour): S14 AC-3, S16 measurements, S17 AC-5 DER test stay open. No ground truth exists.
 - R-004 (routing-model licences, singing classifier scope): S13 stays partial.

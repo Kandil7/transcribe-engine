@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from transcribe_engine.application.ports.asr import ASREngine
 from transcribe_engine.application.ports.repositories import UnitOfWork
+from transcribe_engine.application.ports.search import Embedder
 from transcribe_engine.application.ports.storage import ObjectStorage
 from transcribe_engine.application.ports.versions import SegmentAligner
 from transcribe_engine.application.use_cases.ingest_job import IngestJob
@@ -38,9 +39,11 @@ from transcribe_engine.infrastructure.media.ffmpeg import FfmpegNormalizer
 from transcribe_engine.infrastructure.media.ffprobe import FfprobeMediaProbe
 from transcribe_engine.infrastructure.ml.silero_vad import SileroVad
 from transcribe_engine.infrastructure.observability.tracing import LogTracer
+from transcribe_engine.infrastructure.search.pg_index import SqlSearchIndex
 from transcribe_engine.infrastructure.settings import Settings
 from transcribe_engine.infrastructure.storage.s3 import S3ObjectStorage
 from transcribe_engine.presentation.api.app import create_app
+from transcribe_engine.presentation.api.routes_search import SearchServices
 
 __all__ = ["build_app", "build_handlers", "build_make_uow", "build_publisher", "build_storage"]
 
@@ -52,18 +55,29 @@ def _uow(engine: AsyncEngine, tenant_id: str | None) -> AbstractAsyncContextMana
 
 
 def build_app(
-    engine: AsyncEngine, storage: ObjectStorage, aligner: SegmentAligner | None = None
+    engine: AsyncEngine,
+    storage: ObjectStorage,
+    aligner: SegmentAligner | None = None,
+    embedder: Embedder | None = None,
 ) -> FastAPI:
     """The API. `aligner` is None on deployments without an aligner.
 
-    Edits that need new word times are then refused with 503 (S22, R-005)."""
+    Edits that need new word times are then refused with 503 (S22, R-005). `embedder` is None on
+    deployments without the search model; the search routes then answer 503 (S18, D-079)."""
 
     def make_uow(tenant_id: str | None) -> AbstractAsyncContextManager[UnitOfWork]:
         return _uow(engine, tenant_id)
 
     versions = SqlTranscriptVersions(engine, make_uow)
     save = SaveCorrection(versions, aligner or UnavailableAligner())
-    return create_app(make_uow, storage, SystemClock(), save_correction=save.__call__)
+    search = (
+        SearchServices(embedder=embedder, index=SqlSearchIndex(engine), versions=versions)
+        if embedder is not None
+        else None
+    )
+    return create_app(
+        make_uow, storage, SystemClock(), save_correction=save.__call__, search=search
+    )
 
 
 def build_make_uow(

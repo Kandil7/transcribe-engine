@@ -63,3 +63,39 @@ class CorrectionIn(BaseModel):
 class VersionOut(BaseModel):
     job_id: str
     version: int
+
+
+class IndexOut(BaseModel):
+    job_id: str
+    version: int
+    chunks: int
+    embedded: int
+    reused: int
+
+
+class SearchHitOut(BaseModel):
+    chunk_id: str
+    job_id: str
+    version: int
+    media_id: str
+    start_ms: int
+    end_ms: int
+    body: str
+    score: float
+    deeplink: str
+
+
+class SearchOut(BaseModel):
+    hits: list[SearchHitOut]
+
+
+class RagChunkOut(BaseModel):
+    chunk_id: str
+    start_ms: int
+    end_ms: int
+    body: str
+
+
+class RagChunksOut(BaseModel):
+    job_id: str
+    chunks: list[RagChunkOut]

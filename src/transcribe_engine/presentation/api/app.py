@@ -9,6 +9,8 @@ from transcribe_engine.application.ports.storage import ObjectStorage
 from transcribe_engine.presentation.api.errors import install_error_handlers
 from transcribe_engine.presentation.api.routes_corrections import router as corrections_router
 from transcribe_engine.presentation.api.routes_jobs import router as jobs_router
+from transcribe_engine.presentation.api.routes_search import SearchServices
+from transcribe_engine.presentation.api.routes_search import router as search_router
 from transcribe_engine.presentation.api.routes_transcriptions import router as transcriptions_router
 from transcribe_engine.presentation.api.routes_uploads import router as uploads_router
 
@@ -18,6 +20,7 @@ def create_app(
     storage: ObjectStorage,
     clock: Clock,
     save_correction: Callable[..., object] | None = None,
+    search: SearchServices | None = None,
 ) -> FastAPI:
     """`make_uow(tenant_id)` opens a unit of work scoped to a tenant (None = system, D-024)."""
     app = FastAPI(title="Transcribe Engine", version="0.1.0")
@@ -25,9 +28,11 @@ def create_app(
     app.state.storage = storage
     app.state.clock = clock
     app.state.save_correction = save_correction
+    app.state.search = search
     install_error_handlers(app)
     app.include_router(uploads_router)
     app.include_router(transcriptions_router)
     app.include_router(jobs_router)
     app.include_router(corrections_router)
+    app.include_router(search_router)
     return app
