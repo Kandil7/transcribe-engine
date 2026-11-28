@@ -31,6 +31,7 @@ from transcribe_engine.infrastructure.db.reconciler import SqlReconciler
 from transcribe_engine.infrastructure.db.session import make_engine
 from transcribe_engine.infrastructure.http.webhook_sender import HttpWebhookSender
 from transcribe_engine.infrastructure.observability.logging import configure_logging
+from transcribe_engine.infrastructure.security.secret_box import parse_key
 from transcribe_engine.infrastructure.settings import Settings
 
 __all__ = ["main", "serve"]
@@ -112,7 +113,8 @@ def main(argv: list[str]) -> int:
     if role == "publisher":
         owner = f"publisher-{os.getpid()}-{uuid.uuid4().hex[:8]}"
         sender = HttpWebhookSender()
-        publisher = composition.build_publisher(engine, owner, sender)
+        key = parse_key(settings.secret_key.get_secret_value()) if settings.secret_key else None
+        publisher = composition.build_publisher(engine, owner, sender, key)
         asyncio.run(run_publisher(publisher, sender, settings))
         return 0
     storage = composition.build_storage(settings)

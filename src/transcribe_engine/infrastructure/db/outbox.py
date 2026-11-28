@@ -8,6 +8,8 @@ The publisher leases rows (`claim_due`) and writes each result only while it sti
 so two publishers cannot both count an attempt for the same row.
 """
 
+import logging
+import secrets
 from datetime import datetime, timedelta
 
 from sqlalchemy import text
@@ -17,6 +19,7 @@ from transcribe_engine.application.ports.outbox import OutboxRow
 from transcribe_engine.domain.events import event_for_state
 from transcribe_engine.infrastructure.db.session import SYSTEM_SCOPE
 from transcribe_engine.infrastructure.observability.metrics import JOB_OUTCOMES
+from transcribe_engine.infrastructure.security.secret_box import open_sealed, seal
 
 __all__ = ["SqlOutboxStore", "SqlWebhookSecrets", "record_terminal_event"]
 
@@ -128,11 +131,26 @@ class SqlOutboxStore:
             await conn.execute(text(statement), params)
 
 
+_log = logging.getLogger(__name__)
+_SECRET_ROTATION_KEEP = 2  # two active secrets while a tenant rotates (D-048)
+
+
 class SqlWebhookSecrets:
-    def __init__(self, engine: AsyncEngine) -> None:
+    """Reads a tenant's active signing secrets, opened with the key from TE_SECRET_KEY.
+
+    Without a key, no secret is returned: the publisher keeps the event and sends nothing
+    unsigned (D-082).
+    A stored secret that cannot be opened is skipped and logged without its content.
+    """
+
+    def __init__(self, engine: AsyncEngine, key: bytes | None = None) -> None:
         self._engine = engine
+        self._key = key
 
     async def active_secrets(self, tenant_id: str) -> tuple[bytes, ...]:
+        if self._key is None:
+            _log.warning("webhook secret key is not set; deliveries wait until it is")
+            return ()
         async with self._engine.begin() as conn:
             await conn.execute(
                 text("SELECT set_config('app.tenant_id', :tenant, true)"),
@@ -148,4 +166,43 @@ class SqlWebhookSecrets:
                     {"tenant": tenant_id, "limit": _ACTIVE_SECRETS_LIMIT},
                 )
             ).all()
-        return tuple(bytes(row.secret) for row in rows)
+        opened: list[bytes] = []
+        for row in rows:
+            try:
+                opened.append(open_sealed(self._key, bytes(row.secret)))
+            except ValueError:
+                _log.warning("a stored webhook secret could not be opened; it is skipped")
+        return tuple(opened)
+
+
+async def add_webhook_secret(engine: AsyncEngine, key: bytes, tenant_id: str) -> str:
+    """Create a new signing secret for a tenant and return it once. Only the sealed form is stored.
+
+    Older secrets beyond the two newest are retired in the same transaction (D-082, D-048).
+    """
+    plaintext = secrets.token_urlsafe(32)
+    secret_id = "whk_" + secrets.token_hex(8)
+    sealed = seal(key, plaintext.encode("utf-8"))
+    async with engine.begin() as conn:
+        await conn.execute(
+            text("SELECT set_config('app.tenant_id', :tenant, true)"),
+            {"tenant": tenant_id},
+        )
+        await conn.execute(
+            text(
+                "INSERT INTO webhook_secrets (tenant_id, secret_id, secret) "
+                "VALUES (:tenant, :secret_id, :secret)"
+            ),
+            {"tenant": tenant_id, "secret_id": secret_id, "secret": sealed},
+        )
+        await conn.execute(
+            text(
+                "UPDATE webhook_secrets SET retired_at = now() "
+                "WHERE tenant_id = :tenant AND retired_at IS NULL AND secret_id NOT IN ("
+                "  SELECT secret_id FROM webhook_secrets "
+                "  WHERE tenant_id = :tenant AND retired_at IS NULL "
+                "  ORDER BY created_at DESC LIMIT :keep)"
+            ),
+            {"tenant": tenant_id, "keep": _SECRET_ROTATION_KEEP},
+        )
+    return plaintext

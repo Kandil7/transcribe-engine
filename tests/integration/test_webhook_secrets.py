@@ -24,7 +24,6 @@ def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_secret_is_stored_sealed_and_read_back(pg_url: str) -> None:
     engine = create_async_engine(pg_url)
     try:
@@ -53,7 +52,6 @@ async def test_secret_is_stored_sealed_and_read_back(pg_url: str) -> None:
         await engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_no_key_means_no_secrets(pg_url: str) -> None:
     engine = create_async_engine(pg_url)
     try:
@@ -66,7 +64,6 @@ async def test_no_key_means_no_secrets(pg_url: str) -> None:
         await engine.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="S20")
 async def test_third_secret_retires_the_oldest(pg_url: str) -> None:
     engine = create_async_engine(pg_url)
     try:

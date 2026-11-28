@@ -6,6 +6,7 @@ Plausibility only: accuracy is unmeasured (D-075).
 """
 
 import io
+import sys
 import wave
 
 import numpy as np
@@ -38,6 +39,9 @@ def _cached() -> bool:
     return True
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="native Windows GPU fault (D-078): run under WSL2"
+)
 @pytest.mark.skipif(not _cached(), reason="pinned Cohere model is not in the local cache")
 async def test_loads_offline_and_hands_text_to_the_aligner() -> None:
     seconds = 2

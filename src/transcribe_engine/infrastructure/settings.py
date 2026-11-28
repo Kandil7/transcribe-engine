@@ -6,7 +6,7 @@ through ports and constructors; `main.py` is the single place that builds a `Set
 
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Local development defaults match docker-compose.yml. They are throwaway values; production
@@ -55,6 +55,7 @@ class Settings(BaseSettings):
         default="CohereLabs/cohere-transcribe-arabic-07-2026",  # production default (D-067)
         pattern=r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",  # a repo id, never a local path
     )
+    secret_key: SecretStr | None = None  # base64 of 32 bytes; seals webhook signing secrets (D-082)
     lease_seconds: int = 120  # design: 2-minute lease
     heartbeat_seconds: float = 30.0
     poll_seconds: float = 1.0  # idle wait between claim attempts
