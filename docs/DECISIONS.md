@@ -1245,3 +1245,23 @@ text_is_required). A separate ProcessJob test with the spec's exact name is not 
 Reversibility: easy (a warning string and a flag on the chunk result).
 Confidence: medium.
 Applied in: feat(S14) commit ac0785a.
+
+## D-078 — Run the GPU worker stack under WSL2 on this machine (the Windows crash)
+Date: 2026-11-28 · Slice: S12 · Status: decided · Review: none
+Context: on native Windows, the GPU worker crashed (access violation in transformers' Whisper generation, or a CUDA out-of-memory
+error at model load) whenever the CPU worker ran alongside it, including with the API stopped and with the GPU hidden from the CPU
+worker. The GPU worker alone was stable. Software versions were identical in the working copy and the clean clone.
+Options: A) Keep native Windows and change the worker code. B) Run the stack under WSL2 (Ubuntu 24.04) with the same GPU.
+Decision: B. The project's own hardware profile lists WSL2 as a supported NVIDIA path.
+Evidence (2026-11-28, WSL2 Ubuntu-24.04, Quadro RTX 5000, driver 580.92, torch 2.14.1+cu126):
+- torch sees the GPU inside WSL.
+- Three rounds of the two-worker test (GPU and CPU workers together, API running, two jobs per round): all six jobs persisted,
+  with no fatal error and no failed chunk in either worker.
+- The project's end-to-end demo (make demo's flow) completed: 7 words, no warnings, JSON saved.
+Not covered: native Windows is not fixed; it is avoided. The root cause on Windows is unconfirmed (suspected Windows GPU
+memory handling with two CUDA processes). A longer soak test (hours, many jobs) has not been run.
+Setup: clone the repo in WSL, uv sync --all-groups, install torch 2.14.1 from the cu126 index, install FFmpeg into a conda env
+(conda-forge), and use Windows-hosted Postgres and MinIO through localhost. HF_HOME may point at the Windows model cache via /mnt/d.
+Reversibility: easy (the runtime choice is configuration and environment only).
+Confidence: medium (short runs; not a soak test).
+Applied in: docs commit on docs/wsl2-gpu-runtime.
