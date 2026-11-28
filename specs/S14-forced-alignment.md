@@ -43,7 +43,7 @@ def verbalize_for_alignment(text: str) -> tuple[str, Sequence[TokenMap]]   # dig
 - **AC-3** — `test_aligner_contract.py::test_word_boundaries_mae` (gpu): ≤ the S16 timing threshold on
   the hand-labeled sample.
 - **AC-4** — `::test_failure_falls_back_to_segment_times` (contract, fake raising).
-- **AC-5** — `test_process_job.py::test_alignment_mandatory_without_native_timestamps` (unit).
+- **AC-5** — `test_vllm_words` (unit, adapter boundary; ProcessJob receives words, not text, D-091).
 
 ## Commit plan
 1. `docs(S14): add spec`
