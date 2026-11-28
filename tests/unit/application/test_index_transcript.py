@@ -9,8 +9,6 @@ from dataclasses import replace
 from types import ModuleType
 from typing import Any
 
-import pytest
-
 from tests.fakes.embedder import FakeEmbedder
 from tests.fakes.search_index import FakeSearchIndex
 
@@ -25,7 +23,7 @@ def _transcript(edit_tail: bool = False, version: int = 1) -> Any:
     texts = [f"w{i}." if (i + 1) % 10 == 0 else f"w{i}" for i in range(1000)]
     if edit_tail:
         texts = [t if i < 980 else t.replace("w", "x") for i, t in enumerate(texts)]
-    words = tuple(merge.Word(t, i * 400, i * 400 + 350, None, 0) for i, t in enumerate(texts))
+    words = tuple(merge.Word(t, i * 400, i * 400 + 350, None, i // 50) for i, t in enumerate(texts))
     merged = merge.MergedWords(words=words, sample_rate=16_000)
     provenance = transcript.Provenance(
         engine="whisper-local", revision="rev", pipeline_version="1.0.0", config_hash="c" * 64
@@ -36,7 +34,6 @@ def _transcript(edit_tail: bool = False, version: int = 1) -> Any:
     return replace(built, version=version)
 
 
-@pytest.mark.xfail(strict=True, reason="S18")
 async def test_reindex_skips_unchanged() -> None:
     index_mod = _mod("transcribe_engine.application.use_cases.index_transcript")
     embedder = FakeEmbedder()
