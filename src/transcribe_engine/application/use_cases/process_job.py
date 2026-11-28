@@ -15,12 +15,15 @@ import logging
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from dataclasses import dataclass, replace
+from datetime import datetime
 
 from transcribe_engine.application.ports.asr import ASREngine
+from transcribe_engine.application.ports.clock import Clock
 from transcribe_engine.application.ports.diarizer import Diarizer
+from transcribe_engine.application.ports.metrics import PipelineMetrics
 from transcribe_engine.application.ports.repositories import UnitOfWork
 from transcribe_engine.application.ports.tracing import Tracer, open_span
-from transcribe_engine.domain.chunks import Chunk
+from transcribe_engine.domain.chunks import NORMALIZED_SAMPLE_RATE, Chunk
 from transcribe_engine.domain.errors import PermanentError, TransientError
 from transcribe_engine.domain.jobs import (
     ErrorCode,
@@ -66,6 +69,8 @@ class ProcessJob:
         require_complete_text: bool = False,
         diarization: Diarization | None = None,
         tracer: Tracer | None = None,
+        metrics: PipelineMetrics | None = None,
+        clock: Clock | None = None,
     ) -> None:
         self._make_uow = make_uow
         self._asr = asr
@@ -74,6 +79,8 @@ class ProcessJob:
         self._diarization = diarization
         self._require_complete_text = require_complete_text
         self._tracer = tracer
+        self._metrics = metrics
+        self._clock = clock
 
     async def __call__(self, job: Job) -> Transition:
         tenant = job.tenant_id
@@ -88,6 +95,7 @@ class ProcessJob:
         failed: set[int] = set()
         gate = asyncio.Semaphore(self._concurrency)
         audio_key = work_key(tenant, job.id, WAV)
+        started = self._clock.now() if self._clock is not None else None
         try:
             with self._span(job, JobStage.ASR):
                 async with asyncio.TaskGroup() as group:
@@ -95,6 +103,7 @@ class ProcessJob:
                         group.create_task(self._run_one(job, audio_key, chunk, gate, failed))
         except* TransientError as transient:
             raise transient.exceptions[0] from None
+        self._observe_asr_rtf(plan, started)
         with self._span(job, JobStage.PERSISTING):
             return await self._finish(job, plan, failed)
 
@@ -118,6 +127,16 @@ class ProcessJob:
                 "chunk transcribed", extra={**_fields(job, chunk.idx), "word_count": len(words)}
             )
 
+    def _observe_asr_rtf(self, plan: tuple[Chunk, ...], started: datetime | None) -> None:
+        """Report the ASR stage's time over the audio it covered (transcribe_stage_rtf, S20)."""
+        if self._metrics is None or self._clock is None or started is None or not plan:
+            return
+        audio_seconds = _duration_bound(plan) / NORMALIZED_SAMPLE_RATE
+        if audio_seconds <= 0:
+            return
+        elapsed = (self._clock.now() - started).total_seconds()
+        self._metrics.observe_rtf("asr", elapsed / audio_seconds)
+
     async def _finish(self, job: Job, plan: tuple[Chunk, ...], failed: set[int]) -> Transition:
         if failed and self._require_complete_text:
             return transition(
@@ -136,6 +155,9 @@ class ProcessJob:
         async with self._make_uow(tenant) as uow:
             await uow.chunks.save_transcript(tenant, job.id, merged)
             await uow.commit()
+        if self._metrics is not None:
+            # A segment is the run of words from one chunk (transcript_from_merged groups them so).
+            self._metrics.count_segments(len({word.chunk_idx for word in merged.words}))
         warnings = [chunk_failed_warning(idx) for idx in sorted(failed)]
         warnings += [alignment_fallback_warning(c.idx) for c in plan if _is_fallback(stored, c)]
         warnings += diarization_warnings

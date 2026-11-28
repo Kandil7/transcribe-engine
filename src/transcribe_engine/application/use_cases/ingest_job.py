@@ -19,6 +19,7 @@ from transcribe_engine.application.ports.media import (
     MediaProbe,
     UnsupportedMediaError,
 )
+from transcribe_engine.application.ports.metrics import PipelineMetrics
 from transcribe_engine.application.ports.repositories import UnitOfWork
 from transcribe_engine.application.ports.storage import ObjectStorage
 from transcribe_engine.application.ports.tracing import Tracer, open_span
@@ -65,8 +66,10 @@ class IngestJob:
         chunk_bytes: int = DEFAULT_CHUNK_BYTES,
         prepare: Callable[[Job, str], Awaitable[None]] | None = None,
         tracer: Tracer | None = None,
+        metrics: PipelineMetrics | None = None,
     ) -> None:
         self._make_uow = make_uow
+        self._metrics = metrics
         self._storage = storage
         self._probe = probe
         self._normalizer = normalizer
@@ -143,6 +146,8 @@ class IngestJob:
                 job.media_id, job.tenant_id, sha256, info.duration_ms, info.format_name, size
             )
             cached = await uow.results.get_by_key(result_key(sha256, job.config))
+            if self._metrics is not None:
+                self._metrics.count_cache_lookup(cached is not None)
             # One reference per job (D-037): a retried job adds no second count.
             if cached is not None and await uow.results.add_reference(
                 job.tenant_id, job.id, cached.id

@@ -41,6 +41,9 @@ from transcribe_engine.infrastructure.http.webhook_sender import DnsResolver, Ht
 from transcribe_engine.infrastructure.media.ffmpeg import FfmpegNormalizer
 from transcribe_engine.infrastructure.media.ffprobe import FfprobeMediaProbe
 from transcribe_engine.infrastructure.ml.silero_vad import SileroVad
+from transcribe_engine.infrastructure.observability.pipeline_metrics import (
+    PrometheusPipelineMetrics,
+)
 from transcribe_engine.infrastructure.observability.tracing import LogTracer
 from transcribe_engine.infrastructure.search.embedder_bge import BgeM3Embedder
 from transcribe_engine.infrastructure.search.pg_index import SqlSearchIndex
@@ -213,6 +216,7 @@ def build_handlers(
         scratch_root=scratch,
         prepare=prepare,
         tracer=tracer,
+        metrics=PrometheusPipelineMetrics(),
     )
     process = ProcessJob(
         make_uow,
@@ -222,5 +226,7 @@ def build_handlers(
         # A chunk the model cannot read fails the job, not a silent transcript with a gap (review).
         require_complete_text=settings.asr_engine in ("whisper_local", "cohere_local", "vllm"),
         tracer=tracer,
+        metrics=PrometheusPipelineMetrics(),
+        clock=SystemClock(),
     )
     return ingest, process
