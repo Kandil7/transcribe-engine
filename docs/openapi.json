@@ -53,6 +53,19 @@
             "title": "Language",
             "type": "string"
           },
+          "speakers": {
+            "anyOf": [
+              {
+                "maximum": 10.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speakers"
+          },
           "upload_id": {
             "pattern": "^[0-9a-f]{32}$",
             "title": "Upload Id",
