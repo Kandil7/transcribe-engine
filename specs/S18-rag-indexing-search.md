@@ -57,10 +57,12 @@ class SearchIndex(Protocol):
 - **AC-3** — `test_rag.py::test_metadata_complete` (unit): every field non-empty where the source has it.
 - **AC-4** — `test_rag.py::test_rrf_known_ranking` (unit).
 - **AC-5** — `test_index_transcript.py::test_reindex_skips_unchanged` (unit, fake embedder counts calls).
-- **AC-6** — `test_search_contract.py::test_atomic_version_switch` (integration): searches during
+- **AC-6** — `tests/contracts/test_search_index_contract.py::test_active_version_is_the_only_one_searched`
+  (both implementations) and `tests/integration/test_search_lifecycle.py::test_searches_during_activation_each_see_one_version`: searches during
   re-index return only one version.
-- **AC-7** — `test_search_contract.py::test_tenant_isolation` (integration).
-- **AC-8** — `test_api_search.py::test_hit_has_deeplink` (integration).
+- **AC-7** — `tests/contracts/test_search_index_contract.py::test_a_tenant_never_sees_another_tenants_text` and
+  `tests/integration/test_api_search.py::test_another_tenant_sees_nothing_through_the_api` (RLS-enforced role).
+- **AC-8** — `tests/integration/test_api_search.py::test_hit_carries_media_span_and_deeplink` (integration).
 
 ## Commit plan
 1. `docs(S18): add spec`
