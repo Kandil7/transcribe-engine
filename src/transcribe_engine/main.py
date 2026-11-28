@@ -26,6 +26,7 @@ from transcribe_engine.application.use_cases.publish_outbox import OutboxPublish
 from transcribe_engine.application.use_cases.save_correction import SaveCorrection
 from transcribe_engine.domain.chunks import NORMALIZED_SAMPLE_RATE
 from transcribe_engine.infrastructure.alignment.load import load_wav2vec2_aligner
+from transcribe_engine.infrastructure.alignment.segment_realigner import SegmentRealigner
 from transcribe_engine.infrastructure.alignment.unavailable import UnavailableAligner
 from transcribe_engine.infrastructure.asr.cohere_local import CohereLocalASR
 from transcribe_engine.infrastructure.asr.plumbing import PlumbingASR
@@ -64,6 +65,17 @@ def build_embedder(settings: Settings) -> Embedder | None:
     if not settings.search_enabled:
         return None
     return BgeM3Embedder()
+
+
+def build_realigner(settings: Settings, storage: ObjectStorage) -> SegmentAligner | None:
+    """The aligner for corrections that change a segment's text (S22, R-005).
+
+    Off by default: loading the aligner costs memory in the API process. Without it, an edit that
+    needs new word times is refused with 503, as before."""
+    if not settings.realign_enabled:
+        return None
+    aligner = load_wav2vec2_aligner(storage, settings.aligner_model_id, settings.aligner_revision)
+    return SegmentRealigner(storage, aligner, language="ar")
 
 
 def build_app(
