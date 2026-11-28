@@ -145,7 +145,13 @@ def test_max_attempts_one_fails_on_first_transient_error() -> None:
 def test_warnings_are_strings_and_chunk_warning_is_formatted() -> None:
     """Warnings are plain codes; they never enter transition(), so they cannot change state."""
     jobs = _jobs()
-    assert [w.value for w in jobs.Warning] == ["diarization_failed", "no_speech", "low_snr"]
+    assert [w.value for w in jobs.Warning] == [
+        "diarization_failed",
+        "diarization_unavailable",  # D-084
+        "speakers_above_limit",  # D-083
+        "no_speech",
+        "low_snr",
+    ]
     assert jobs.chunk_failed_warning(3) == "chunk_failed:3"
     with pytest.raises(ValueError, match="non-negative"):
         jobs.chunk_failed_warning(-1)
