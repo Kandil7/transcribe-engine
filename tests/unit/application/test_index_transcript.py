@@ -38,6 +38,7 @@ async def test_reindex_skips_unchanged() -> None:
     index_mod = _mod("transcribe_engine.application.use_cases.index_transcript")
     embedder = FakeEmbedder()
     index = FakeSearchIndex()
+    index.register_job("tenant-a", "job-s18")
     service = index_mod.IndexTranscript(embedder=embedder, index=index)
 
     first = await service(_transcript(version=1), tenant_id="tenant-a")

@@ -23,5 +23,8 @@ class FakeEmbedder:
 
 
 def _vector(text: str) -> list[float]:
+    """A unit-length vector, as the real embedder returns (the embedder contract checks it)."""
     seed = sum(ord(c) for c in text) % 97
-    return [((seed + i) % 17) / 17.0 for i in range(1024)]
+    raw = [((seed + i) % 17) / 17.0 for i in range(1024)]
+    norm = sum(x * x for x in raw) ** 0.5
+    return [x / norm for x in raw]
