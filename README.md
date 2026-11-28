@@ -134,6 +134,16 @@ subtitles (see [Using the API](#using-the-api)).
 **Windows notes.** Use Git Bash or PowerShell with `make` available. `make seed` keeps the key in
 `.env.local`, which is git-ignored and never read back by the tools. Do not commit it.
 
+### Running the GPU stack on Windows: use WSL2 (D-078)
+On native Windows, the GPU worker crashed when the CPU worker ran alongside it. The stack runs reliably under WSL2 with the
+same GPU. Run the GPU worker in WSL2 (Ubuntu 24.04):
+
+1. Clone the repo inside WSL, then `uv sync --all-groups`.
+2. Install torch from the CUDA index: `uv pip install --index-url https://download.pytorch.org/whl/cu126 "torch==2.14.1"`.
+3. Install FFmpeg without `sudo`: `conda install -c conda-forge ffmpeg` into a conda environment on the PATH.
+4. Postgres and MinIO keep running on Windows (`make up`); WSL reaches them through localhost.
+5. Point `HF_HOME` at the Windows model cache, for example `/mnt/d/AI/Models/HuggingFace`.
+
 ### Optional: CUDA torch on this machine
 
 The default `uv sync` installs the CPU build of torch, so the local ASR runs on CPU. For an NVIDIA GPU on
