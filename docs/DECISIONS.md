@@ -1265,3 +1265,64 @@ Setup: clone the repo in WSL, uv sync --all-groups, install torch 2.14.1 from th
 Reversibility: easy (the runtime choice is configuration and environment only).
 Confidence: medium (short runs; not a soak test).
 Applied in: docs commit on docs/wsl2-gpu-runtime.
+
+## D-079 — S18 embedder: BAAI/bge-m3 (dense), in-process (R-009 embedder)
+Date: 2026-11-28 · Slice: S18 · Status: decided (provisional) · Review: none
+Context: S18 needs a multilingual embedder for Arabic. R-009 asked the owner to choose. S18 Q2 asks for a comparison on real
+Arabic questions, which needs human-written questions that do not exist yet.
+Options: A) BAAI/bge-m3 (MIT, 1024-dim, multilingual, cached and complete). B) paraphrase-multilingual-MiniLM (small, cached;
+weaker for Arabic retrieval in general). C) A hosted API: excluded (no hosted services without a decision).
+Decision: A, dense vectors with CLS pooling and normalisation, run in-process through transformers. No new dependency.
+Rationale: the best licensed multilingual option that is already on disk. The comparison in Q2 is deferred until data exists;
+this is a provisional default, recorded as such. A new model is a new embedding_model id, and one search never mixes models.
+Reversibility: easy (a new model id plus a re-index).
+Confidence: medium.
+Applied in: feat(S18) commits (embedder adapter).
+
+## D-080 — S18 reranker: none in v1 (R-009 reranker)
+Date: 2026-11-28 · Slice: S18 · Status: decided · Review: none
+Decision: no reranker in v1. Hybrid search uses Reciprocal Rank Fusion (AC-4, pure), which needs no second model.
+Rationale: a reranker is a second model with its own licence check and no measured gain. Add it only if S16 measures a benefit.
+Reversibility: easy. Confidence: medium.
+
+## D-081 — LLM (R-010): none in v1; chapters and entities by rule
+Date: 2026-11-28 · Slice: S19 · Status: decided · Review: none
+Context: S19 mentions an LLM for chapters and entities. R-010 asked the owner to choose local or hosted.
+Options: A) A local model (Qwen3 is cached and Apache-2.0, but unmeasured). B) A hosted model (excluded: no hosted service
+without a decision). C) No LLM in v1; the deterministic chapter snapping and entity verification already built.
+Decision: C. The LLM port stays unbuilt. Final acceptance does not need an LLM.
+Rationale: an unmeasured model should not produce user-facing text. The rule-based path is tested and sufficient for v1.
+Reversibility: easy (the port is added later). Confidence: medium.
+
+## D-082 — Webhook secrets (R-012): AES-256-GCM, key from TE_SECRET_KEY, written by a CLI
+Date: 2026-11-28 · Slice: S20 · Status: decided · Review: none
+Context: the outbox reads signing secrets from webhook_secrets, but nothing writes to it (D-066). So no webhook can be signed.
+That is a bug, not a design choice. The table holds plaintext if it is ever written as-is.
+Options: A) AES-256-GCM with a key from the environment (TE_SECRET_KEY, 32 bytes, base64); cryptography package. B) Fernet (same
+library, less control over the nonce format). C) A cloud KMS (excluded: no cloud account). D) Keep plaintext (rejected).
+Decision: A. Secrets are written by scripts/webhook_secret.py, which prints the new secret once and stores only the
+ciphertext (version byte, 12-byte nonce, ciphertext). The publisher refuses to deliver when TE_SECRET_KEY is missing
+(fail closed). The cryptography package is added to the project dependencies; its licence is recorded at install time.
+Rationale: the smallest design that keeps the signing secret out of the database in plaintext, with no cloud dependency.
+Reversibility: moderate (the ciphertext format is versioned; rotating TE_SECRET_KEY needs a re-encryption step).
+Confidence: medium-high.
+
+## D-083 — Speaker count input (R-008 c): optional `speakers` on job creation
+Date: 2026-11-28 · Slice: S17 · Status: decided · Review: none
+Decision: CreateTranscriptionIn gets optional `speakers` (1 to 10). When diarization is on and the requested count is above the
+diarizer's max_speakers, the job clamps to the maximum and adds the warning speakers_above_limit. A missing value means auto.
+Rationale: the job had no field for the count (S17 AC-4). The clamp keeps the job completing, and the warning makes it visible.
+Reversibility: easy. Confidence: medium.
+
+## D-084 — Diarization requested but not configured: warn, do not fail silently
+Date: 2026-11-28 · Slice: S17 · Status: decided · Review: none
+Context: a job with diarization on and no diarizer wired completed with no speakers and no warning.
+Decision: add the warning diarization_unavailable. The job still completes (partial-state rule, design: partial state).
+Reversibility: easy. Confidence: high.
+
+## Blocked by the owner (not decided by the autopilot)
+- R-001 (human reference hour): S14 AC-3, S16 measurements, S17 AC-5 DER test stay open. No ground truth exists.
+- R-004 (routing-model licences, singing classifier scope): S13 stays partial.
+- R-005 part b (viewer test): S15 reading-speed value stays provisional.
+- R-011 (Egyptian data protection review, region pinning): S21 region pinning stays open. Production not enabled.
+- R-013 (training-export privacy rules): S22 training export stays open. Not built.
