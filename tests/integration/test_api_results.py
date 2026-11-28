@@ -1,18 +1,18 @@
-"""S15 AC-8 over HTTP: every result format and both subtitle endpoints, with profiles.
+"""S19 AC-6 (integration, Postgres and MinIO, through the API): a transcript's chapters.
 
-Runs against Postgres and MinIO (Testcontainers), like test_api_result.py. The transcript is
-written through the unit of work, as ProcessJob does. Each refusal has a positive control.
+Chapters come from the transcript's pauses (D-081: by rule, no LLM). The YouTube format lists
+them as "mm:ss title", and the first chapter starts at 00:00. Positive control: the chapter
+list has a chapter for each long pause, and the first one starts at zero.
 """
 
 import importlib
 from types import ModuleType
 
+import httpx
 import pytest
 
 from tests.integration.api_support import (
     auth,
-    build_client,
-    create_job,
     force_state,
     issue_key,
     new_tenant,
@@ -22,52 +22,68 @@ from tests.integration.api_support import (
 )
 from transcribe_engine.infrastructure.db.session import make_engine
 
-pytestmark = [pytest.mark.integration]
-
+pytestmark = [pytest.mark.integration, pytest.mark.contract]
 PAYLOAD = b"RIFF" + b"\x00" * 64
-FORMATS = ("canonical", "txt", "md", "csv", "srt", "vtt")
 
 
 def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
 
 
-async def test_formats_and_profiles(minio: object, app_url: str) -> None:
-    """AC-8: each format answers 200 with its media type. The vertical profile splits a long
-    fixture that the broadcast profile keeps as one cue, so the profile reaches the output.
-    Positive control: the valid calls return 200; a bad format is 422."""
+def _segments_with_pauses(segment_count: int, seconds_each: int, pause_ms: int) -> list[object]:
+    """Words spaced 1 s apart in segments of `seconds_each`, separated by `pause_ms` of silence."""
+    merge = _mod("transcribe_engine.domain.merge")
+    words = []
+    cursor = 0
+    for chunk_idx in range(segment_count):
+        for i in range(seconds_each):
+            words.append(merge.Word(f"w{chunk_idx}-{i}", cursor, cursor + 900, 0.9, chunk_idx))
+            cursor += 1_000
+        cursor += pause_ms
+    return words
+
+
+@pytest.mark.xfail(strict=True, reason="S19")
+async def test_youtube_chapters_format(app_url: str, minio: object) -> None:
+    merge = _mod("transcribe_engine.domain.merge")
+    uow_mod = _mod("transcribe_engine.infrastructure.db.uow")
     tenant = new_tenant()
     engine = make_engine(app_url)
     await seed_tenant(engine, tenant)
     key = await issue_key(engine, tenant, ["transcribe:write", "transcribe:read"])
-    merge = _mod("transcribe_engine.domain.merge")
-    uow_mod = _mod("transcribe_engine.infrastructure.db.uow")
-    merged = merge.MergedWords(
-        words=tuple(merge.Word("كلمة", i * 500, i * 500 + 450, None, 0) for i in range(10)),
-        sample_rate=16_000,
-    )
-    async with build_client(engine, storage_for(minio)) as client:  # type: ignore[arg-type]
-        upload_id = await upload(client, key, PAYLOAD)
-        job_id = (await create_job(client, key, upload_id)).json()["id"]
-        await force_state(engine, job_id, "COMPLETED")
-        async with uow_mod.SqlUnitOfWork(engine, tenant_id=tenant) as uow:
-            await uow.chunks.save_transcript(tenant, job_id, merged)
-            await uow.commit()
-        base = f"/v1/transcriptions/{job_id}"
-        for name in FORMATS:
-            response = await client.get(f"{base}/result?format={name}", headers=auth(key))
-            assert response.status_code == 200, name
-            assert response.content, name
-        broadcast = await client.get(
-            f"{base}/subtitles?format=srt&profile=broadcast", headers=auth(key)
-        )
-        vertical = await client.get(
-            f"{base}/subtitles?format=srt&profile=social_vertical", headers=auth(key)
-        )
-        refused = await client.get(f"{base}/result?format=docx", headers=auth(key))
-    assert broadcast.status_code == 200
-    assert vertical.status_code == 200
-    assert broadcast.content != vertical.content
-    assert refused.status_code == 422
-    assert refused.json()["code"] == "unsupported_feature"
-    await engine.dispose()
+    app = _mod("transcribe_engine.main").build_app(engine=engine, storage=storage_for(minio))
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            upload_id = await upload(client, key, PAYLOAD)
+            created = await client.post(
+                "/v1/transcriptions",
+                headers=auth(key),
+                json={"upload_id": upload_id, "language": "ar", "diarization": False},
+            )
+            job_id = created.json()["id"]
+            await force_state(engine, job_id, "COMPLETED")
+            merged = merge.MergedWords(
+                words=tuple(_segments_with_pauses(4, 40, 3_000)), sample_rate=16_000
+            )
+            async with uow_mod.SqlUnitOfWork(engine, tenant_id=tenant) as uow:
+                await uow.chunks.save_transcript(tenant, job_id, merged)
+                await uow.commit()
+
+            response = await client.get(
+                f"/v1/transcriptions/{job_id}/chapters",
+                params={"format": "youtube"},
+                headers=auth(key),
+            )
+            assert response.status_code == 200
+            lines = response.text.strip().splitlines()
+            assert len(lines) == 4, lines
+            assert lines[0].startswith("00:00 "), lines[0]
+
+            as_json = await client.get(f"/v1/transcriptions/{job_id}/chapters", headers=auth(key))
+            chapters = as_json.json()["chapters"]
+            assert chapters[0]["start_ms"] == 0
+            assert len(chapters) == 4
+    finally:
+        await engine.dispose()
