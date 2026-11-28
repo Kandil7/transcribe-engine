@@ -10,8 +10,6 @@ import importlib
 from collections import Counter
 from types import ModuleType
 
-import pytest
-
 from tests.unit.application.test_process_job import _job, _plan, _process, _script, _seeded
 
 
@@ -19,7 +17,6 @@ def _mod(name: str) -> ModuleType:
     return importlib.import_module(name)
 
 
-@pytest.mark.xfail(strict=True, reason="S13")
 async def test_no_speech_completes_without_asr_calls() -> None:
     jobs = _mod("transcribe_engine.domain.jobs")
     fakes_asr = _mod("tests.fakes.asr")
