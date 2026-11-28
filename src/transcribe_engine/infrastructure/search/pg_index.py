@@ -14,6 +14,7 @@ from typing import Any
 from sqlalchemy import Row, text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
+from transcribe_engine.application.errors import TranscriptNotFoundError
 from transcribe_engine.application.ports.search import IndexedChunk, SearchHit
 from transcribe_engine.domain.rag import rrf
 
@@ -36,6 +37,21 @@ def _vector_literal(vector: Sequence[float]) -> str:
 
 async def _set_tenant(conn: AsyncConnection, tenant_id: str) -> None:
     await conn.execute(text("SELECT set_config('app.tenant_id', :t, true)"), {"t": tenant_id})
+
+
+async def _lock_job(conn: AsyncConnection, tenant_id: str, job_id: str) -> None:
+    """Hold the job row for share until this transaction ends (D-087).
+
+    A delete of the job waits for this transaction, and a job already deleted is refused here. So an
+    index write can never be left behind after its job is deleted, whichever order they run in."""
+    locked = (
+        await conn.execute(
+            text("SELECT id FROM jobs WHERE id = :j AND tenant_id = :t FOR SHARE"),
+            {"j": job_id, "t": tenant_id},
+        )
+    ).first()
+    if locked is None:
+        raise TranscriptNotFoundError
 
 
 def _hit(row: Row[Any]) -> SearchHit:
@@ -82,6 +98,22 @@ class SqlSearchIndex:
     ) -> None:
         async with self._engine.begin() as conn:
             await _set_tenant(conn, tenant_id)
+            await _lock_job(conn, tenant_id, transcript_id)
+            # A re-index of this version replaces its rows in this transaction: no duplicates, and
+            # no chunk left from an earlier run (review finding: config or text changes).
+            replaced = (
+                (
+                    await conn.execute(
+                        text(
+                            "DELETE FROM rag_chunks WHERE tenant_id = :t AND transcript_id = :tr "
+                            "AND transcript_version = :v RETURNING embedding_id"
+                        ),
+                        {"t": tenant_id, "tr": transcript_id, "v": version},
+                    )
+                )
+                .scalars()
+                .all()
+            )
             for embedding_id, vector in vectors.items():
                 await conn.execute(
                     text(
@@ -121,19 +153,51 @@ class SqlSearchIndex:
                         "m": model,
                     },
                 )
+            # Embeddings the replaced rows used and the new rows do not: purged after the inserts,
+            # so an embedding the new rows reuse is kept (the sweep checks for references).
+            await purge_unused_embeddings(conn, tenant_id, sorted(set(replaced)))
 
     async def activate(self, tenant_id: str, transcript_id: str, version: int) -> None:
+        """Make `version` the active one, only if it is newer (D-087).
+
+        Activation is monotonic: a slow index of an older version cannot replace a newer one. After
+        it, the chunks of the other versions are removed, and so are the embeddings nothing uses."""
         async with self._engine.begin() as conn:
             await _set_tenant(conn, tenant_id)
+            await _lock_job(conn, tenant_id, transcript_id)
             await conn.execute(
                 text(
                     "INSERT INTO rag_active (tenant_id, transcript_id, transcript_version) "
                     "VALUES (:t, :tr, :v) "
                     "ON CONFLICT (tenant_id, transcript_id) DO UPDATE "
-                    "SET transcript_version = EXCLUDED.transcript_version"
+                    "SET transcript_version = EXCLUDED.transcript_version "
+                    "WHERE rag_active.transcript_version < EXCLUDED.transcript_version"
                 ),
                 {"t": tenant_id, "tr": transcript_id, "v": version},
             )
+            active = (
+                await conn.execute(
+                    text(
+                        "SELECT transcript_version FROM rag_active "
+                        "WHERE tenant_id = :t AND transcript_id = :tr"
+                    ),
+                    {"t": tenant_id, "tr": transcript_id},
+                )
+            ).scalar_one()
+            dropped = (
+                (
+                    await conn.execute(
+                        text(
+                            "DELETE FROM rag_chunks WHERE tenant_id = :t AND transcript_id = :tr "
+                            "AND transcript_version <> :v RETURNING embedding_id"
+                        ),
+                        {"t": tenant_id, "tr": transcript_id, "v": int(active)},
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            await purge_unused_embeddings(conn, tenant_id, list(dropped))
 
     async def search(
         self,
@@ -202,3 +266,21 @@ class SqlSearchIndex:
                 )
             ).all()
         return tuple(_hit(row) for row in rows)
+
+
+async def purge_unused_embeddings(conn: AsyncConnection, tenant_id: str, ids: list[str]) -> int:
+    """Delete the given embeddings of one tenant that no chunk refers to any more (D-087).
+
+    Only the ids passed in are candidates, so the sweep costs the size of the change, not the index.
+    Run after the chunks that held the ids have been deleted in an earlier statement."""
+    if not ids:
+        return 0
+    result = await conn.execute(
+        text(
+            "DELETE FROM rag_embeddings e WHERE e.tenant_id = :t AND e.embedding_id = ANY(:ids) "
+            "AND NOT EXISTS (SELECT 1 FROM rag_chunks c WHERE c.tenant_id = e.tenant_id "
+            "AND c.embedding_id = e.embedding_id)"
+        ),
+        {"t": tenant_id, "ids": ids},
+    )
+    return int(result.rowcount)

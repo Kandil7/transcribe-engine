@@ -117,6 +117,8 @@ async def list_rag_chunks(
     principal: Annotated[ApiPrincipal, Depends(require_scope("transcribe:read"))],
 ) -> RagChunksOut:
     services = _services(request)
+    if await services.versions.latest(principal.tenant_id, job_id) is None:
+        raise TranscriptNotFoundError
     chunks = await services.index.chunks_of(principal.tenant_id, job_id)
     return RagChunksOut(
         job_id=job_id,

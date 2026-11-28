@@ -1,6 +1,8 @@
 """ASGI entry point for the API in the local runtime (S10).
 
-Run with: `uvicorn transcribe_engine.api_server:create --factory`. Settings: TE_* variables.
+Run with: `uvicorn transcribe_engine.api_server:create --factory --no-access-log`.
+Settings: TE_* variables. The access log is off: a search query is user content and must not reach a
+log sink (D-087).
 """
 
 from fastapi import FastAPI
