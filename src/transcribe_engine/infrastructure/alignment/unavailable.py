@@ -15,6 +15,7 @@ __all__ = ["UnavailableAligner"]
 class UnavailableAligner:
     async def realign(
         self,
+        tenant_id: str,
         transcript_id: str,
         segment_id: str,
         start_ms: int,

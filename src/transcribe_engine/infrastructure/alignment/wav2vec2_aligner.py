@@ -65,6 +65,14 @@ class Wav2Vec2Aligner:
     ) -> tuple[RawWord, ...]:
         start = max(0, chunk.start_sample - chunk.pad_before)
         end = chunk.end_sample + chunk.pad_after
+        return await self.align_span(audio_key, start, end, text)
+
+    async def align_span(
+        self, audio_key: str, start: int, end: int, text: str
+    ) -> tuple[RawWord, ...]:
+        """Word times for `text` inside samples [start, end) of the normalized file (S22).
+
+        The returned times are local: samples from `start`. Callers add `start` to place them."""
         pcm = await read_window_pcm(self._storage, audio_key, start, end)
         samples = np.frombuffer(pcm, dtype="<i2").astype(np.float32) / _PCM_SCALE
         normalized = normalize(text)

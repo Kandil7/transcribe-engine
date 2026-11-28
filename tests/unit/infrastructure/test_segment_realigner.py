@@ -58,7 +58,6 @@ async def _realigner(session: Any, *, with_audio: bool, seconds: float) -> Any:
     return realign.SegmentRealigner(storage, segment_aligner, language="ar")
 
 
-@pytest.mark.xfail(strict=True, reason="S22")
 async def test_words_land_at_their_frames_inside_the_segment() -> None:
     """Frames: pad, a, a, |, |, b, b, pad. "a" covers frames 1-2 and "b" frames 5-6. The
     segment starts at 2 000 ms, so "a" is at 2 020 to 2 060 ms, and "b" at 2 100 to 2 140 ms."""
@@ -73,7 +72,6 @@ async def test_words_land_at_their_frames_inside_the_segment() -> None:
     ]
 
 
-@pytest.mark.xfail(strict=True, reason="S22")
 async def test_a_failing_model_is_unavailable_not_invented_times() -> None:
     from transcribe_engine.application.errors import AlignmentUnavailableError  # noqa: PLC0415
 
@@ -82,7 +80,6 @@ async def test_a_failing_model_is_unavailable_not_invented_times() -> None:
         await realigner.realign(TENANT, JOB, "seg-1", 0, 1_000, "a b")
 
 
-@pytest.mark.xfail(strict=True, reason="S22")
 async def test_missing_audio_is_unavailable() -> None:
     from transcribe_engine.application.errors import AlignmentUnavailableError  # noqa: PLC0415
 

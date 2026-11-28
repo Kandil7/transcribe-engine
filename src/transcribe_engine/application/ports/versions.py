@@ -24,6 +24,7 @@ class TranscriptVersions(Protocol):
 class SegmentAligner(Protocol):
     async def realign(
         self,
+        tenant_id: str,
         transcript_id: str,
         segment_id: str,
         start_ms: int,
