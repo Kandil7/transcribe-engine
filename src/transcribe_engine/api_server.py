@@ -16,4 +16,4 @@ def create() -> FastAPI:
     settings = Settings()
     engine = make_engine(settings.database_url)
     storage = composition.build_storage(settings)
-    return composition.build_app(engine, storage)
+    return composition.build_app(engine, storage, embedder=composition.build_embedder(settings))
