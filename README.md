@@ -1,33 +1,37 @@
 # Transcribe Engine
 
-An Arabic batch speech-to-text platform, built Egyptian-dialect first. You submit an audio or video file,
-and it returns a word-level transcript as JSON, with subtitles in SRT and VTT, plain text, Markdown and CSV.
-Jobs run asynchronously on a Postgres-backed queue, with workers for ingest, speech recognition and webhook
-delivery. Everything runs locally on one machine; no cloud account is needed.
+[![CI](https://github.com/Kandil7/transcribe-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Kandil7/transcribe-engine/actions/workflows/ci.yml)
+![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
 
-- **Status:** the local pipeline runs end to end on a real Arabic clip (upload, ASR, subtitles). Several
-  slices are partial and some decisions are open. See [Status](#status).
-- **Design:** [`docs/design.md`](docs/design.md) (Arabic) is the source of truth. Decisions are in
-  [`docs/DECISIONS.md`](docs/DECISIONS.md) (D-001 onward) and architecture records in [`docs/adr/`](docs/adr/).
+**An Arabic batch speech-to-text platform, built Egyptian-dialect first.**
+
+Submit an audio or video file and get a word-level transcript as JSON, with subtitles (SRT, VTT), plain
+text, Markdown and CSV. Jobs run on a Postgres-backed queue. Everything runs on one machine; no cloud
+account is needed.
+
+| | |
+|---|---|
+| 📈 [Status](#status) | What is built, what is partial, what waits for an owner decision |
+| 🚀 [Quick start](#quick-start-local) | Run it locally in five commands |
+| 🔌 [API](#using-the-api) | Routes, a curl walkthrough, status codes |
+| ⚙️ [Configuration](#configuration) | Every `TE_` setting, grouped |
+| 🧭 [Design](docs/design.md) · [Decisions](docs/DECISIONS.md) · [ADRs](docs/adr/) | Why it is built this way |
+
+> [!IMPORTANT]
+> The local pipeline runs end to end on a real Arabic clip. **Accuracy is not measured yet:** there are no
+> human reference transcripts (R-001). Several slices are partial. See [Status](#status).
 
 ## Contents
 
-- [Features](#features)
-- [Status](#status)
-- [Architecture](#architecture)
-- [Requirements](#requirements)
-- [Quick start (local)](#quick-start-local)
-- [Using the API](#using-the-api)
-- [Output formats and subtitle profiles](#output-formats-and-subtitle-profiles)
-- [Configuration](#configuration)
-- [ASR engines and models](#asr-engines-and-models)
-- [Make targets](#make-targets)
-- [Testing and quality gates](#testing-and-quality-gates)
-- [Repository layout](#repository-layout)
-- [Models, licences and access](#models-licences-and-access)
-- [Data handling and privacy](#data-handling-and-privacy)
-- [Known limitations](#known-limitations)
-- [Contributing and workflow](#contributing-and-workflow)
+| Read | To learn |
+|---|---|
+| [Features](#features) · [Status](#status) | What works today and what does not |
+| [Architecture](#architecture) · [Requirements](#requirements) | How it fits together and what you need |
+| [Quick start](#quick-start-local) · [Using the API](#using-the-api) | Running it and calling it |
+| [Output formats](#output-formats-and-subtitle-profiles) · [Configuration](#configuration) | What comes back, and every switch |
+| [ASR engines](#asr-engines-and-models) · [Make targets](#make-targets) · [Testing](#testing-and-quality-gates) | Models, commands and the quality gate |
+| [Repository](#repository-layout) · [Models and licences](#models-licences-and-access) | Where things live and what is licensed |
+| [Privacy](#data-handling-and-privacy) · [Limitations](#known-limitations) · [Contributing](#contributing-and-workflow) | Data handling, open gaps and workflow |
 
 ## Features
 
@@ -81,10 +85,13 @@ training export (R-013), and the NeMo dependency for Sortformer (R-008).
 
 Layers follow a strict dependency direction, enforced by import-linter:
 
-```
-presentation (FastAPI)  ─┐
-infrastructure (DB, S3, ASR, ML, HTTP) ─┼─▶ application (use cases, ports) ─▶ domain (pure logic)
-main.py: the only composition root ─────┘
+```mermaid
+flowchart LR
+    P[presentation<br/>FastAPI] --> A
+    I[infrastructure<br/>DB, S3, ASR, ML, HTTP] --> A
+    M[main.py<br/>composition root] -.wires.-> P
+    M -.wires.-> I
+    A[application<br/>use cases and ports] --> D[domain<br/>pure logic]
 ```
 
 - **`domain/`** imports only the standard library. It holds the job state machine (`JobState.transition()`
@@ -135,12 +142,15 @@ make demo FILE=path/to/arabic-audio.mp3
 This uploads the file, waits for the job, and writes `out/<job id>.json`. Use the API directly for
 subtitles (see [Using the API](#using-the-api)).
 
-**Windows notes.** Use Git Bash or PowerShell with `make` available. `make seed` keeps the key in
-`.env.local`, which is git-ignored and never read back by the tools. Do not commit it.
+> [!NOTE]
+> **Windows:** use Git Bash or PowerShell with `make` available. `make seed` keeps the key in `.env.local`,
+> which is git-ignored and never read back by the tools.
 
 ### Running the GPU stack on Windows: use WSL2 (D-078)
-On native Windows, the GPU worker crashed when the CPU worker ran alongside it. The stack runs reliably under WSL2 with the
-same GPU. Run the GPU worker in WSL2 (Ubuntu 24.04):
+
+> [!IMPORTANT]
+> On native Windows, the GPU worker crashed when the CPU worker ran alongside it. Under WSL2, with the same GPU,
+> the stack runs reliably. Run the GPU worker in WSL2 (Ubuntu 24.04):
 
 1. Clone the repo inside WSL, then `uv sync --all-groups`.
 2. Install torch from the CUDA index: `uv pip install --index-url https://download.pytorch.org/whl/cu126 "torch==2.14.1"`.
@@ -221,37 +231,54 @@ Reading speed (17 characters per second) is an initial value, pending a viewer t
 
 ## Configuration
 
-Settings are read from environment variables with the `TE_` prefix (see
-[`src/transcribe_engine/infrastructure/settings.py`](src/transcribe_engine/infrastructure/settings.py)).
-Defaults suit local development.
+Settings come from environment variables with the `TE_` prefix. Defaults suit local development. The source of
+truth is [`settings.py`](src/transcribe_engine/infrastructure/settings.py).
+
+**Storage and database**
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `TE_DATABASE_URL` | local Postgres | Owner connection (migrations and workers). |
 | `TE_S3_ENDPOINT_URL`, `TE_S3_ACCESS_KEY`, `TE_S3_SECRET_KEY`, `TE_S3_BUCKET` | local MinIO | Object storage. Local values are throwaway. |
 | `TE_SCRATCH_DIR` | `.scratch` | Ingest and FFmpeg work files (git-ignored). |
+
+**Speech recognition**
+
+| Variable | Default | Purpose |
+|---|---|---|
 | `TE_ASR_ENGINE` | `whisper_local` | `whisper_local`, `cohere_local`, `vllm` or `plumbing` (tests only). |
-| `TE_ASR_MODEL_ID` | `openai/whisper-large-v3-turbo` | Local Whisper model (repository id, never a path). |
+| `TE_ASR_MODEL_ID` | `openai/whisper-large-v3-turbo` | Local Whisper model (a repository id, never a path). |
 | `TE_ASR_DEVICE` | unset | `cuda` or `cpu`. Unset: CUDA when torch sees a GPU. |
 | `TE_VLLM_URL` | `http://vllm:8000` | The vLLM service (compose profile `asr-gpu`). |
 | `TE_VLLM_MODEL` | `CohereLabs/cohere-transcribe-arabic-07-2026` | Production model served by vLLM (D-067). |
 | `TE_ALIGNER_MODEL_ID` | `parseh/aligner-ar` | Arabic forced aligner (D-070). |
 | `TE_ALIGNER_REVISION` | pinned 40-character commit | Aligner revision; never a branch name. |
+
+**Pipeline**
+
+| Variable | Default | Purpose |
+|---|---|---|
 | `TE_CHUNK_MAX_MS` | `30000` | Longest chunk (ms). |
 | `TE_CHUNK_PAD_MS` | `500` | Padding either side of a chunk. |
 | `TE_CHUNK_OVERLAP_MS` | `1500` | Context shared by fixed windows. |
 | `TE_ASR_CONCURRENCY` | `32` | Chunks in flight per job. |
-| `TE_SECRET_KEY` | unset | Base64 of 32 random bytes. Seals webhook signing secrets (D-082). Without it, no webhook is delivered. |
-| `TE_SEARCH_ENABLED` | `false` | Turns on search: loads the bge-m3 embedder from the local cache (D-079). Off, the search routes answer 503. |
-| `TE_REALIGN_ENABLED` | `false` | The API loads the wav2vec2 aligner so a correction that changes a segment gets real word times (D-092). Off, such edits answer 503. |
 | `TE_LEASE_SECONDS` | `120` | Job lease length. |
 | `TE_POLL_SECONDS` | `1.0` | Idle wait between claim attempts. |
+
+**Optional features** (off by default, so the models load only when you turn them on)
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `TE_SECRET_KEY` | unset | Base64 of 32 random bytes. Seals webhook signing secrets (D-082). Without it, no webhook is delivered. |
+| `TE_SEARCH_ENABLED` | `false` | Loads the bge-m3 embedder from the local cache (D-079). Off, the search routes answer `503`. |
+| `TE_REALIGN_ENABLED` | `false` | The API loads the wav2vec2 aligner, so a correction that changes a segment gets real word times (D-092). Off, such edits answer `503`. |
 
 Create a webhook signing secret for a tenant with `uv run python scripts/webhook_secret.py <tenant_id>`; it prints the
 secret once. Generate the key once, for example `python -c "import secrets,base64;print(base64.b64encode(secrets.token_bytes(32)).decode())"`.
 
-Never commit `.env`, `.env.local` or any key. The model access token for gated repositories is read from
-`HF_TOKEN` in the environment.
+> [!WARNING]
+> Never commit `.env`, `.env.local` or any key. The token for gated model repositories is read from
+> `HF_TOKEN` in the environment.
 
 ## ASR engines and models
 
