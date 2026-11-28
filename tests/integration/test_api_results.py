@@ -43,7 +43,6 @@ def _segments_with_pauses(segment_count: int, seconds_each: int, pause_ms: int) 
     return words
 
 
-@pytest.mark.xfail(strict=True, reason="S19")
 async def test_youtube_chapters_format(app_url: str, minio: object) -> None:
     merge = _mod("transcribe_engine.domain.merge")
     uow_mod = _mod("transcribe_engine.infrastructure.db.uow")

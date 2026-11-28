@@ -18,6 +18,7 @@ from transcribe_engine.application.ports.repositories import UnitOfWork
 from transcribe_engine.application.ports.search import Embedder
 from transcribe_engine.application.ports.storage import ObjectStorage
 from transcribe_engine.application.ports.versions import SegmentAligner
+from transcribe_engine.application.use_cases.get_chapters import GetChapters
 from transcribe_engine.application.use_cases.ingest_job import IngestJob
 from transcribe_engine.application.use_cases.prepare_chunks import PrepareChunks
 from transcribe_engine.application.use_cases.process_job import ProcessJob
@@ -31,6 +32,7 @@ from transcribe_engine.infrastructure.asr.plumbing import PlumbingASR
 from transcribe_engine.infrastructure.asr.vllm_client import VllmASR, VllmClient
 from transcribe_engine.infrastructure.asr.whisper_local import WhisperLocalASR
 from transcribe_engine.infrastructure.clock import SystemClock
+from transcribe_engine.infrastructure.db.artifacts import SqlArtifactStore
 from transcribe_engine.infrastructure.db.outbox import SqlOutboxStore, SqlWebhookSecrets
 from transcribe_engine.infrastructure.db.uow import SqlUnitOfWork
 from transcribe_engine.infrastructure.db.versions import SqlTranscriptVersions
@@ -85,8 +87,14 @@ def build_app(
         if embedder is not None
         else None
     )
+    chapters = GetChapters(versions, SqlArtifactStore(engine))
     return create_app(
-        make_uow, storage, SystemClock(), save_correction=save.__call__, search=search
+        make_uow,
+        storage,
+        SystemClock(),
+        save_correction=save.__call__,
+        search=search,
+        chapters=chapters,
     )
 
 

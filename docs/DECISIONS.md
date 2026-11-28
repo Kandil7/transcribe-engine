@@ -1384,6 +1384,19 @@ larger change than this slice.
 Reversibility: moderate (the route keeps its contract when a worker runs the same use case). Confidence: medium.
 Review: the owner should decide whether indexing moves to a worker before long files are common (R-016, REVIEW_QUEUE).
 
+## D-090 — Chapters: by rule, stored as an artifact, computed on the first request
+Date: 2026-11-28 · Slice: S19 · Status: decided · Review: none
+Context: S19 AC-6 wants a chapters endpoint. D-081 chose no LLM in v1, so chapters come from the transcript's pauses.
+Decision: a chapter closes at a pause of at least 2 seconds once the chapter is at least 30 seconds long; the first chapter
+starts at 0; each title is the first six words of the chapter. The result is stored as an artifact (kind chapters, model
+rule-chapters, model version 1). The first request for a transcript version derives and stores it; later requests read the
+stored row. No background enrichment runs in v1: the enrichment event waits for S20. The YouTube format needs at least
+three chapters (YouTube's rule) and answers 422 otherwise. Summaries, entities and questions are not built (they need an LLM,
+D-081, R-010).
+Rationale: a rule the owner can read is safer than a model whose output is not measured. Storing the result keeps a later
+rule version from changing an old answer under the same key.
+Reversibility: easy (a new model version is a new row). Confidence: medium.
+
 ## Blocked by the owner (not decided by the autopilot)
 - R-001 (human reference hour): S14 AC-3, S16 measurements, S17 AC-5 DER test stay open. No ground truth exists.
 - R-004 (routing-model licences, singing classifier scope): S13 stays partial.
