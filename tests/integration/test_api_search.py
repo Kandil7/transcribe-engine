@@ -99,6 +99,12 @@ async def test_hit_carries_media_span_and_deeplink(app_url: str, minio: object) 
             assert hit["end_ms"] == 5_000 + 19 * 400 + 350
             assert hit["deeplink"] == f"/media/{media_id}?t=5"
 
+            listed = await client.get(f"/v1/transcriptions/{job_id}/rag-chunks", headers=auth(key))
+            assert listed.status_code == 200
+            chunks = listed.json()["chunks"]
+            assert [c["start_ms"] for c in chunks] == [5_000]
+            assert "beta" in chunks[0]["body"], "the owner lists its own chunks (positive control)"
+
             none = (
                 await client.get("/v1/search", params={"q": "zzznever"}, headers=auth(key))
             ).json()["hits"]

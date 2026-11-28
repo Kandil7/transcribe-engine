@@ -42,13 +42,16 @@ async def test_reindex_skips_unchanged() -> None:
     service = index_mod.IndexTranscript(embedder=embedder, index=index)
 
     first = await service(_transcript(version=1), tenant_id="tenant-a")
-    assert first.embedded > 0
+    assert first.embedded == first.chunks == 3
     embedded_after_first = embedder.texts_embedded
 
     unchanged = await service(_transcript(version=2), tenant_id="tenant-a")
     assert unchanged.embedded == 0
+    assert unchanged.reused == 3
     assert embedder.texts_embedded == embedded_after_first
 
     edited = await service(_transcript(edit_tail=True, version=3), tenant_id="tenant-a")
-    assert 0 < edited.embedded < first.embedded
+    # Only the last chunk holds an edited word (words 980 and on): one embedding, two reused.
+    assert edited.embedded == 1
+    assert edited.reused == 2
     assert index.active[("tenant-a", "job-s18")] == 3
